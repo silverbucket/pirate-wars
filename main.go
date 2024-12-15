@@ -8,8 +8,8 @@ import (
 	"math/rand"
 	"os"
 	"pirate-wars/cmd/avatar"
+	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/terrain"
-	"time"
 )
 
 type model struct {
@@ -87,7 +87,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				targetY := m.avatar.GetY() - 1
 				targetX := m.avatar.GetX() - 1
 				if m.world[targetX][targetY].IsPassableByBoat() {
-					m.avatar.SetXY(avatar.Coordinates{X: targetX, Y: targetY})
+					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 
@@ -97,7 +97,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				targetY := m.avatar.GetY() + 1
 				targetX := m.avatar.GetX() - 1
 				if m.world[targetX][targetY].IsPassableByBoat() {
-					m.avatar.SetXY(avatar.Coordinates{X: targetX, Y: targetY})
+					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 
@@ -107,7 +107,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				targetY := m.avatar.GetY() - 1
 				targetX := m.avatar.GetX() + 1
 				if m.world[targetX][targetY].IsPassableByBoat() {
-					m.avatar.SetXY(avatar.Coordinates{X: targetX, Y: targetY})
+					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 
@@ -117,7 +117,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				targetY := m.avatar.GetY() + 1
 				targetX := m.avatar.GetX() + 1
 				if m.world[targetX][targetY].IsPassableByBoat() {
-					m.avatar.SetXY(avatar.Coordinates{X: targetX, Y: targetY})
+					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 
@@ -143,11 +143,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func findStartingPosition(world terrain.World) avatar.Coordinates {
-	rand.Seed(time.Now().UnixNano())
+func findStartingPosition(world terrain.World) common.Coordinates {
 	for {
-		coords := avatar.Coordinates{X: rand.Intn(terrain.WorldWidth), Y: rand.Intn(terrain.WorldHeight)}
-		if world[coords.X][coords.Y] == terrain.TypeDeepWater {
+		coords := common.Coordinates{X: rand.Intn(common.WorldWidth), Y: rand.Intn(common.WorldHeight)}
+		if world[coords.X][coords.Y] == common.TypeDeepWater {
 			return coords
 		}
 	}
@@ -164,7 +163,7 @@ func main() {
 	}
 
 	t := terrain.Init()
-	world := t.GenerateWorld()
+	world := t.Generate()
 	// ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 	if _, err := tea.NewProgram(model{
 		world:   world,

@@ -6,39 +6,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/ojrac/opensimplex-go"
-	"math"
 	"math/rand"
 	"pirate-wars/cmd/avatar"
+	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/town"
 )
 
 // Icon ideas
 // Towns: ⩎
 // Boats: ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 // People: 옷
-
-const (
-	WorldWidth       = 600
-	WorldHeight      = 600
-	ViewWidth        = 75
-	ViewHeight       = 50
-	BufferWidth      = 21
-	BufferHeight     = 26
-	MiniMapFactor    = 11
-	TypeDeepWater    = 0
-	TypeOpenWater    = 1
-	TypeShallowWater = 2
-	TypeBeach        = 3
-	TypeLowland      = 4
-	TypeHighland     = 5
-	TypeRock         = 6
-	TypePeak         = 7
-)
-
-type ViewPort struct {
-	width   int
-	height  int
-	topLeft int
-}
 
 type Terrain struct {
 	width       int
@@ -59,14 +36,15 @@ type TypeQualities struct {
 }
 
 var TypeLookup = map[Type]TypeQualities{
-	TypeDeepWater:    {symbol: '⏖', style: createTerrainItem("18"), Passable: true, RequiresBoat: true},
-	TypeOpenWater:    {symbol: '⏝', style: createTerrainItem("20"), Passable: true, RequiresBoat: true},
-	TypeShallowWater: {symbol: '⏑', style: createTerrainItem("26"), Passable: true, RequiresBoat: true},
-	TypeBeach:        {symbol: '~', style: createTerrainItem("#dad1ad"), Passable: true, RequiresBoat: false},
-	TypeLowland:      {symbol: ':', style: createTerrainItem("113"), Passable: true, RequiresBoat: false},
-	TypeHighland:     {symbol: ':', style: createTerrainItem("142"), Passable: true, RequiresBoat: false},
-	TypeRock:         {symbol: '%', style: createTerrainItem("244"), Passable: true, RequiresBoat: false},
-	TypePeak:         {symbol: '^', style: createTerrainItem("15"), Passable: false, RequiresBoat: false},
+	common.TypeDeepWater:    {symbol: '⏖', style: createTerrainItem("18"), Passable: true, RequiresBoat: true},
+	common.TypeOpenWater:    {symbol: '⏝', style: createTerrainItem("20"), Passable: true, RequiresBoat: true},
+	common.TypeShallowWater: {symbol: '⏑', style: createTerrainItem("26"), Passable: true, RequiresBoat: true},
+	common.TypeBeach:        {symbol: '~', style: createTerrainItem("#dad1ad"), Passable: true, RequiresBoat: false},
+	common.TypeLowland:      {symbol: ':', style: createTerrainItem("113"), Passable: true, RequiresBoat: false},
+	common.TypeHighland:     {symbol: ':', style: createTerrainItem("142"), Passable: true, RequiresBoat: false},
+	common.TypeRock:         {symbol: '%', style: createTerrainItem("244"), Passable: true, RequiresBoat: false},
+	common.TypePeak:         {symbol: '^', style: createTerrainItem("15"), Passable: false, RequiresBoat: false},
+	common.TypeTown:         {symbol: '⩎', style: createTerrainItem("0"), Passable: true, RequiresBoat: false},
 }
 
 type World [][]Type
@@ -78,8 +56,8 @@ func createTerrainItem(color lipgloss.Color) lipgloss.Style {
 func Init() *Terrain {
 	//default values for terrain map generation
 	t := Terrain{
-		width:       WorldWidth,
-		height:      WorldHeight,
+		width:       common.WorldWidth,
+		height:      common.WorldHeight,
 		scale:       60,
 		lacunarity:  2.0,
 		persistence: 0.5,
@@ -99,11 +77,29 @@ func (tt Type) IsPassableByBoat() bool {
 	return false
 }
 
-func (t *Terrain) GenerateWorld() World {
+func GenerateTowns(world World, count int) {
+	for i := 0; i <= count; i++ {
+		for {
+			coords := common.Coordinates{X: min(rand.Intn(common.WorldWidth-5), 5), Y: min(rand.Intn(common.WorldHeight-5), 5)}
+			if coords.X > 1 && coords.Y > 1 &&
+				coords.X < common.WorldWidth-1 && coords.Y < common.WorldHeight &&
+				world[coords.X][coords.Y] == common.TypeBeach &&
+				(world[coords.X+1][coords.Y] == common.TypeShallowWater ||
+					world[coords.X][coords.Y+1] == common.TypeShallowWater ||
+					world[coords.X-1][coords.Y] == common.TypeShallowWater ||
+					world[coords.X][coords.Y-1] == common.TypeShallowWater) {
+				town.Create(coords, '⩎')
+				break
+			}
+		}
+	}
+}
+
+func (t *Terrain) Generate() World {
 	//var world [WorldWidth][WorldHeight]Type
-	world := make([][]Type, WorldHeight)
+	world := make([][]Type, common.WorldHeight)
 	for i := range world {
-		world[i] = make([]Type, WorldHeight)
+		world[i] = make([]Type, common.WorldHeight)
 	}
 
 	noise := opensimplex.New(rand.Int63())
@@ -131,23 +127,28 @@ func (t *Terrain) GenerateWorld() World {
 			//normalize to -1 to 1, and then from 0 to 1 (this is for the ability to use grayscale, if using colors could keep from -1 to 1)
 			var s = (total/normalizeOctaves + 1) / 2
 			if s > 0.60 {
-				world[x][y] = TypeDeepWater
+				world[x][y] = common.TypeDeepWater
 			} else if s > 0.46 {
-				world[x][y] = TypeOpenWater
+				world[x][y] = common.TypeOpenWater
 			} else if s > 0.42 {
-				world[x][y] = TypeShallowWater
+				world[x][y] = common.TypeShallowWater
 			} else if s > 0.40 {
-				world[x][y] = TypeBeach
+				world[x][y] = common.TypeBeach
 			} else if s > 0.31 {
-				world[x][y] = TypeLowland
+				world[x][y] = common.TypeLowland
 			} else if s > 0.26 {
-				world[x][y] = TypeHighland
+				world[x][y] = common.TypeHighland
 			} else if s > 0.21 {
-				world[x][y] = TypeRock
+				world[x][y] = common.TypeRock
 			} else {
-				world[x][y] = TypePeak
+				world[x][y] = common.TypePeak
 			}
 		}
+	}
+
+	GenerateTowns(world, common.TotalTowns)
+	for _, o := range town.List {
+		world[o.GetX()][o.GetY()] = common.TypeTown
 	}
 
 	return world
@@ -164,8 +165,8 @@ func GetType(i int) (Type, error) {
 
 func (world World) RenderMiniMap() World {
 	// Calculate new dimensions
-	height := len(world) / MiniMapFactor
-	width := len(world[0]) / MiniMapFactor
+	height := len(world) / common.MiniMapFactor
+	width := len(world[0]) / common.MiniMapFactor
 
 	// Create new 2D slice
 	newArr := make([][]Type, height+1)
@@ -177,8 +178,8 @@ func (world World) RenderMiniMap() World {
 	for i, row := range world {
 		for j, val := range row {
 			// Calculate corresponding index in new slice
-			newI := i / MiniMapFactor
-			newJ := j / MiniMapFactor
+			newI := i / common.MiniMapFactor
+			newJ := j / common.MiniMapFactor
 
 			// Assign original value
 			newArr[newI][newJ] = val
@@ -196,18 +197,22 @@ func (world World) Paint(avatar avatar.Type, isMiniMap bool) string {
 	viewHeight := worldHeight
 	viewWidth := worldWidth
 	rowWidth := worldWidth
-	avatarCoordsX := avatar.GetX()
-	avatarCoordsY := avatar.GetY()
+	avatarX := avatar.GetX()
+	avatarY := avatar.GetY()
 
-	if !isMiniMap {
-		left = int(math.Max(float64(avatar.GetX()-ViewWidth+BufferWidth), 0))
-		top = int(math.Max(float64(avatar.GetY()-ViewHeight+BufferHeight), 0))
-		viewHeight = ViewHeight + top
-		viewWidth = ViewWidth + left
-		rowWidth = ViewWidth
+	if isMiniMap {
+		avatarX = avatar.GetMiniMapX()
+		avatarY = avatar.GetMiniMapY()
+		for _, o := range town.List {
+			world[o.GetMiniMapX()][o.GetMiniMapY()] = common.TypeTown
+		}
 	} else {
-		avatarCoordsX = avatarCoordsX / MiniMapFactor
-		avatarCoordsY = avatarCoordsY / MiniMapFactor
+		// center viewport on avatar
+		left = avatar.GetX() - (common.ViewWidth / 2)
+		top = avatar.GetY() - (common.ViewHeight / 2)
+		viewHeight = common.ViewHeight + top
+		viewWidth = common.ViewWidth + left
+		rowWidth = common.ViewWidth
 	}
 
 	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
@@ -215,10 +220,10 @@ func (world World) Paint(avatar avatar.Type, isMiniMap bool) string {
 	for y := top; y < worldHeight && y < viewHeight; y++ {
 		var row = make([]string, rowWidth)
 		for x := left; x < worldWidth && x < viewWidth; x++ {
-			//fmt.Println("[%v %v == %v %v]", x, y, avatarCoordsX, avatarCoordsY)
-			if x == avatarCoordsX && y == avatarCoordsY {
+			if x == avatarX && y == avatarY {
 				row[x-left] = avatar.Render()
 			} else {
+				//fmt.Printf("[%v , %v , %v ]\n", x, y, x-left)
 				row[x-left] = world[x][y].Render()
 			}
 		}
