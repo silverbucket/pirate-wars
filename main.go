@@ -3,21 +3,22 @@ package main
 import (
 	"fmt"
 	"github.com/charmbracelet/bubbletea"
-	"github.com/davecgh/go-spew/spew"
-	"io"
-	"math/rand"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"os"
 	"pirate-wars/cmd/avatar"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/terrain"
 )
 
+const BASE_LOG_LEVEL = zap.DebugLevel
+const DEV_MODE = true
+
 type model struct {
-	world        terrain.World
+	logger       *zap.SugaredLogger
+	terrain      terrain.Terrain
 	avatar       avatar.Type
-	miniMap      terrain.World
 	printMiniMap bool
-	dump         io.Writer
 }
 
 func (m model) Init() tea.Cmd {
@@ -27,9 +28,9 @@ func (m model) Init() tea.Cmd {
 
 func (m model) View() string {
 	if m.printMiniMap {
-		return m.miniMap.Paint(m.avatar, true)
+		return m.terrain.MiniMap.Paint(&m.avatar)
 	} else {
-		return m.world.Paint(m.avatar, false)
+		return m.terrain.World.Paint(&m.avatar)
 	}
 }
 
@@ -39,8 +40,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	// Is it a key press?
 	case tea.KeyMsg:
-
-		spew.Fdump(m.dump, msg)
 		// Cool, what was the actual key pressed?
 		switch msg.String() {
 		// These keys should exit the program.
@@ -50,15 +49,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "left", "h":
 			if m.avatar.GetX() > 0 {
 				target := m.avatar.GetX() - 1
-				if m.world[target][m.avatar.GetY()].IsPassableByBoat() {
+				if m.terrain.World.IsPassableByBoat(common.Coordinates{
+					X: target,
+					Y: m.avatar.GetY(),
+				}) {
 					m.avatar.SetX(target)
 				}
 			}
 
 		case "right", "l":
-			if m.avatar.GetX() < len(m.world[m.avatar.GetY()])-1 {
+			if m.avatar.GetX() < m.terrain.World.GetWidth()-1 {
 				target := m.avatar.GetX() + 1
-				if m.world[target][m.avatar.GetY()].IsPassableByBoat() {
+				if m.terrain.World.IsPassableByBoat(common.Coordinates{
+					X: target,
+					Y: m.avatar.GetY(),
+				}) {
 					m.avatar.SetX(target)
 				}
 			}
@@ -67,16 +72,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k":
 			if m.avatar.GetY() > 0 {
 				target := m.avatar.GetY() - 1
-				if m.world[m.avatar.GetX()][target].IsPassableByBoat() {
+				if m.terrain.World.IsPassableByBoat(common.Coordinates{
+					X: m.avatar.GetX(),
+					Y: target,
+				}) {
 					m.avatar.SetY(target)
 				}
 			}
 
 		// The "down" and "j" keys move the cursor down
 		case "down", "j":
-			if m.avatar.GetY() < len(m.world)-1 {
+			if m.avatar.GetY() < m.terrain.World.GetHeight()-1 {
 				target := m.avatar.GetY() + 1
-				if m.world[m.avatar.GetX()][target].IsPassableByBoat() {
+				if m.terrain.World.IsPassableByBoat(common.Coordinates{
+					X: m.avatar.GetX(),
+					Y: target,
+				}) {
 					m.avatar.SetY(target)
 				}
 			}
@@ -86,37 +97,49 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.avatar.GetY() > 0 && m.avatar.GetX() > 0 {
 				targetY := m.avatar.GetY() - 1
 				targetX := m.avatar.GetX() - 1
-				if m.world[targetX][targetY].IsPassableByBoat() {
+				if m.terrain.World.IsPassableByBoat(common.Coordinates{
+					X: targetX,
+					Y: targetY,
+				}) {
 					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 
 		// The "down+left" and "b" keys move the cursor diagonal down+left
 		case "down+left", "b":
-			if m.avatar.GetY() < len(m.world)-1 && m.avatar.GetX() > 0 {
+			if m.avatar.GetY() < m.terrain.World.GetHeight()-1 && m.avatar.GetX() > 0 {
 				targetY := m.avatar.GetY() + 1
 				targetX := m.avatar.GetX() - 1
-				if m.world[targetX][targetY].IsPassableByBoat() {
+				if m.terrain.World.IsPassableByBoat(common.Coordinates{
+					X: targetX,
+					Y: targetY,
+				}) {
 					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 
 		// The "upright" and "u" keys move the cursor diagonal up+left
 		case "up+right", "u":
-			if m.avatar.GetY() > 0 && m.avatar.GetX() < len(m.world[m.avatar.GetY()])-1 {
+			if m.avatar.GetY() > 0 && m.avatar.GetX() < m.terrain.World.GetWidth()-1 {
 				targetY := m.avatar.GetY() - 1
 				targetX := m.avatar.GetX() + 1
-				if m.world[targetX][targetY].IsPassableByBoat() {
+				if m.terrain.World.IsPassableByBoat(common.Coordinates{
+					X: targetX,
+					Y: targetY,
+				}) {
 					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 
 		// The "downright" and "n" keys move the cursor diagonal down+left
 		case "down+right", "n":
-			if m.avatar.GetY() < len(m.world)-1 && m.avatar.GetX() < len(m.world[m.avatar.GetY()])-1 {
+			if m.avatar.GetY() < m.terrain.World.GetHeight()-1 && m.avatar.GetX() < m.terrain.World.GetWidth()-1 {
 				targetY := m.avatar.GetY() + 1
 				targetX := m.avatar.GetX() + 1
-				if m.world[targetX][targetY].IsPassableByBoat() {
+				if m.terrain.World.IsPassableByBoat(common.Coordinates{
+					X: targetX,
+					Y: targetY,
+				}) {
 					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
@@ -135,43 +158,56 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//	m.selected[m.cursor] = struct{}{}
 			//}
 		}
-		//spew.Fdump(m.dump, fmt.Sprintf("x:%v y:%v", m.avatar.GetX(), m.avatar.GetY()))
 	}
+
+	m.logger.Debug(fmt.Sprintf("moving to x:%v y:%v", m.avatar.GetX(), m.avatar.GetY()))
 
 	// Return the updated model to the Bubble Tea runtime for processing.
 	// Note that we're not returning a command.
 	return m, nil
 }
 
-func findStartingPosition(world terrain.World) common.Coordinates {
-	for {
-		coords := common.Coordinates{X: rand.Intn(common.WorldWidth), Y: rand.Intn(common.WorldHeight)}
-		if world[coords.X][coords.Y] == common.TypeDeepWater {
-			return coords
-		}
+func createLogger() *zap.SugaredLogger {
+	// truncate file
+	configFile, err := os.OpenFile(common.LogFile, os.O_TRUNC, 0664)
+	if err != nil {
+		panic(err)
 	}
+	if err = configFile.Close(); err != nil {
+		panic(err)
+	}
+	// create logger
+	cfg := zap.NewProductionConfig()
+	cfg.OutputPaths = []string{common.LogFile}
+	cfg.Level = zap.NewAtomicLevelAt(BASE_LOG_LEVEL)
+	cfg.Development = DEV_MODE
+	cfg.DisableCaller = false
+	cfg.DisableStacktrace = false
+	cfg.Encoding = "console"
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	cfg.EncoderConfig = encoderConfig
+	logger := zap.Must(cfg.Build())
+	defer logger.Sync()
+	return logger.Sugar()
 }
 
 func main() {
-	var dump *os.File
-	if _, ok := os.LookupEnv("DEBUG"); ok {
-		var err error
-		dump, err = os.OpenFile("pirate-wars.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
-		if err != nil {
-			os.Exit(1)
-		}
-	}
+	logger := createLogger()
+	logger.Info("Starting...")
 
-	t := terrain.Init()
-	world := t.Generate()
+	t := terrain.Init(logger)
+	t.GenerateWorld()
+	t.GenerateTowns()
+
 	// ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 	if _, err := tea.NewProgram(model{
-		world:   world,
-		miniMap: world.RenderMiniMap(),
-		avatar:  avatar.Create(findStartingPosition(world), '⏏'),
-		dump:    dump,
+		logger:  logger,
+		terrain: *t,
+		avatar:  avatar.Create(t.RandomPositionDeepWater(), '⏏'),
 	}, tea.WithAltScreen()).Run(); err != nil {
-		fmt.Printf("Uh oh, there was an error: %v\n", err)
+		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
+	logger.Info("Exiting...")
 }
