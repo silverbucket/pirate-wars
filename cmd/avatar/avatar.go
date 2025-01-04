@@ -3,20 +3,20 @@ package avatar
 import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
+	"pirate-wars/cmd/common"
 )
 
-type Coordinates struct {
-	X int
-	Y int
-}
-
 type Type struct {
-	pos  Coordinates
+	pos  common.Coordinates
 	char rune
 }
 
 func (a *Type) GetX() int {
 	return a.pos.X
+}
+
+func (a *Type) GetMiniMapX() int {
+	return a.pos.X / common.MiniMapFactor
 }
 
 func (a *Type) SetX(x int) {
@@ -27,11 +27,15 @@ func (a *Type) GetY() int {
 	return a.pos.Y
 }
 
+func (a *Type) GetMiniMapY() int {
+	return a.pos.Y / common.MiniMapFactor
+}
+
 func (a *Type) SetY(y int) {
 	a.pos.Y = y
 }
 
-func (a *Type) SetXY(c Coordinates) {
+func (a *Type) SetXY(c common.Coordinates) {
 	a.pos.X = c.X
 	a.pos.Y = c.Y
 }
@@ -46,6 +50,6 @@ func (a *Type) Render() string {
 			Render("%c"), a.char)
 }
 
-func Create(coordinates Coordinates, c rune) Type {
+func Create(coordinates common.Coordinates, c rune) Type {
 	return Type{pos: coordinates, char: c}
 }
