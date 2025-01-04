@@ -120,24 +120,16 @@ func (t *Terrain) generateTowns(fn func() common.Coordinates) {
 	for i := 0; i <= common.TotalTowns; i++ {
 		for {
 			coords := fn()
-			adjacentCoords := t.World.GetAdjacentCoords(coords)
 			if coords.X > 1 && coords.Y > 1 &&
 				coords.X < common.WorldWidth-1 && coords.Y < common.WorldHeight &&
 				t.World.grid[coords.X][coords.Y] == common.TypeBeach {
 
-				isAdjacentWater := false
-				for _, a := range adjacentCoords {
-					if t.World.grid[a.X][a.Y] == common.TypeShallowWater {
-						isAdjacentWater = true
-						break
-					}
-				}
-				if isAdjacentWater {
+				if t.World.isAdjacentToWater(coords) {
 					town.Create(coords, '⩎')
 					t.World.grid[coords.X][coords.Y] = common.TypeTown
 					// grow towns
-					for _, a := range adjacentCoords {
-						if t.World.grid[a.X][a.Y] == common.TypeLowland || t.World.grid[a.X][a.Y] == common.TypeBeach {
+					for _, a := range t.World.GetAdjacentCoords(coords) {
+						if (t.World.grid[a.X][a.Y] == common.TypeLowland || t.World.grid[a.X][a.Y] == common.TypeBeach) && t.World.isAdjacentToWater(a) {
 							t.World.grid[a.X][a.Y] = common.TypeTown
 						}
 					}
@@ -242,6 +234,18 @@ type AvatarReadOnly interface {
 
 func (world MapView) GetTerrainType(x int, y int) TerrainType {
 	return world.grid[x][y]
+}
+
+func (world MapView) isAdjacentToWater(coords common.Coordinates) bool {
+	adjacentCoords := world.GetAdjacentCoords(coords)
+	isAdjacentWater := false
+	for _, a := range adjacentCoords {
+		if world.grid[a.X][a.Y] == common.TypeShallowWater {
+			isAdjacentWater = true
+			break
+		}
+	}
+	return isAdjacentWater
 }
 
 func (world MapView) GetAdjacentCoords(coords common.Coordinates) []common.Coordinates {
