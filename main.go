@@ -34,9 +34,7 @@ func (m model) View() string {
 	}
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	m.printMiniMap = false
-
+func (m model) miniMapKeyBindings(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	// Is it a key press?
 	case tea.KeyMsg:
@@ -45,6 +43,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// These keys should exit the program.
 		case "ctrl+c", "q":
 			return m, tea.Quit
+
+		// The "m" key toggles the minimap
+		case "m", "enter":
+			m.printMiniMap = false
+		}
+	}
+	return m, nil
+}
+
+func (m model) mapKeyBindings(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	// Is it a key press?
+	case tea.KeyMsg:
+		// Cool, what was the actual key pressed?
+		switch msg.String() {
+		// These keys should exit the program.
+		case "ctrl+c", "q":
+			return m, tea.Quit
+
+		// The "m" key displays the minimap
+		case "m":
+			m.printMiniMap = true
 
 		case "left", "h":
 			if m.avatar.GetX() > 0 {
@@ -143,28 +163,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
-
-		// The "m" key displays the minimap
-		case "m":
-			m.printMiniMap = true
-
-		// The "enter" key and the spacebar (a literal space) toggle
-		// the selected state for the item that the cursor is pointing at.
-		case "enter", " ":
-			//_, ok := m.selected[m.cursor]
-			//if ok {
-			//	delete(m.selected, m.cursor)
-			//} else {
-			//	m.selected[m.cursor] = struct{}{}
-			//}
 		}
 	}
-
 	m.logger.Debug(fmt.Sprintf("moving to x:%v y:%v", m.avatar.GetX(), m.avatar.GetY()))
-
-	// Return the updated model to the Bubble Tea runtime for processing.
-	// Note that we're not returning a command.
 	return m, nil
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.printMiniMap {
+		return m.miniMapKeyBindings(msg)
+	} else {
+		return m.mapKeyBindings(msg)
+	}
 }
 
 func createLogger() *zap.SugaredLogger {

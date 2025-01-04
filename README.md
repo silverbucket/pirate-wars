@@ -7,6 +7,7 @@ A pirate-themed roguelike, written in Go.
 * Move around in your boat
 * Explore the map
 * Visit towns (currently you cannot enter them)
+* View mini-map (`m`)
 
 ## Todo
 
