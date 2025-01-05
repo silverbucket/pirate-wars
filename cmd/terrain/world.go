@@ -5,7 +5,6 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 	"go.uber.org/zap"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/town"
 )
 
 type MapView struct {
@@ -64,7 +63,7 @@ func (world MapView) GetHeight() int {
 	return len(world.grid)
 }
 
-func (world MapView) Paint(avatar AvatarReadOnly) string {
+func (world MapView) Paint(a AvatarReadOnly) string {
 	left := 0
 	top := 0
 	worldHeight := len(world.grid)
@@ -72,13 +71,13 @@ func (world MapView) Paint(avatar AvatarReadOnly) string {
 	viewHeight := worldHeight
 	viewWidth := worldWidth
 	rowWidth := worldWidth
-	avatarX := avatar.GetX()
-	avatarY := avatar.GetY()
+	avatarX := a.GetX()
+	avatarY := a.GetY()
 
 	if world.isMiniMap {
-		avatarX = avatar.GetMiniMapX()
-		avatarY = avatar.GetMiniMapY()
-		for _, o := range town.List {
+		avatarX = a.GetMiniMapX()
+		avatarY = a.GetMiniMapY()
+		for _, o := range Towns {
 			world.grid[o.GetMiniMapX()][o.GetMiniMapY()] = TypeTown
 		}
 	} else {
@@ -98,14 +97,24 @@ func (world MapView) Paint(avatar AvatarReadOnly) string {
 
 	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
 
-	world.logger.Debug(fmt.Sprintf("avatar position:  X:%v Y:%v", avatarX, avatarY))
-	world.logger.Debug(fmt.Sprintf("viewport:  top:%v left:%v", top, left))
-	world.logger.Debug(fmt.Sprintf("world:  height:%v width:%v", worldHeight, worldWidth))
+	overlay := make(map[string]AvatarReadOnly)
+	overlay[fmt.Sprintf("%v%v", avatarX, avatarY)] = a
+	if !world.isMiniMap {
+		// on the world map we draw the npcs
+		for _, n := range NPCs {
+			overlay[fmt.Sprintf("%v%v", n.GetX(), n.GetY())] = &n
+		}
+	}
+
+	//world.logger.Debug(fmt.Sprintf("avatar position:  X:%v Y:%v", avatarX, avatarY))
+	//world.logger.Debug(fmt.Sprintf("viewport:  top:%v left:%v", top, left))
+	//world.logger.Debug(fmt.Sprintf("world:  height:%v width:%v", worldHeight, worldWidth))
 	for y := top; y < worldHeight && y < viewHeight; y++ {
 		var row = make([]string, rowWidth)
 		for x := left; x < worldWidth && x < viewWidth; x++ {
-			if x == avatarX && y == avatarY {
-				row[x-left] = avatar.Render()
+			item, ok := overlay[fmt.Sprintf("%v%v", x, y)]
+			if ok {
+				row[x-left] = item.Render()
 			} else {
 				row[x-left] = world.grid[x][y].Render()
 			}
@@ -118,8 +127,10 @@ func (world MapView) Paint(avatar AvatarReadOnly) string {
 
 func (world MapView) IsPassableByBoat(coordinates common.Coordinates) bool {
 	tt := world.grid[coordinates.X][coordinates.Y]
-	if TypeLookup[tt].RequiresBoat {
-		return true
-	}
-	return false
+	return TypeLookup[tt].RequiresBoat
+}
+
+func (world MapView) IsPassable(coordinates common.Coordinates) bool {
+	tt := world.grid[coordinates.X][coordinates.Y]
+	return TypeLookup[tt].Passable
 }

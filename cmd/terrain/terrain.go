@@ -6,7 +6,6 @@ import (
 	"go.uber.org/zap"
 	"math/rand"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/town"
 )
 
 type Props struct {
@@ -19,14 +18,14 @@ type Props struct {
 }
 
 type Terrain struct {
-	logger  *zap.SugaredLogger
+	Logger  *zap.SugaredLogger
 	props   Props
 	World   MapView
 	MiniMap MapView
 }
 
 func Init(logger *zap.SugaredLogger) *Terrain {
-	logger.Info("Initializing terrain")
+	logger.Info(fmt.Sprintf(fmt.Sprintf("Initializing terrain - height: %v width: %v", common.WorldHeight, common.WorldWidth)))
 	//default values for terrain map generation
 	worldGrid := make([][]TerrainType, common.WorldHeight)
 	for i := range worldGrid {
@@ -44,7 +43,7 @@ func Init(logger *zap.SugaredLogger) *Terrain {
 	}
 
 	return &Terrain{
-		logger: logger,
+		Logger: logger,
 		props: Props{
 			width:       common.WorldWidth,
 			height:      common.WorldHeight,
@@ -67,13 +66,11 @@ func Init(logger *zap.SugaredLogger) *Terrain {
 }
 
 func (t *Terrain) genTownCoords() common.Coordinates {
-	coords := common.Coordinates{X: rand.Intn(common.WorldWidth), Y: rand.Intn(common.WorldHeight)}
-	t.logger.Debug(fmt.Sprintf("Generating random town coordinates: %v", coords))
-	return coords
+	return common.Coordinates{X: rand.Intn(common.WorldWidth), Y: rand.Intn(common.WorldHeight)}
 }
 
 func (t *Terrain) generateTowns(fn func() common.Coordinates) {
-	t.logger.Info("Initializing %v towns", common.TotalTowns)
+	t.Logger.Info(fmt.Sprintf("Initializing %v towns", common.TotalTowns))
 	for i := 0; i <= common.TotalTowns; i++ {
 		for {
 			coords := fn()
@@ -82,7 +79,8 @@ func (t *Terrain) generateTowns(fn func() common.Coordinates) {
 				t.World.grid[coords.X][coords.Y] == TypeBeach {
 
 				if t.World.isAdjacentToWater(coords) {
-					town.Create(coords, '⩎')
+					t.Logger.Info(fmt.Sprintf("Creating town at %v,%v", coords.X, coords.Y))
+					CreateTown(coords, '⩎')
 					t.World.grid[coords.X][coords.Y] = TypeTown
 					// grow towns
 					for _, a := range t.World.GetAdjacentCoords(coords) {
@@ -102,7 +100,7 @@ func (t *Terrain) GenerateTowns() {
 }
 
 func (t *Terrain) GenerateWorld() {
-	t.logger.Info("Initializing world")
+	t.Logger.Info("Initializing world")
 	noise := opensimplex.New(rand.Int63())
 
 	for x := 0; x < t.props.width; x++ {

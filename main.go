@@ -6,8 +6,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"os"
-	"pirate-wars/cmd/avatar"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/player"
 	"pirate-wars/cmd/terrain"
 )
 
@@ -17,7 +17,7 @@ const DEV_MODE = true
 type model struct {
 	logger       *zap.SugaredLogger
 	terrain      terrain.Terrain
-	avatar       avatar.Type
+	player       terrain.Avatar
 	printMiniMap bool
 }
 
@@ -26,160 +26,25 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) View() string {
-	if m.printMiniMap {
-		return m.terrain.MiniMap.Paint(&m.avatar)
-	} else {
-		return m.terrain.World.Paint(&m.avatar)
-	}
-}
-
-func (m model) miniMapKeyBindings(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	// Is it a key press?
-	case tea.KeyMsg:
-		// Cool, what was the actual key pressed?
-		switch msg.String() {
-		// These keys should exit the program.
-		case "ctrl+c", "q":
-			return m, tea.Quit
-
-		// The "m" key toggles the minimap
-		case "m", "enter":
-			m.printMiniMap = false
-		}
-	}
-	return m, nil
-}
-
-func (m model) mapKeyBindings(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	// Is it a key press?
-	case tea.KeyMsg:
-		// Cool, what was the actual key pressed?
-		switch msg.String() {
-		// These keys should exit the program.
-		case "ctrl+c", "q":
-			return m, tea.Quit
-
-		// The "m" key displays the minimap
-		case "m":
-			m.printMiniMap = true
-
-		case "left", "h":
-			if m.avatar.GetX() > 0 {
-				target := m.avatar.GetX() - 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: target,
-					Y: m.avatar.GetY(),
-				}) {
-					m.avatar.SetX(target)
-				}
-			}
-
-		case "right", "l":
-			if m.avatar.GetX() < m.terrain.World.GetWidth()-1 {
-				target := m.avatar.GetX() + 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: target,
-					Y: m.avatar.GetY(),
-				}) {
-					m.avatar.SetX(target)
-				}
-			}
-
-		// The "up" and "k" keys move the cursor up
-		case "up", "k":
-			if m.avatar.GetY() > 0 {
-				target := m.avatar.GetY() - 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: m.avatar.GetX(),
-					Y: target,
-				}) {
-					m.avatar.SetY(target)
-				}
-			}
-
-		// The "down" and "j" keys move the cursor down
-		case "down", "j":
-			if m.avatar.GetY() < m.terrain.World.GetHeight()-1 {
-				target := m.avatar.GetY() + 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: m.avatar.GetX(),
-					Y: target,
-				}) {
-					m.avatar.SetY(target)
-				}
-			}
-
-		// The "up+left" and "y" keys move the cursor diagonal up+left
-		case "up+left", "y":
-			if m.avatar.GetY() > 0 && m.avatar.GetX() > 0 {
-				targetY := m.avatar.GetY() - 1
-				targetX := m.avatar.GetX() - 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: targetX,
-					Y: targetY,
-				}) {
-					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
-				}
-			}
-
-		// The "down+left" and "b" keys move the cursor diagonal down+left
-		case "down+left", "b":
-			if m.avatar.GetY() < m.terrain.World.GetHeight()-1 && m.avatar.GetX() > 0 {
-				targetY := m.avatar.GetY() + 1
-				targetX := m.avatar.GetX() - 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: targetX,
-					Y: targetY,
-				}) {
-					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
-				}
-			}
-
-		// The "upright" and "u" keys move the cursor diagonal up+left
-		case "up+right", "u":
-			if m.avatar.GetY() > 0 && m.avatar.GetX() < m.terrain.World.GetWidth()-1 {
-				targetY := m.avatar.GetY() - 1
-				targetX := m.avatar.GetX() + 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: targetX,
-					Y: targetY,
-				}) {
-					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
-				}
-			}
-
-		// The "downright" and "n" keys move the cursor diagonal down+left
-		case "down+right", "n":
-			if m.avatar.GetY() < m.terrain.World.GetHeight()-1 && m.avatar.GetX() < m.terrain.World.GetWidth()-1 {
-				targetY := m.avatar.GetY() + 1
-				targetX := m.avatar.GetX() + 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: targetX,
-					Y: targetY,
-				}) {
-					m.avatar.SetXY(common.Coordinates{X: targetX, Y: targetY})
-				}
-			}
-		}
-	}
-	m.logger.Debug(fmt.Sprintf("moving to x:%v y:%v", m.avatar.GetX(), m.avatar.GetY()))
-	return m, nil
-}
-
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.printMiniMap {
-		return m.miniMapKeyBindings(msg)
+		return m.miniMapInput(msg)
 	} else {
-		return m.mapKeyBindings(msg)
+		return m.sailingInput(msg)
+	}
+}
+
+func (m model) View() string {
+	if m.printMiniMap {
+		return m.terrain.MiniMap.Paint(&m.player)
+	} else {
+		return m.terrain.World.Paint(&m.player)
 	}
 }
 
 func createLogger() *zap.SugaredLogger {
 	// truncate file
-	configFile, err := os.OpenFile(common.LogFile, os.O_TRUNC, 0664)
+	configFile, err := os.OpenFile(common.LogFile, os.O_TRUNC|os.O_CREATE, 0664)
 	if err != nil {
 		panic(err)
 	}
@@ -209,12 +74,13 @@ func main() {
 	t := terrain.Init(logger)
 	t.GenerateWorld()
 	t.GenerateTowns()
+	t.InitNPCs()
 
 	// ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 	if _, err := tea.NewProgram(model{
 		logger:  logger,
 		terrain: *t,
-		avatar:  avatar.Create(t.RandomPositionDeepWater(), '⏏'),
+		player:  player.Create(t),
 	}, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)

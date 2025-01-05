@@ -1,10 +1,5 @@
 package common
 
-type Coordinates struct {
-	X int
-	Y int
-}
-
 const (
 	LogFile       = "pirate-wars.log"
 	WorldWidth    = 600
@@ -19,4 +14,9 @@ type ViewPort struct {
 	width   int
 	height  int
 	topLeft int
+}
+
+type Coordinates struct {
+	X int
+	Y int
 }
