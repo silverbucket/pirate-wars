@@ -39,3 +39,6 @@ A pirate-themed roguelike, written in Go.
 * Upgrade
 * Repair
 * Buy/capture 
+* Name your ship(s)
+* Maintain a fleet
+* Appoint Captains?
