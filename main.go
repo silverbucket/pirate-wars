@@ -75,7 +75,8 @@ func main() {
 	t.GenerateWorld()
 	t.GenerateTowns()
 	t.InitNPCs()
-
+	t.GenerateMiniMap()
+	
 	// ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 	if _, err := tea.NewProgram(model{
 		logger:  logger,

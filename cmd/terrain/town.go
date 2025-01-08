@@ -4,11 +4,12 @@ import (
 	"pirate-wars/cmd/common"
 )
 
-type Town struct {
-	pos common.Coordinates
-}
+type HeatMap = [][]int
 
-var Towns []Town
+type Town struct {
+	pos     common.Coordinates
+	heatMap HeatMap
+}
 
 func (t *Town) GetX() int {
 	return t.pos.X
@@ -23,10 +24,4 @@ func (t *Town) GetY() int {
 
 func (t *Town) GetMiniMapY() int {
 	return t.pos.Y / common.MiniMapFactor
-}
-
-func CreateTown(coords common.Coordinates, c rune) Town {
-	t := Town{pos: coords}
-	Towns = append(Towns, t)
-	return t
 }

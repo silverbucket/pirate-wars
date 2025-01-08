@@ -2,8 +2,8 @@ package common
 
 const (
 	LogFile       = "pirate-wars.log"
-	WorldWidth    = 600
-	WorldHeight   = 600
+	WorldWidth    = 600 // Y
+	WorldHeight   = 600 // X
 	TotalTowns    = 30
 	ViewWidth     = 75
 	ViewHeight    = 50

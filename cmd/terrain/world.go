@@ -77,9 +77,6 @@ func (world MapView) Paint(a AvatarReadOnly) string {
 	if world.isMiniMap {
 		avatarX = a.GetMiniMapX()
 		avatarY = a.GetMiniMapY()
-		for _, o := range Towns {
-			world.grid[o.GetMiniMapX()][o.GetMiniMapY()] = TypeTown
-		}
 	} else {
 		// center viewport on avatar
 		left = avatarX - (common.ViewWidth / 2)
@@ -99,8 +96,9 @@ func (world MapView) Paint(a AvatarReadOnly) string {
 
 	overlay := make(map[string]AvatarReadOnly)
 	overlay[fmt.Sprintf("%v%v", avatarX, avatarY)] = a
+
 	if !world.isMiniMap {
-		// on the world map we draw the npcs
+		// on the world map we draw the NPCs
 		for _, n := range NPCs {
 			overlay[fmt.Sprintf("%v%v", n.GetX(), n.GetY())] = &n
 		}

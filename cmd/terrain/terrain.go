@@ -22,6 +22,7 @@ type Terrain struct {
 	props   Props
 	World   MapView
 	MiniMap MapView
+	Towns   []Town
 }
 
 func Init(logger *zap.SugaredLogger) *Terrain {
@@ -63,40 +64,6 @@ func Init(logger *zap.SugaredLogger) *Terrain {
 			grid:      miniMap,
 		},
 	}
-}
-
-func (t *Terrain) genTownCoords() common.Coordinates {
-	return common.Coordinates{X: rand.Intn(common.WorldWidth), Y: rand.Intn(common.WorldHeight)}
-}
-
-func (t *Terrain) generateTowns(fn func() common.Coordinates) {
-	t.Logger.Info(fmt.Sprintf("Initializing %v towns", common.TotalTowns))
-	for i := 0; i <= common.TotalTowns; i++ {
-		for {
-			coords := fn()
-			if coords.X > 1 && coords.Y > 1 &&
-				coords.X < common.WorldWidth-1 && coords.Y < common.WorldHeight &&
-				t.World.grid[coords.X][coords.Y] == TypeBeach {
-
-				if t.World.isAdjacentToWater(coords) {
-					t.Logger.Info(fmt.Sprintf("Creating town at %v,%v", coords.X, coords.Y))
-					CreateTown(coords, '⩎')
-					t.World.grid[coords.X][coords.Y] = TypeTown
-					// grow towns
-					for _, a := range t.World.GetAdjacentCoords(coords) {
-						if (t.World.grid[a.X][a.Y] == TypeLowland || t.World.grid[a.X][a.Y] == TypeBeach) && t.World.isAdjacentToWater(a) {
-							t.World.grid[a.X][a.Y] = TypeTown
-						}
-					}
-					break
-				}
-			}
-		}
-	}
-}
-
-func (t *Terrain) GenerateTowns() {
-	t.generateTowns(t.genTownCoords)
 }
 
 func (t *Terrain) GenerateWorld() {
@@ -144,7 +111,6 @@ func (t *Terrain) GenerateWorld() {
 			}
 		}
 	}
-	t.GenerateMiniMap()
 }
 
 func (t *Terrain) GenerateMiniMap() {
@@ -159,6 +125,9 @@ func (t *Terrain) GenerateMiniMap() {
 			t.MiniMap.grid[newI][newJ] = val
 		}
 	}
+	for _, o := range t.Towns {
+		t.MiniMap.grid[o.GetMiniMapX()][o.GetMiniMapY()] = TypeTown
+	}
 }
 
 func (t *Terrain) RandomPositionDeepWater() common.Coordinates {
@@ -168,4 +137,58 @@ func (t *Terrain) RandomPositionDeepWater() common.Coordinates {
 			return coords
 		}
 	}
+}
+
+func (t *Terrain) CreateTown(coords common.Coordinates, c rune) Town {
+	var heatMap = make([][]int, common.WorldHeight)
+	for i := range heatMap {
+		heatMap[i] = make([]int, common.WorldWidth)
+	}
+
+	town := Town{
+		pos:     coords,
+		heatMap: heatMap,
+	}
+
+	t.World.grid[coords.X][coords.Y] = TypeTown
+	heatMap[coords.X][coords.Y] = 1
+
+	// grow towns
+	for _, a := range t.World.GetAdjacentCoords(coords) {
+		if (t.World.grid[a.X][a.Y] == TypeLowland || t.World.grid[a.X][a.Y] == TypeBeach) && t.World.isAdjacentToWater(a) {
+			t.World.grid[a.X][a.Y] = TypeTown
+			heatMap[a.X][a.Y] = 1
+		}
+	}
+
+	t.Towns = append(t.Towns, town)
+	return town
+}
+
+func (t *Terrain) genTownCoords() common.Coordinates {
+	return common.Coordinates{X: rand.Intn(common.WorldWidth - 5), Y: rand.Intn(common.WorldHeight - 5)}
+}
+
+func (t *Terrain) generateTowns(fn func() common.Coordinates) {
+	t.Logger.Info(fmt.Sprintf("Initializing %v towns", common.TotalTowns))
+	for i := 0; i <= common.TotalTowns; i++ {
+		for {
+			coords := fn()
+			if coords.X > 1 && coords.Y > 1 &&
+				coords.X < common.WorldWidth-1 && coords.Y < common.WorldHeight &&
+				t.World.grid[coords.X][coords.Y] == TypeBeach {
+
+				if t.World.isAdjacentToWater(coords) {
+					t.Logger.Info(fmt.Sprintf("Creating town at %v,%v", coords.X, coords.Y))
+					t.CreateTown(coords, '⩎')
+					break
+				}
+			}
+		}
+	}
+}
+
+func (t *Terrain) GenerateTowns() {
+	t.generateTowns(t.genTownCoords)
+	t.GenerateHeatMaps()
 }
