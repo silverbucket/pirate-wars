@@ -141,8 +141,12 @@ func (t *Terrain) RandomPositionDeepWater() common.Coordinates {
 
 func (t *Terrain) CreateTown(coords common.Coordinates, c rune) Town {
 	var heatMap = make([][]int, common.WorldHeight)
+
 	for i := range heatMap {
 		heatMap[i] = make([]int, common.WorldWidth)
+		for j := range heatMap[i] {
+			heatMap[i][j] = -1
+		}
 	}
 
 	town := Town{
@@ -166,7 +170,7 @@ func (t *Terrain) CreateTown(coords common.Coordinates, c rune) Town {
 }
 
 func (t *Terrain) genTownCoords() common.Coordinates {
-	return common.Coordinates{X: rand.Intn(common.WorldWidth - 5), Y: rand.Intn(common.WorldHeight - 5)}
+	return common.Coordinates{X: rand.Intn(common.WorldWidth - 1), Y: rand.Intn(common.WorldHeight - 1)}
 }
 
 func (t *Terrain) generateTowns(fn func() common.Coordinates) {
