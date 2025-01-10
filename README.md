@@ -1,7 +1,7 @@
 # pirate-wars
 A pirate-themed roguelike, written in Go.
 
-![pirate-wars](https://storage.5apps.com/silverbucket/public/shares/250104-0217-Screenshot%202025-01-04%20at%2003.16.47.jpg)
+![pirate-wars](https://storage.5apps.com/silverbucket/public/shares/250110-1718-Screenshot%202025-01-10%20at%2018.18.02.jpg)
 
 ## Keybindings
 
