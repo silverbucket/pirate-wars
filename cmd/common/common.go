@@ -6,15 +6,16 @@ import (
 )
 
 const (
-	LogFile         = "pirate-wars.log"
-	WorldWidth      = 600 // Y
-	WorldHeight     = 600 // X
-	TotalTowns      = 20
-	ViewWidth       = 75
-	ViewHeight      = 50
-	MiniMapFactor   = 11
-	TotalNpcs       = 50
-	MaxMovementCost = 9999
+	LogFile          = "pirate-wars.log"
+	WorldWidth       = 600 // Y
+	WorldHeight      = 600 // X
+	TotalTowns       = 20
+	ViewWidth        = 75
+	ViewHeight       = 50
+	MiniMapFactor    = 11
+	TotalNpcs        = 50
+	MaxMovementCost  = 999999
+	LandMovementBase = 5000
 )
 
 type ViewPort struct {
@@ -49,4 +50,42 @@ func GenID(pos Coordinates) string {
 
 func Inbounds(c Coordinates) bool {
 	return c.X >= 0 && c.X < WorldHeight && c.Y >= 0 && c.Y < WorldWidth
+}
+
+func IsPositionAdjacent(p Coordinates, t Coordinates) bool {
+	for _, dir := range Directions {
+		n := AddDirection(p, dir)
+		if t.X == n.X && t.Y == n.Y {
+			return true
+		}
+	}
+	return false
+}
+
+func RandomPosition() Coordinates {
+	return Coordinates{X: rand.Intn(WorldWidth - 1), Y: rand.Intn(WorldHeight - 1)}
+}
+
+func AddDirection(p Coordinates, d Coordinates) Coordinates {
+	return Coordinates{p.X + d.X, p.Y + d.Y}
+}
+
+func ClosestTo(d Coordinates, p []Coordinates) Coordinates {
+	closest := Coordinates{}
+	val := MaxMovementCost
+	for _, o := range p {
+		v := diff(d.X, o.X) + diff(d.Y, o.Y)
+		if v < val {
+			val = v
+			closest = o
+		}
+	}
+	return closest
+}
+
+func diff(a, b int) int {
+	if a < b {
+		return b - a
+	}
+	return a - b
 }

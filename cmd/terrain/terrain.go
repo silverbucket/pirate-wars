@@ -144,17 +144,3 @@ func (t *Terrain) RandomPositionDeepWater() common.Coordinates {
 		}
 	}
 }
-
-func (t *Terrain) RandomPosition() common.Coordinates {
-	return common.Coordinates{X: rand.Intn(common.WorldWidth - 1), Y: rand.Intn(common.WorldHeight - 1)}
-}
-
-func (t *Terrain) isPositionAdjacent(pos common.Coordinates, target common.Coordinates) bool {
-	for _, dir := range common.Directions {
-		newX, newY := pos.X+dir.X, pos.Y+dir.Y
-		if target.X == newX && target.Y == newY {
-			return true
-		}
-	}
-	return false
-}

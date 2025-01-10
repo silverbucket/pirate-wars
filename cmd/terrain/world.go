@@ -131,3 +131,11 @@ func (world MapView) GetPositionType(c common.Coordinates) TerrainType {
 func (world MapView) SetPositionType(c common.Coordinates, t TerrainType) {
 	world.grid[c.X][c.Y] = t
 }
+
+func (world MapView) IsLand(c common.Coordinates) bool {
+	tt := world.grid[c.X][c.Y]
+	if tt == TypeBeach || tt == TypeLowland || tt == TypeHighland || tt == TypePeak || tt == TypeRock {
+		return true
+	}
+	return false
+}
