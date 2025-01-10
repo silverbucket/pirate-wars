@@ -37,9 +37,12 @@ func (a *Avatar) SetY(y int) {
 	a.pos.Y = y
 }
 
-func (a *Avatar) SetXY(c common.Coordinates) {
-	a.pos.X = c.X
-	a.pos.Y = c.Y
+func (a *Avatar) SetPos(c common.Coordinates) {
+	a.pos = c
+}
+
+func (a *Avatar) GetPos() common.Coordinates {
+	return a.pos
 }
 
 func (a *Avatar) Render() string {
@@ -53,6 +56,6 @@ func (a *Avatar) Render() string {
 			Render("%c"), a.char)
 }
 
-func CreateAvatar(coordinates common.Coordinates, c rune, color ColorScheme) Avatar {
-	return Avatar{pos: coordinates, char: c, fgColor: lipgloss.Color(color.Foreground), bgColor: lipgloss.Color(color.Background)}
+func CreateAvatar(coordinates common.Coordinates, c rune, color ColorScheme) *Avatar {
+	return &Avatar{pos: coordinates, char: c, fgColor: lipgloss.Color(color.Foreground), bgColor: lipgloss.Color(color.Background)}
 }

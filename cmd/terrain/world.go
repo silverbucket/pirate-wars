@@ -63,7 +63,7 @@ func (world MapView) GetHeight() int {
 	return len(world.grid)
 }
 
-func (world MapView) Paint(a AvatarReadOnly) string {
+func (world MapView) Paint(avatar AvatarReadOnly, npcs []Avatar) string {
 	left := 0
 	top := 0
 	worldHeight := len(world.grid)
@@ -71,16 +71,19 @@ func (world MapView) Paint(a AvatarReadOnly) string {
 	viewHeight := worldHeight
 	viewWidth := worldWidth
 	rowWidth := worldWidth
-	avatarX := a.GetX()
-	avatarY := a.GetY()
+
+	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
+
+	// overlay map of all avatars
+	overlay := make(map[string]AvatarReadOnly)
 
 	if world.isMiniMap {
-		avatarX = a.GetMiniMapX()
-		avatarY = a.GetMiniMapY()
+		// always display main character avatar on the minimap
+		overlay[fmt.Sprintf("%v%v", avatar.GetMiniMapX(), avatar.GetMiniMapY())] = avatar
 	} else {
 		// center viewport on avatar
-		left = avatarX - (common.ViewWidth / 2)
-		top = avatarY - (common.ViewHeight / 2)
+		left = avatar.GetX() - (common.ViewWidth / 2)
+		top = avatar.GetY() - (common.ViewHeight / 2)
 		if left < 0 {
 			left = 0
 		}
@@ -90,23 +93,15 @@ func (world MapView) Paint(a AvatarReadOnly) string {
 		viewHeight = common.ViewHeight + top
 		viewWidth = common.ViewWidth + left
 		rowWidth = common.ViewWidth
-	}
 
-	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
-
-	overlay := make(map[string]AvatarReadOnly)
-	overlay[fmt.Sprintf("%v%v", avatarX, avatarY)] = a
-
-	if !world.isMiniMap {
+		overlay[fmt.Sprintf("%v%v", avatar.GetX(), avatar.GetY())] = avatar
 		// on the world map we draw the NPCs
-		for _, n := range NPCs {
+		for _, n := range npcs {
 			overlay[fmt.Sprintf("%v%v", n.GetX(), n.GetY())] = &n
 		}
 	}
 
-	//world.logger.Debug(fmt.Sprintf("avatar position:  X:%v Y:%v", avatarX, avatarY))
-	//world.logger.Debug(fmt.Sprintf("viewport:  top:%v left:%v", top, left))
-	//world.logger.Debug(fmt.Sprintf("world:  height:%v width:%v", worldHeight, worldWidth))
+	//world.logger.Debug(fmt.Sprintf("avatar position:  X:%v Y:%v", avs[0].GetX, avs[0].GetY()))
 	for y := top; y < worldHeight && y < viewHeight; y++ {
 		var row = make([]string, rowWidth)
 		for x := left; x < worldWidth && x < viewWidth; x++ {

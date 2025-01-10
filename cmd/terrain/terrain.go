@@ -23,6 +23,7 @@ type Terrain struct {
 	World   MapView
 	MiniMap MapView
 	Towns   []Town
+	Npcs    []Npc
 }
 
 func Init(logger *zap.SugaredLogger) *Terrain {
@@ -92,9 +93,9 @@ func (t *Terrain) GenerateWorld() {
 
 			//normalize to -1 to 1, and then from 0 to 1 (this is for the ability to use grayscale, if using colors could keep from -1 to 1)
 			var s = (total/normalizeOctaves + 1) / 2
-			if s > 0.60 {
+			if s > 0.59 {
 				t.World.grid[x][y] = TypeDeepWater
-			} else if s > 0.46 {
+			} else if s > 0.44 {
 				t.World.grid[x][y] = TypeOpenWater
 			} else if s > 0.42 {
 				t.World.grid[x][y] = TypeShallowWater
@@ -165,7 +166,6 @@ func (t *Terrain) CreateTown(coords common.Coordinates, c rune) Town {
 		}
 	}
 
-	t.Towns = append(t.Towns, town)
 	return town
 }
 
@@ -175,7 +175,7 @@ func (t *Terrain) genTownCoords() common.Coordinates {
 
 func (t *Terrain) generateTowns(fn func() common.Coordinates) {
 	t.Logger.Info(fmt.Sprintf("Initializing %v towns", common.TotalTowns))
-	for i := 0; i <= common.TotalTowns; i++ {
+	for i := 0; i < common.TotalTowns; i++ {
 		for {
 			coords := fn()
 			if coords.X > 1 && coords.Y > 1 &&
@@ -184,8 +184,14 @@ func (t *Terrain) generateTowns(fn func() common.Coordinates) {
 
 				if t.World.isAdjacentToWater(coords) {
 					t.Logger.Info(fmt.Sprintf("Creating town at %v,%v", coords.X, coords.Y))
-					t.CreateTown(coords, '⩎')
-					break
+					town := t.CreateTown(coords, '⩎')
+					if t.GenerateTownHeatMap(&town) {
+						t.Logger.Info(fmt.Sprintf("Completed town creation at %v,%v", coords.X, coords.Y))
+						t.Towns = append(t.Towns, town)
+						break
+					} else {
+						t.Logger.Info(fmt.Sprintf("Aborted town creation at %v,%v", coords.X, coords.Y))
+					}
 				}
 			}
 		}
@@ -195,4 +201,8 @@ func (t *Terrain) generateTowns(fn func() common.Coordinates) {
 func (t *Terrain) GenerateTowns() {
 	t.generateTowns(t.genTownCoords)
 	t.GenerateHeatMaps()
+}
+
+func (t *Terrain) GetRandomTown() Town {
+	return t.Towns[rand.Intn(len(t.Towns))]
 }
