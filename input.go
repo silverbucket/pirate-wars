@@ -93,7 +93,7 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					X: targetX,
 					Y: targetY,
 				}) {
-					m.player.SetXY(common.Coordinates{X: targetX, Y: targetY})
+					m.player.SetPos(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 
@@ -106,7 +106,7 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					X: targetX,
 					Y: targetY,
 				}) {
-					m.player.SetXY(common.Coordinates{X: targetX, Y: targetY})
+					m.player.SetPos(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 
@@ -119,7 +119,7 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					X: targetX,
 					Y: targetY,
 				}) {
-					m.player.SetXY(common.Coordinates{X: targetX, Y: targetY})
+					m.player.SetPos(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 
@@ -132,7 +132,7 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					X: targetX,
 					Y: targetY,
 				}) {
-					m.player.SetXY(common.Coordinates{X: targetX, Y: targetY})
+					m.player.SetPos(common.Coordinates{X: targetX, Y: targetY})
 				}
 			}
 		}

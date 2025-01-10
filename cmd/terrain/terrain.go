@@ -22,6 +22,8 @@ type Terrain struct {
 	props   Props
 	World   MapView
 	MiniMap MapView
+	Towns   []Town
+	Npcs    []Npc
 }
 
 func Init(logger *zap.SugaredLogger) *Terrain {
@@ -65,40 +67,6 @@ func Init(logger *zap.SugaredLogger) *Terrain {
 	}
 }
 
-func (t *Terrain) genTownCoords() common.Coordinates {
-	return common.Coordinates{X: rand.Intn(common.WorldWidth), Y: rand.Intn(common.WorldHeight)}
-}
-
-func (t *Terrain) generateTowns(fn func() common.Coordinates) {
-	t.Logger.Info(fmt.Sprintf("Initializing %v towns", common.TotalTowns))
-	for i := 0; i <= common.TotalTowns; i++ {
-		for {
-			coords := fn()
-			if coords.X > 1 && coords.Y > 1 &&
-				coords.X < common.WorldWidth-1 && coords.Y < common.WorldHeight &&
-				t.World.grid[coords.X][coords.Y] == TypeBeach {
-
-				if t.World.isAdjacentToWater(coords) {
-					t.Logger.Info(fmt.Sprintf("Creating town at %v,%v", coords.X, coords.Y))
-					CreateTown(coords, '⩎')
-					t.World.grid[coords.X][coords.Y] = TypeTown
-					// grow towns
-					for _, a := range t.World.GetAdjacentCoords(coords) {
-						if (t.World.grid[a.X][a.Y] == TypeLowland || t.World.grid[a.X][a.Y] == TypeBeach) && t.World.isAdjacentToWater(a) {
-							t.World.grid[a.X][a.Y] = TypeTown
-						}
-					}
-					break
-				}
-			}
-		}
-	}
-}
-
-func (t *Terrain) GenerateTowns() {
-	t.generateTowns(t.genTownCoords)
-}
-
 func (t *Terrain) GenerateWorld() {
 	t.Logger.Info("Initializing world")
 	noise := opensimplex.New(rand.Int63())
@@ -123,28 +91,31 @@ func (t *Terrain) GenerateWorld() {
 				frequency *= t.props.lacunarity
 			}
 
+			c := common.Coordinates{
+				X: x,
+				Y: y,
+			}
 			//normalize to -1 to 1, and then from 0 to 1 (this is for the ability to use grayscale, if using colors could keep from -1 to 1)
 			var s = (total/normalizeOctaves + 1) / 2
-			if s > 0.60 {
-				t.World.grid[x][y] = TypeDeepWater
-			} else if s > 0.46 {
-				t.World.grid[x][y] = TypeOpenWater
+			if s > 0.59 {
+				t.World.SetPositionType(c, TypeDeepWater)
+			} else if s > 0.44 {
+				t.World.SetPositionType(c, TypeOpenWater)
 			} else if s > 0.42 {
-				t.World.grid[x][y] = TypeShallowWater
+				t.World.SetPositionType(c, TypeShallowWater)
 			} else if s > 0.40 {
-				t.World.grid[x][y] = TypeBeach
+				t.World.SetPositionType(c, TypeBeach)
 			} else if s > 0.31 {
-				t.World.grid[x][y] = TypeLowland
+				t.World.SetPositionType(c, TypeLowland)
 			} else if s > 0.26 {
-				t.World.grid[x][y] = TypeHighland
+				t.World.SetPositionType(c, TypeHighland)
 			} else if s > 0.21 {
-				t.World.grid[x][y] = TypeRock
+				t.World.SetPositionType(c, TypeRock)
 			} else {
-				t.World.grid[x][y] = TypePeak
+				t.World.SetPositionType(c, TypePeak)
 			}
 		}
 	}
-	t.GenerateMiniMap()
 }
 
 func (t *Terrain) GenerateMiniMap() {
@@ -152,20 +123,38 @@ func (t *Terrain) GenerateMiniMap() {
 	for i, row := range t.World.grid {
 		for j, val := range row {
 			// Calculate corresponding index in new slice
-			newI := i / common.MiniMapFactor
-			newJ := j / common.MiniMapFactor
-
-			// Assign original value
-			t.MiniMap.grid[newI][newJ] = val
+			c := common.Coordinates{
+				X: i / common.MiniMapFactor,
+				Y: j / common.MiniMapFactor,
+			}
+			// Assign original TerrainType value
+			t.MiniMap.SetPositionType(c, val)
 		}
+	}
+	for _, o := range t.Towns {
+		t.MiniMap.SetPositionType(o.GetMiniMapPos(), TypeTown)
 	}
 }
 
 func (t *Terrain) RandomPositionDeepWater() common.Coordinates {
 	for {
-		coords := common.Coordinates{X: rand.Intn(common.WorldWidth), Y: rand.Intn(common.WorldHeight)}
-		if t.World.grid[coords.X][coords.Y] == TypeDeepWater {
-			return coords
+		c := common.Coordinates{X: rand.Intn(common.WorldWidth), Y: rand.Intn(common.WorldHeight)}
+		if t.World.GetPositionType(c) == TypeDeepWater {
+			return c
 		}
 	}
+}
+
+func (t *Terrain) RandomPosition() common.Coordinates {
+	return common.Coordinates{X: rand.Intn(common.WorldWidth - 1), Y: rand.Intn(common.WorldHeight - 1)}
+}
+
+func (t *Terrain) isPositionAdjacent(pos common.Coordinates, target common.Coordinates) bool {
+	for _, dir := range common.Directions {
+		newX, newY := pos.X+dir.X, pos.Y+dir.Y
+		if target.X == newX && target.Y == newY {
+			return true
+		}
+	}
+	return false
 }

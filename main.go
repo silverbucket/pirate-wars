@@ -17,7 +17,7 @@ const DEV_MODE = true
 type model struct {
 	logger       *zap.SugaredLogger
 	terrain      terrain.Terrain
-	player       terrain.Avatar
+	player       *terrain.Avatar
 	printMiniMap bool
 }
 
@@ -36,9 +36,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.printMiniMap {
-		return m.terrain.MiniMap.Paint(&m.player)
+		return m.terrain.MiniMap.Paint(m.player, []terrain.AvatarReadOnly{})
 	} else {
-		return m.terrain.World.Paint(&m.player)
+		// calc AI stuff
+		m.terrain.CalcNpcMovements()
+		return m.terrain.World.Paint(m.player, m.terrain.GetNpcAvatars())
 	}
 }
 
@@ -74,7 +76,8 @@ func main() {
 	t := terrain.Init(logger)
 	t.GenerateWorld()
 	t.GenerateTowns()
-	t.InitNPCs()
+	t.InitNpcs()
+	t.GenerateMiniMap()
 
 	// ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 	if _, err := tea.NewProgram(model{

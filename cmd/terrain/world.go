@@ -21,15 +21,11 @@ type AvatarReadOnly interface {
 	Render() string
 }
 
-func (world MapView) GetTerrainType(x int, y int) TerrainType {
-	return world.grid[x][y]
-}
-
-func (world MapView) isAdjacentToWater(coords common.Coordinates) bool {
-	adjacentCoords := world.GetAdjacentCoords(coords)
+func (world MapView) isAdjacentToWater(c common.Coordinates) bool {
+	adjacentCoords := world.GetAdjacentCoords(c)
 	isAdjacentWater := false
 	for _, a := range adjacentCoords {
-		if world.grid[a.X][a.Y] == TypeShallowWater {
+		if world.GetPositionType(a) == TypeShallowWater {
 			isAdjacentWater = true
 			break
 		}
@@ -37,15 +33,15 @@ func (world MapView) isAdjacentToWater(coords common.Coordinates) bool {
 	return isAdjacentWater
 }
 
-func (world MapView) GetAdjacentCoords(coords common.Coordinates) []common.Coordinates {
+func (world MapView) GetAdjacentCoords(c common.Coordinates) []common.Coordinates {
 	var adjacentCoords []common.Coordinates
 	for i := -1; i <= 1; i++ {
 		for j := -1; j <= 1; j++ {
 			if i == 0 && j == 0 {
 				continue
 			}
-			adjX := coords.X + i
-			adjY := coords.Y + j
+			adjX := c.X + i
+			adjY := c.Y + j
 			if adjX < 0 || adjX >= world.GetWidth() || adjY < 0 || adjY >= world.GetHeight() {
 				continue
 			}
@@ -63,7 +59,7 @@ func (world MapView) GetHeight() int {
 	return len(world.grid)
 }
 
-func (world MapView) Paint(a AvatarReadOnly) string {
+func (world MapView) Paint(avatar AvatarReadOnly, npcs []AvatarReadOnly) string {
 	left := 0
 	top := 0
 	worldHeight := len(world.grid)
@@ -71,19 +67,19 @@ func (world MapView) Paint(a AvatarReadOnly) string {
 	viewHeight := worldHeight
 	viewWidth := worldWidth
 	rowWidth := worldWidth
-	avatarX := a.GetX()
-	avatarY := a.GetY()
+
+	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
+
+	// overlay map of all avatars
+	overlay := make(map[string]AvatarReadOnly)
 
 	if world.isMiniMap {
-		avatarX = a.GetMiniMapX()
-		avatarY = a.GetMiniMapY()
-		for _, o := range Towns {
-			world.grid[o.GetMiniMapX()][o.GetMiniMapY()] = TypeTown
-		}
+		// always display main character avatar on the minimap
+		overlay[fmt.Sprintf("%03d%03d", avatar.GetMiniMapX(), avatar.GetMiniMapY())] = avatar
 	} else {
 		// center viewport on avatar
-		left = avatarX - (common.ViewWidth / 2)
-		top = avatarY - (common.ViewHeight / 2)
+		left = avatar.GetX() - (common.ViewWidth / 2)
+		top = avatar.GetY() - (common.ViewHeight / 2)
 		if left < 0 {
 			left = 0
 		}
@@ -93,26 +89,19 @@ func (world MapView) Paint(a AvatarReadOnly) string {
 		viewHeight = common.ViewHeight + top
 		viewWidth = common.ViewWidth + left
 		rowWidth = common.ViewWidth
-	}
 
-	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
-
-	overlay := make(map[string]AvatarReadOnly)
-	overlay[fmt.Sprintf("%v%v", avatarX, avatarY)] = a
-	if !world.isMiniMap {
-		// on the world map we draw the npcs
-		for _, n := range NPCs {
-			overlay[fmt.Sprintf("%v%v", n.GetX(), n.GetY())] = &n
+		overlay[fmt.Sprintf("%03d%03d", avatar.GetX(), avatar.GetY())] = avatar
+		// on the world map we draw the NPCs
+		for _, n := range npcs {
+			overlay[fmt.Sprintf("%03d%03d", n.GetX(), n.GetY())] = n
 		}
 	}
 
-	//world.logger.Debug(fmt.Sprintf("avatar position:  X:%v Y:%v", avatarX, avatarY))
-	//world.logger.Debug(fmt.Sprintf("viewport:  top:%v left:%v", top, left))
-	//world.logger.Debug(fmt.Sprintf("world:  height:%v width:%v", worldHeight, worldWidth))
+	//world.logger.Debug(fmt.Sprintf("avatar position:  X:%v Y:%v", avs[0].GetX, avs[0].GetY()))
 	for y := top; y < worldHeight && y < viewHeight; y++ {
 		var row = make([]string, rowWidth)
 		for x := left; x < worldWidth && x < viewWidth; x++ {
-			item, ok := overlay[fmt.Sprintf("%v%v", x, y)]
+			item, ok := overlay[fmt.Sprintf("%03d%03d", x, y)]
 			if ok {
 				row[x-left] = item.Render()
 			} else {
@@ -125,12 +114,20 @@ func (world MapView) Paint(a AvatarReadOnly) string {
 	return fmt.Sprintln(viewport)
 }
 
-func (world MapView) IsPassableByBoat(coordinates common.Coordinates) bool {
-	tt := world.grid[coordinates.X][coordinates.Y]
+func (world MapView) IsPassableByBoat(c common.Coordinates) bool {
+	tt := world.GetPositionType(c)
 	return TypeLookup[tt].RequiresBoat
 }
 
-func (world MapView) IsPassable(coordinates common.Coordinates) bool {
-	tt := world.grid[coordinates.X][coordinates.Y]
+func (world MapView) IsPassable(c common.Coordinates) bool {
+	tt := world.GetPositionType(c)
 	return TypeLookup[tt].Passable
+}
+
+func (world MapView) GetPositionType(c common.Coordinates) TerrainType {
+	return world.grid[c.X][c.Y]
+}
+
+func (world MapView) SetPositionType(c common.Coordinates, t TerrainType) {
+	world.grid[c.X][c.Y] = t
 }
