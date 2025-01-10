@@ -27,16 +27,22 @@ func (t *Terrain) GenerateTownHeatMap(town *Town) bool {
 			//t.Logger.Debug(fmt.Sprintf("[town %v] Assigning cost %v, %v = %v [%v]", town, x, y, cost, t.Towns[town].heatMap[x][y]))
 			if t.World.GetPositionType(c) == TypeShallowWater {
 				// shallow water costs more (dangerous)
+				town.SetHeatmapCost(c, cost+2)
+				cost = cost + 3
+			} else if t.World.GetPositionType(c) == TypeOpenWater {
+				// open water faster than shallow, but not as fast as deep
 				town.SetHeatmapCost(c, cost+1)
+				cost = cost + 2
 			} else {
 				town.SetHeatmapCost(c, cost)
+				cost = cost + 1
 			}
-			cost++
 		} else {
-			// land or town
 			if cost == 0 && t.World.GetPositionType(c) == TypeTown {
+				// starting town is the cheapest
 				town.SetHeatmapCost(c, cost)
 			} else {
+				// land is impassible
 				town.SetHeatmapCost(c, common.MaxMovementCost)
 			}
 		}

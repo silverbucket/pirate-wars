@@ -101,7 +101,7 @@ func (world MapView) Paint(avatar AvatarReadOnly, npcs []Avatar) string {
 	for y := top; y < worldHeight && y < viewHeight; y++ {
 		var row = make([]string, rowWidth)
 		for x := left; x < worldWidth && x < viewWidth; x++ {
-			item, ok := overlay[fmt.Sprintf("%v%v", x, y)]
+			item, ok := overlay[fmt.Sprintf("%03d%03d", x, y)]
 			if ok {
 				row[x-left] = item.Render()
 			} else {
