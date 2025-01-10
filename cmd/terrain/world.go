@@ -75,7 +75,7 @@ func (world MapView) Paint(avatar AvatarReadOnly, npcs []Avatar) string {
 
 	if world.isMiniMap {
 		// always display main character avatar on the minimap
-		overlay[fmt.Sprintf("%v%v", avatar.GetMiniMapX(), avatar.GetMiniMapY())] = avatar
+		overlay[fmt.Sprintf("%03d%03d", avatar.GetMiniMapX(), avatar.GetMiniMapY())] = avatar
 	} else {
 		// center viewport on avatar
 		left = avatar.GetX() - (common.ViewWidth / 2)
@@ -90,10 +90,10 @@ func (world MapView) Paint(avatar AvatarReadOnly, npcs []Avatar) string {
 		viewWidth = common.ViewWidth + left
 		rowWidth = common.ViewWidth
 
-		overlay[fmt.Sprintf("%v%v", avatar.GetX(), avatar.GetY())] = avatar
+		overlay[fmt.Sprintf("%03d%03d", avatar.GetX(), avatar.GetY())] = avatar
 		// on the world map we draw the NPCs
 		for _, n := range npcs {
-			overlay[fmt.Sprintf("%v%v", n.GetX(), n.GetY())] = &n
+			overlay[fmt.Sprintf("%03d%03d", n.GetX(), n.GetY())] = &n
 		}
 	}
 
