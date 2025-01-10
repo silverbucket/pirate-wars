@@ -6,12 +6,10 @@ import (
 	"pirate-wars/cmd/common"
 )
 
-type HeatMap = [][]int
-
 type Town struct {
 	id      string
 	pos     []common.Coordinates
-	heatMap HeatMap
+	HeatMap HeatMap
 }
 
 func (t *Town) GetId() string {
@@ -43,12 +41,14 @@ func (t *Town) GetPos() common.Coordinates {
 	return t.pos[0]
 }
 
-func (t *Town) SetHeatmapCost(c common.Coordinates, v int) {
-	t.heatMap[c.X][c.Y] = v
-}
-
-func (t *Town) GetHeatmapCost(c common.Coordinates) int {
-	return t.heatMap[c.X][c.Y]
+func (t *Town) AccessibleFrom(c common.Coordinates) bool {
+	for _, d := range common.Directions {
+		n := common.AddDirection(c, d)
+		if n.X < 0 || n.Y < 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (t *Terrain) MakeGhostTown(town *Town) {
@@ -59,19 +59,21 @@ func (t *Terrain) MakeGhostTown(town *Town) {
 }
 
 func (t *Terrain) CreateTown(c common.Coordinates) Town {
-	var heatMap = make([][]int, common.WorldHeight)
+	var heatMap = make([][]HeatMapCost, common.WorldHeight)
 
 	for i := range heatMap {
-		heatMap[i] = make([]int, common.WorldWidth)
+		heatMap[i] = make([]HeatMapCost, common.WorldWidth)
 		for j := range heatMap[i] {
 			heatMap[i][j] = -1
 		}
 	}
 
 	town := Town{
-		id:      common.GenID(c),
-		pos:     []common.Coordinates{c},
-		heatMap: heatMap,
+		id:  common.GenID(c),
+		pos: []common.Coordinates{c},
+		HeatMap: HeatMap{
+			grid: heatMap,
+		},
 	}
 
 	t.World.SetPositionType(c, TypeTown)
@@ -82,7 +84,7 @@ func (t *Terrain) CreateTown(c common.Coordinates) Town {
 		p := t.World.GetPositionType(a)
 		if (p == TypeLowland || p == TypeBeach) && t.World.isAdjacentToWater(a) {
 			t.World.SetPositionType(a, TypeTown)
-			heatMap[a.X][a.Y] = 0
+			//HeatMap[a.X][a.Y] = 0
 			town.pos = append(town.pos, a)
 		}
 	}
@@ -115,7 +117,7 @@ func (t *Terrain) generateTowns(fn func() common.Coordinates) {
 }
 
 func (t *Terrain) GenerateTowns() {
-	t.generateTowns(t.RandomPosition)
+	t.generateTowns(common.RandomPosition)
 }
 
 func (t *Terrain) GetRandomTown() Town {

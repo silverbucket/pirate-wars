@@ -38,6 +38,9 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "m":
 			m.printMiniMap = true
 
+		case "p":
+			m.settings.heatMapEnabled = !m.settings.heatMapEnabled
+
 		case "left", "h":
 			if m.player.GetX() > 0 {
 				target := m.player.GetX() - 1
