@@ -14,10 +14,14 @@ import (
 const BASE_LOG_LEVEL = zap.DebugLevel
 const DEV_MODE = true
 
+type Settings struct {
+	heatMapEnabled bool
+}
 type model struct {
 	logger       *zap.SugaredLogger
 	terrain      terrain.Terrain
 	player       *terrain.Avatar
+	settings     Settings
 	printMiniMap bool
 }
 
@@ -37,6 +41,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	if m.printMiniMap {
 		return m.terrain.MiniMap.Paint(m.player, []terrain.AvatarReadOnly{})
+	} else if m.settings.heatMapEnabled {
+		return m.terrain.Towns[0].HeatMap.Paint(m.player, m.terrain.GetNpcAvatars())
 	} else {
 		// calc AI stuff
 		m.terrain.CalcNpcMovements()

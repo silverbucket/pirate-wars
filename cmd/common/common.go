@@ -6,16 +6,14 @@ import (
 )
 
 const (
-	LogFile          = "pirate-wars.log"
-	WorldWidth       = 600 // Y
-	WorldHeight      = 600 // X
-	TotalTowns       = 20
-	ViewWidth        = 75
-	ViewHeight       = 50
-	MiniMapFactor    = 11
-	TotalNpcs        = 50
-	MaxMovementCost  = 999999
-	LandMovementBase = 5000
+	LogFile       = "pirate-wars.log"
+	WorldWidth    = 600 // Y
+	WorldHeight   = 600 // X
+	TotalTowns    = 20
+	ViewWidth     = 75
+	ViewHeight    = 50
+	MiniMapFactor = 11
+	TotalNpcs     = 50
 )
 
 type ViewPort struct {
@@ -72,7 +70,7 @@ func AddDirection(p Coordinates, d Coordinates) Coordinates {
 
 func ClosestTo(d Coordinates, p []Coordinates) Coordinates {
 	closest := Coordinates{}
-	val := MaxMovementCost
+	val := 99999
 	for _, o := range p {
 		v := diff(d.X, o.X) + diff(d.Y, o.Y)
 		if v < val {

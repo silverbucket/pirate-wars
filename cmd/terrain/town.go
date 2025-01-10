@@ -9,7 +9,7 @@ import (
 type Town struct {
 	id      string
 	pos     []common.Coordinates
-	heatMap HeatMap
+	HeatMap HeatMap
 }
 
 func (t *Town) GetId() string {
@@ -41,6 +41,16 @@ func (t *Town) GetPos() common.Coordinates {
 	return t.pos[0]
 }
 
+func (t *Town) AccessibleFrom(c common.Coordinates) bool {
+	for _, d := range common.Directions {
+		n := common.AddDirection(c, d)
+		if n.X < 0 || n.Y < 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func (t *Terrain) MakeGhostTown(town *Town) {
 	t.Logger.Info(fmt.Sprintf("[%v] Town turns to ghost town at %v, %v", town.id, town.GetX(), town.GetY()))
 	for _, c := range town.pos {
@@ -49,10 +59,10 @@ func (t *Terrain) MakeGhostTown(town *Town) {
 }
 
 func (t *Terrain) CreateTown(c common.Coordinates) Town {
-	var heatMap = make([][]int, common.WorldHeight)
+	var heatMap = make([][]HeatMapCost, common.WorldHeight)
 
 	for i := range heatMap {
-		heatMap[i] = make([]int, common.WorldWidth)
+		heatMap[i] = make([]HeatMapCost, common.WorldWidth)
 		for j := range heatMap[i] {
 			heatMap[i][j] = -1
 		}
@@ -61,7 +71,7 @@ func (t *Terrain) CreateTown(c common.Coordinates) Town {
 	town := Town{
 		id:  common.GenID(c),
 		pos: []common.Coordinates{c},
-		heatMap: HeatMap{
+		HeatMap: HeatMap{
 			grid: heatMap,
 		},
 	}
@@ -74,7 +84,7 @@ func (t *Terrain) CreateTown(c common.Coordinates) Town {
 		p := t.World.GetPositionType(a)
 		if (p == TypeLowland || p == TypeBeach) && t.World.isAdjacentToWater(a) {
 			t.World.SetPositionType(a, TypeTown)
-			//heatMap[a.X][a.Y] = 0
+			//HeatMap[a.X][a.Y] = 0
 			town.pos = append(town.pos, a)
 		}
 	}

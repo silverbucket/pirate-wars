@@ -41,23 +41,28 @@ var ColorPossibilities = []ColorScheme{
 
 func (t *Terrain) CreateNpc() {
 	pos := t.RandomPositionDeepWater()
-	firstTown := t.GetRandomTown()
-	secondTown := t.GetRandomTown()
+	tradeTowns := []Town{}
 	for {
+		town := t.GetRandomTown()
 		// ensure towns are unique
-		if secondTown.GetY() == firstTown.GetY() && secondTown.GetY() == firstTown.GetY() {
-			secondTown = t.GetRandomTown()
-		} else {
+		if len(tradeTowns) > 2 {
 			break
+		} else if len(tradeTowns) == 2 {
+			if (town.GetY() == tradeTowns[0].GetY() && town.GetY() == tradeTowns[0].GetY()) || !town.AccessibleFrom(pos) {
+				// either same town, or inaccessible from position, try again
+				continue
+			}
 		}
+		tradeTowns = append(tradeTowns, town)
 	}
+
 	npc := Npc{
 		id:     common.GenID(pos),
 		avatar: CreateAvatar(pos, '⏏', ColorPossibilities[rand.Intn(len(ColorPossibilities)-1)]),
 		agenda: Agenda{
 			goal:        GoalTypeTrade,
 			tradeTarget: 0,
-			tadeRoute:   []Town{firstTown, secondTown},
+			tadeRoute:   tradeTowns,
 		},
 	}
 	t.Logger.Infof("[%v] NPC created at %d, %d", npc.id, pos.X, pos.Y)
@@ -80,7 +85,7 @@ func (t *Terrain) CalcNpcMovements() {
 		town := &npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 
 		// if we're already at our destination, flip our trade route
-		if town.heatMap.GetCost(npc.avatar.GetPos()) < 3 {
+		if town.HeatMap.GetCost(npc.avatar.GetPos()) < 3 {
 			oldTown := npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 			npc.agenda.tradeTarget = npc.agenda.tradeTarget ^ 1
 			town = &npc.agenda.tadeRoute[npc.agenda.tradeTarget]
@@ -96,8 +101,8 @@ func (t *Terrain) CalcNpcMovements() {
 				continue
 			}
 			//t.Logger.Debug(fmt.Sprintf("New heatmap coordinates check [%v][%v]", newX, newY))
-			//t.Logger.Debug(fmt.Sprintf("Npc at %v, %v - checking square %v, %v cost:%v [lowest cost: %v]", newPosition.X, newPosition.Y, newX, newY, town.heatMap[newX][newY], lowestCost)
-			opts = append(opts, DirectionCost{n, town.heatMap.GetCost(n)})
+			//t.Logger.Debug(fmt.Sprintf("Npc at %v, %v - checking square %v, %v cost:%v [lowest cost: %v]", newPosition.X, newPosition.Y, newX, newY, town.HeatMap[newX][newY], lowestCost)
+			opts = append(opts, DirectionCost{n, town.HeatMap.GetCost(n)})
 		}
 
 		pick := decideDirection(opts, town.GetPos())
@@ -126,10 +131,10 @@ func (t *Terrain) GetNpcAvatars() []AvatarReadOnly {
 }
 
 func decideDirection(o []DirectionCost, dest common.Coordinates) DirectionCost {
-	lowestCost := common.MaxMovementCost
+	lowestCost := MaxMovementCost
 	choice := DirectionCost{}
 	for _, e := range o {
-		if e.cost <= lowestCost {
+		if e.cost <= lowestCost && e.cost >= 0 {
 			lowestCost = e.cost
 			//possibilities = append(possibilities, e.pos)
 			choice = e
