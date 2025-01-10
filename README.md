@@ -19,6 +19,7 @@ A pirate-themed roguelike, written in Go.
 * Explore the map
 * Visit towns (currently you cannot enter them)
 * View mini-map of entire world, with towns
+* NPC boats with basic pathfinding AI
 
 ## Todo
 
@@ -30,8 +31,8 @@ A pirate-themed roguelike, written in Go.
 * Don't let town spawn in small land-locked areas
 
 #### World Map
-* Encounter enemies
-* Enemy movement AI
+* Engage with NPCs
+* Improved NPC AI
 
 ### Ships 
 * View ship details
