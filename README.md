@@ -18,8 +18,12 @@ A pirate-themed roguelike, written in Go.
 * Move around in your boat
 * Explore the map
 * Visit towns (currently you cannot enter them)
-* View mini-map of entire world, with towns
+* View mini-map of entire world, with towns listed (`m`)
 * NPC boats with basic pathfinding AI
+
+### Towns
+* Don't spawn towns in small land-locked areas
+* Ghost towns
 
 ## Todo
 
@@ -27,12 +31,13 @@ A pirate-themed roguelike, written in Go.
 * Enter towns
 * Make towns look better
 * Buy/sell goods
-* Found you own town? (Pirate hideaway?)
-* Don't let town spawn in small land-locked areas
+* Found your own town? (Pirate hideaway?)
 
 #### World Map
 * Engage with NPCs
 * Improved NPC AI
+* Hire/Dig channels pathways?
+* Land defenses/fortifications
 
 ### Ships 
 * View ship details

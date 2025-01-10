@@ -23,6 +23,7 @@ type Agenda struct {
 }
 
 type Npc struct {
+	id     string
 	avatar *Avatar
 	agenda Agenda
 }
@@ -40,18 +41,18 @@ var ColorPossibilities = []ColorScheme{
 
 func (t *Terrain) CreateNpc() {
 	pos := t.RandomPositionDeepWater()
-	t.Logger.Infof("Creating NPC at %d, %d", pos.X, pos.Y)
 	firstTown := t.GetRandomTown()
 	secondTown := t.GetRandomTown()
 	for {
 		// ensure towns are unique
-		if secondTown.pos.X == firstTown.pos.X && secondTown.pos.Y == firstTown.pos.Y {
+		if secondTown.GetY() == firstTown.GetY() && secondTown.GetY() == firstTown.GetY() {
 			secondTown = t.GetRandomTown()
 		} else {
 			break
 		}
 	}
 	npc := Npc{
+		id:     common.GenID(pos),
 		avatar: CreateAvatar(pos, '⏏', ColorPossibilities[rand.Intn(len(ColorPossibilities)-1)]),
 		agenda: Agenda{
 			goal:        GoalTypeTrade,
@@ -59,6 +60,7 @@ func (t *Terrain) CreateNpc() {
 			tadeRoute:   []Town{firstTown, secondTown},
 		},
 	}
+	t.Logger.Infof("[%v] NPC created at %d, %d", npc.id, pos.X, pos.Y)
 	t.Npcs = append(t.Npcs, npc)
 }
 
@@ -69,40 +71,49 @@ func (t *Terrain) InitNpcs() {
 }
 
 func (t *Terrain) CalcNpcMovements() {
-	for _, npc := range t.Npcs {
+	for i := range t.Npcs {
 		if rand.Intn(100) > ChanceToMove {
 			continue
 		}
 
+		npc := &t.Npcs[i]
 		target := npc.avatar.GetPos()
-		town := npc.agenda.tadeRoute[npc.agenda.tradeTarget]
+		town := &npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 
 		// if we're already at our destination, flip our trade route
-		if town.heatMap[target.X][target.Y] < 3 {
+		if town.GetHeatmapCost(target) < 3 {
+			oldTown := npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 			npc.agenda.tradeTarget = npc.agenda.tradeTarget ^ 1
-			town = npc.agenda.tadeRoute[npc.agenda.tradeTarget]
+			town = &npc.agenda.tadeRoute[npc.agenda.tradeTarget]
+			t.Logger.Info(fmt.Sprintf("[%v] NPC movement trade switch from town %v to town %v", npc.id, oldTown.GetPos(), town.GetPos()))
 		}
 
 		// find next move by cost on heatmap
 		var lowestCost = common.MaxMovementCost
 		for _, dir := range common.Directions {
-			newX, newY := npc.avatar.GetX()+dir.X, npc.avatar.GetY()+dir.Y
-			if (newX < 0 || newX > common.WorldHeight-1) || (newY < 0 || newY > common.WorldHeight-1) {
+			n := common.Coordinates{npc.avatar.GetX() + dir.X, npc.avatar.GetY() + dir.Y}
+			if !common.Inbounds(n) {
 				// don't check out of bounds
 				continue
 			}
+
 			//t.Logger.Debug(fmt.Sprintf("New heatmap coordinates check [%v][%v]", newX, newY))
 			//t.Logger.Debug(fmt.Sprintf("Npc at %v, %v - checking square %v, %v cost:%v [lowest cost: %v]", newPosition.X, newPosition.Y, newX, newY, town.heatMap[newX][newY], lowestCost)
-
-			if town.heatMap[newX][newY] >= 0 && town.heatMap[newX][newY] < lowestCost {
-				lowestCost = town.heatMap[newX][newY]
-				target = common.Coordinates{newX, newY}
+			cost := town.GetHeatmapCost(n)
+			if cost >= 0 && cost < lowestCost {
+				lowestCost = cost
+				target = n
 			}
 		}
+
 		if target.X == npc.avatar.GetX() && target.Y == npc.avatar.GetY() {
-			t.Logger.Debug(fmt.Sprintf("NPC stuck! Travelling to town at %v, %v (cost square %v)", town.pos.X, town.pos.Y, town.heatMap[target.X][target.Y]))
+			t.Logger.Debug(fmt.Sprintf("[%v] NPC stuck! Travelling to town at %v (cost %v)", npc.id, town.GetPos(), town.GetHeatmapCost(target)))
 		} else {
-			t.Logger.Info(fmt.Sprintf("NPC moving to %v, %v", target.X, target.Y))
+			pos := npc.avatar.GetPos()
+			t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v", npc.id, pos, target))
+			if !t.isPositionAdjacent(pos, target) {
+				t.Logger.Warn(fmt.Sprintf("[%v] NPC warp!", npc.id))
+			}
 			npc.avatar.SetPos(target)
 		}
 	}

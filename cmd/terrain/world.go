@@ -21,15 +21,11 @@ type AvatarReadOnly interface {
 	Render() string
 }
 
-func (world MapView) GetTerrainType(x int, y int) TerrainType {
-	return world.grid[x][y]
-}
-
-func (world MapView) isAdjacentToWater(coords common.Coordinates) bool {
-	adjacentCoords := world.GetAdjacentCoords(coords)
+func (world MapView) isAdjacentToWater(c common.Coordinates) bool {
+	adjacentCoords := world.GetAdjacentCoords(c)
 	isAdjacentWater := false
 	for _, a := range adjacentCoords {
-		if world.grid[a.X][a.Y] == TypeShallowWater {
+		if world.GetPositionType(a) == TypeShallowWater {
 			isAdjacentWater = true
 			break
 		}
@@ -37,15 +33,15 @@ func (world MapView) isAdjacentToWater(coords common.Coordinates) bool {
 	return isAdjacentWater
 }
 
-func (world MapView) GetAdjacentCoords(coords common.Coordinates) []common.Coordinates {
+func (world MapView) GetAdjacentCoords(c common.Coordinates) []common.Coordinates {
 	var adjacentCoords []common.Coordinates
 	for i := -1; i <= 1; i++ {
 		for j := -1; j <= 1; j++ {
 			if i == 0 && j == 0 {
 				continue
 			}
-			adjX := coords.X + i
-			adjY := coords.Y + j
+			adjX := c.X + i
+			adjY := c.Y + j
 			if adjX < 0 || adjX >= world.GetWidth() || adjY < 0 || adjY >= world.GetHeight() {
 				continue
 			}
@@ -118,12 +114,20 @@ func (world MapView) Paint(avatar AvatarReadOnly, npcs []Avatar) string {
 	return fmt.Sprintln(viewport)
 }
 
-func (world MapView) IsPassableByBoat(coordinates common.Coordinates) bool {
-	tt := world.grid[coordinates.X][coordinates.Y]
+func (world MapView) IsPassableByBoat(c common.Coordinates) bool {
+	tt := world.GetPositionType(c)
 	return TypeLookup[tt].RequiresBoat
 }
 
-func (world MapView) IsPassable(coordinates common.Coordinates) bool {
-	tt := world.grid[coordinates.X][coordinates.Y]
+func (world MapView) IsPassable(c common.Coordinates) bool {
+	tt := world.GetPositionType(c)
 	return TypeLookup[tt].Passable
+}
+
+func (world MapView) GetPositionType(c common.Coordinates) TerrainType {
+	return world.grid[c.X][c.Y]
+}
+
+func (world MapView) SetPositionType(c common.Coordinates, t TerrainType) {
+	world.grid[c.X][c.Y] = t
 }
