@@ -38,5 +38,5 @@ func TestPaint(t *testing.T) {
 	tr := Init(logger)
 	tr.GenerateWorld()
 	tr.GenerateTowns()
-	tr.World.Paint(avatar)
+	tr.World.Paint(avatar, []AvatarReadOnly{})
 }

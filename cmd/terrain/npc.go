@@ -119,10 +119,10 @@ func (t *Terrain) CalcNpcMovements() {
 	}
 }
 
-func (t *Terrain) GetNpcAvatars() []Avatar {
-	var avs []Avatar
+func (t *Terrain) GetNpcAvatars() []AvatarReadOnly {
+	var avs []AvatarReadOnly
 	for npc := range t.Npcs {
-		avs = append(avs, *t.Npcs[npc].avatar)
+		avs = append(avs, t.Npcs[npc].avatar)
 	}
 	return avs
 }

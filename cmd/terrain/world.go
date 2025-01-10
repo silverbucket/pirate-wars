@@ -59,7 +59,7 @@ func (world MapView) GetHeight() int {
 	return len(world.grid)
 }
 
-func (world MapView) Paint(avatar AvatarReadOnly, npcs []Avatar) string {
+func (world MapView) Paint(avatar AvatarReadOnly, npcs []AvatarReadOnly) string {
 	left := 0
 	top := 0
 	worldHeight := len(world.grid)
@@ -93,7 +93,7 @@ func (world MapView) Paint(avatar AvatarReadOnly, npcs []Avatar) string {
 		overlay[fmt.Sprintf("%03d%03d", avatar.GetX(), avatar.GetY())] = avatar
 		// on the world map we draw the NPCs
 		for _, n := range npcs {
-			overlay[fmt.Sprintf("%03d%03d", n.GetX(), n.GetY())] = &n
+			overlay[fmt.Sprintf("%03d%03d", n.GetX(), n.GetY())] = n
 		}
 	}
 

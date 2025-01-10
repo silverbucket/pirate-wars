@@ -36,7 +36,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.printMiniMap {
-		return m.terrain.MiniMap.Paint(m.player, []terrain.Avatar{})
+		return m.terrain.MiniMap.Paint(m.player, []terrain.AvatarReadOnly{})
 	} else {
 		// calc AI stuff
 		m.terrain.CalcNpcMovements()
