@@ -49,14 +49,24 @@ var ColorPossibilities = []ColorScheme{
 func (t *Terrain) CreateNpc() {
 	pos := t.RandomPositionDeepWater()
 	tradeTowns := []Town{}
+
+	tryCount := 0
 	for {
+		tryCount++
+
 		town := t.GetRandomTown()
 		// ensure towns are unique
 		if len(tradeTowns) > 2 {
 			break
 		} else if len(tradeTowns) == 2 {
 			if (town.GetY() == tradeTowns[0].GetY() && town.GetY() == tradeTowns[0].GetY()) || !town.AccessibleFrom(pos) {
-				// either same town, or inaccessible from position, try again
+				// either same town, or inaccessible from position
+				if tryCount > 20 {
+					// abort creation
+					t.Logger.Info(fmt.Sprintf("Failed creating npc at position %d, skipping [town: %v, accessible?: %v]", pos, town.GetPos(), town.AccessibleFrom(pos)))
+					return
+				}
+				// try again
 				continue
 			}
 		}
@@ -123,7 +133,7 @@ func (t *Terrain) CalcNpcMovements() {
 		} else {
 			t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v)", npc.id, npcpos, target, cost))
 			if !common.IsPositionAdjacent(npcpos, target) {
-				t.Logger.Warn(fmt.Sprintf("[%v] NPC warp!", npc.id))
+				t.Logger.Debug(fmt.Sprintf("[%v] NPC warp! from %v to %v", npc.id, npcpos, target))
 			}
 			npc.avatar.SetPos(target)
 		}

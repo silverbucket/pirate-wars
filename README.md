@@ -54,6 +54,7 @@ You currently cannot interaction with the towns or ships.
 * Improved NPC AI
 * Hire/Dig channels pathways?
 * Land defenses/fortifications
+* Dont allow overlap of ships (collision detection)
 
 ### Ships 
 * View ship details
