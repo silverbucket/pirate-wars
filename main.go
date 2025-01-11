@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbletea"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"os"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/player"
@@ -14,15 +13,16 @@ import (
 const BASE_LOG_LEVEL = zap.DebugLevel
 const DEV_MODE = true
 
-type Settings struct {
-	heatMapEnabled bool
-}
+const ViewTypeMainMap = 0
+const ViewTypeHeatMap = 1
+const ViewTypeMiniMap = 2
+
 type model struct {
-	logger       *zap.SugaredLogger
-	terrain      terrain.Terrain
-	player       *terrain.Avatar
-	settings     Settings
-	printMiniMap bool
+	logger   *zap.SugaredLogger
+	terrain  terrain.Terrain
+	player   *terrain.Avatar
+	viewType int
+	action   int
 }
 
 func (m model) Init() tea.Cmd {
@@ -31,48 +31,29 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.printMiniMap {
+	// reset action command
+	if m.viewType == ViewTypeMiniMap {
 		return m.miniMapInput(msg)
+	} else if m.action == common.UserActionExamine {
+		return m.actionInput(msg)
 	} else {
 		return m.sailingInput(msg)
 	}
 }
 
 func (m model) View() string {
-	if m.printMiniMap {
+	if m.viewType == ViewTypeMiniMap {
 		return m.terrain.MiniMap.Paint(m.player, []terrain.AvatarReadOnly{})
-	} else if m.settings.heatMapEnabled {
-		return m.terrain.Towns[0].HeatMap.Paint(m.player, m.terrain.GetNpcAvatars())
+	} else if m.viewType == ViewTypeHeatMap {
+		return m.terrain.Towns[0].HeatMap.Paint(m.player, m.terrain.GetVisibleNpcAvatars(m.player.GetPos()))
 	} else {
-		// calc AI stuff
-		m.terrain.CalcNpcMovements()
-		return m.terrain.World.Paint(m.player, m.terrain.GetNpcAvatars())
+		if m.action == common.UserActionNone {
+			// user is not doing some meta-action, NPCs can move
+			m.terrain.CalcNpcMovements()
+		}
+		// display main map
+		return m.terrain.World.Paint(m.player, m.terrain.GetVisibleNpcAvatars(m.player.GetPos()))
 	}
-}
-
-func createLogger() *zap.SugaredLogger {
-	// truncate file
-	configFile, err := os.OpenFile(common.LogFile, os.O_TRUNC|os.O_CREATE, 0664)
-	if err != nil {
-		panic(err)
-	}
-	if err = configFile.Close(); err != nil {
-		panic(err)
-	}
-	// create logger
-	cfg := zap.NewProductionConfig()
-	cfg.OutputPaths = []string{common.LogFile}
-	cfg.Level = zap.NewAtomicLevelAt(BASE_LOG_LEVEL)
-	cfg.Development = DEV_MODE
-	cfg.DisableCaller = false
-	cfg.DisableStacktrace = false
-	cfg.Encoding = "console"
-	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	cfg.EncoderConfig = encoderConfig
-	logger := zap.Must(cfg.Build())
-	defer logger.Sync()
-	return logger.Sugar()
 }
 
 func main() {
