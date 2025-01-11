@@ -80,6 +80,7 @@ func (t *Terrain) InitNpcs() {
 	for i := 0; i < common.TotalNpcs; i++ {
 		t.CreateNpc()
 	}
+	t.Logger.Infof("Npcs initialization completed: %d", len(t.Npcs))
 }
 
 func (t *Terrain) CalcNpcMovements() {

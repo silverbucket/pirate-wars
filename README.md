@@ -3,16 +3,33 @@ A pirate-themed roguelike, written in Go.
 
 ![pirate-wars](https://storage.5apps.com/silverbucket/public/shares/250110-1732-Screenshot%202025-01-10%20at%2018.31.52.jpg)
 
+**_NOTE_**: This is a hobby project, a work in progress.
+
+## Overview
+
+You are a pirate, sailing the seas. 
+
+Currently there are NPC ships (`⏏`) which have basic pathfinding capabilities. They travel from one town to another (a "trade route"). 
+
+Towns are also generated throughout the map, with the red (`⩎`) characters. 
+
+You currently cannot interaction with the towns or ships.
+
 ## Keybindings
 
-* Navigation
+### Navigation
 ```
  y k u
  l   h
  b j n
 ```
-* Mini-map: `m`
+*(or arrow keys)*
 
+### Commands
+* `m`: Mini-map
+
+### Developer Commands
+* `p`: View heat-map for town 0 (debug purposes)
 
 ## Features
 * Move around in your boat
@@ -22,8 +39,7 @@ A pirate-themed roguelike, written in Go.
 * NPC boats with basic pathfinding AI
 
 ### Towns
-* Don't spawn towns in small land-locked areas
-* Ghost towns
+* Towns don't spawn towns in small land-locked areas, however larger inaccessible can form with the terrain generation.
 
 ## Todo
 
