@@ -29,14 +29,21 @@ type Npc struct {
 }
 
 var ColorPossibilities = []ColorScheme{
-	{"#AA0000", "#000000"},
-	{"#00AA00", "#000000"},
-	{"#00AA00", "#000000"},
-	{"#00FF00", "#000000"},
-	{"#0000FF", "#000000"},
-	{"#FFFF00", "#000000"},
-	{"#FF00FF", "#000000"},
-	{"#00FFFF", "#000000"},
+	{"9", "#000000"},   // strong red
+	{"10", "#000000"},  // green
+	{"11", "#000000"},  // yellow
+	{"14", "#000000"},  // bright cyan
+	{"15", "#000000"},  // off-white
+	{"46", "#000000"},  // blue/green
+	{"65", "#000000"},  // faded cyan
+	{"86", "#000000"},  // light cyan
+	{"172", "#000000"}, // off pink
+	{"201", "#000000"}, // pink
+	{"207", "#000000"}, // light pink
+	{"218", "#000000"}, // light pink/white
+	{"222", "#000000"}, // light yellow/orange
+	{"230", "#000000"}, // yellow/white
+	{"253", "#000000"}, // grey
 }
 
 func (t *Terrain) CreateNpc() {
