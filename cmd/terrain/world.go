@@ -14,6 +14,7 @@ type MapView struct {
 }
 
 type AvatarReadOnly interface {
+	GetPos() common.Coordinates
 	GetX() int
 	GetY() int
 	GetMiniMapX() int
@@ -60,13 +61,10 @@ func (world MapView) GetHeight() int {
 }
 
 func (world MapView) Paint(avatar AvatarReadOnly, npcs []AvatarReadOnly) string {
-	left := 0
-	top := 0
-	worldHeight := len(world.grid)
-	worldWidth := len(world.grid[0])
-	viewHeight := worldHeight
-	viewWidth := worldWidth
-	rowWidth := worldWidth
+	v := common.ViewableArea{}
+	//viewHeight := common.WorldHeight
+	//viewWidth := common.WorldWidth
+	rowWidth := common.ViewWidth
 
 	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
 
@@ -74,22 +72,13 @@ func (world MapView) Paint(avatar AvatarReadOnly, npcs []AvatarReadOnly) string 
 	overlay := make(map[string]AvatarReadOnly)
 
 	if world.isMiniMap {
+		v = common.ViewableArea{0, 0, len(world.grid[0]), len(world.grid)}
+		// mini map views the whole map
+		rowWidth = common.WorldWidth
 		// always display main character avatar on the minimap
 		overlay[fmt.Sprintf("%03d%03d", avatar.GetMiniMapX(), avatar.GetMiniMapY())] = avatar
 	} else {
-		// center viewport on avatar
-		left = avatar.GetX() - (common.ViewWidth / 2)
-		top = avatar.GetY() - (common.ViewHeight / 2)
-		if left < 0 {
-			left = 0
-		}
-		if top < 0 {
-			top = 0
-		}
-		viewHeight = common.ViewHeight + top
-		viewWidth = common.ViewWidth + left
-		rowWidth = common.ViewWidth
-
+		v = common.GetViewableArea(avatar.GetPos())
 		overlay[fmt.Sprintf("%03d%03d", avatar.GetX(), avatar.GetY())] = avatar
 		// on the world map we draw the NPCs
 		for _, n := range npcs {
@@ -97,15 +86,18 @@ func (world MapView) Paint(avatar AvatarReadOnly, npcs []AvatarReadOnly) string 
 		}
 	}
 
+	world.logger.Info(fmt.Sprintf("Viewable Area %v", v))
+	world.logger.Info(fmt.Sprintf("Paining world with %v viewable NPCs", len(npcs)))
+
 	//world.logger.Debug(fmt.Sprintf("avatar position:  X:%v Y:%v", avs[0].GetX, avs[0].GetY()))
-	for y := top; y < worldHeight && y < viewHeight; y++ {
+	for y := v.Top; y < v.Bottom; y++ {
 		var row = make([]string, rowWidth)
-		for x := left; x < worldWidth && x < viewWidth; x++ {
+		for x := v.Left; x < v.Right; x++ {
 			item, ok := overlay[fmt.Sprintf("%03d%03d", x, y)]
 			if ok {
-				row[x-left] = item.Render()
+				row[x-v.Left] = item.Render()
 			} else {
-				row[x-left] = world.grid[x][y].Render()
+				row[x-v.Left] = world.grid[x][y].Render()
 			}
 		}
 		viewport.Row(row...).BorderColumn(false)

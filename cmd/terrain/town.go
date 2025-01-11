@@ -12,6 +12,8 @@ type Town struct {
 	HeatMap HeatMap
 }
 
+const TownColor = 1
+
 func (t *Town) GetId() string {
 	return t.id
 }
@@ -69,7 +71,7 @@ func (t *Terrain) CreateTown(c common.Coordinates) Town {
 	}
 
 	town := Town{
-		id:  common.GenID(c),
+		id:  common.GenID(c, TownColor),
 		pos: []common.Coordinates{c},
 		HeatMap: HeatMap{
 			grid: heatMap,

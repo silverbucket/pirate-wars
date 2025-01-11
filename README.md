@@ -19,14 +19,18 @@ You currently cannot interaction with the towns or ships.
 
 ### Navigation
 ```
- y k u
- l   h
- b j n
+ q w e        y k u
+ a   d  -or-  l   h
+ z x c        b j n
 ```
 *(or arrow keys)*
 
 ### Commands
+* `ctrl-q`: Quit
 * `m`: Mini-map
+* ~~`x`: Examine something on the map~~
+* ~~`i`: View your info~~
+* ~~`?`: Help screen~~
 
 ### Developer Commands
 * `p`: View heat-map for town 0 (debug purposes)

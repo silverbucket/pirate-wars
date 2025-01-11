@@ -57,5 +57,5 @@ func (a *Avatar) Render() string {
 }
 
 func CreateAvatar(coordinates common.Coordinates, c rune, color ColorScheme) *Avatar {
-	return &Avatar{pos: coordinates, char: c, fgColor: lipgloss.Color(color.Foreground), bgColor: lipgloss.Color(color.Background)}
+	return &Avatar{pos: coordinates, char: c, fgColor: lipgloss.Color(fmt.Sprintf("%v", color.Foreground)), bgColor: lipgloss.Color(color.Background)}
 }

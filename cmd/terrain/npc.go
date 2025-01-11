@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"math/rand"
 	"pirate-wars/cmd/common"
+	"sort"
 )
 
 type ColorScheme struct {
-	Foreground string
+	Foreground int
 	Background string
 }
 
@@ -29,21 +30,25 @@ type Npc struct {
 }
 
 var ColorPossibilities = []ColorScheme{
-	{"9", "#000000"},   // strong red
-	{"10", "#000000"},  // green
-	{"11", "#000000"},  // yellow
-	{"14", "#000000"},  // bright cyan
-	{"15", "#000000"},  // off-white
-	{"46", "#000000"},  // blue/green
-	{"65", "#000000"},  // faded cyan
-	{"86", "#000000"},  // light cyan
-	{"172", "#000000"}, // off pink
-	{"201", "#000000"}, // pink
-	{"207", "#000000"}, // light pink
-	{"218", "#000000"}, // light pink/white
-	{"222", "#000000"}, // light yellow/orange
-	{"230", "#000000"}, // yellow/white
-	{"253", "#000000"}, // grey
+	{9, "#000000"},   // strong red
+	{10, "#000000"},  // green
+	{11, "#000000"},  // yellow
+	{14, "#000000"},  // bright cyan
+	{15, "#000000"},  // off-white
+	{46, "#000000"},  // blue/green
+	{69, "#000000"},  // faded cyan
+	{86, "#000000"},  // light cyan
+	{93, "#000000"},  // fuchsia
+	{172, "#000000"}, // off pink
+	{193, "#000000"}, // light green
+	{201, "#000000"}, // pink
+	{207, "#000000"}, // light pink
+	{211, "#000000"}, // lighter pink
+	{218, "#000000"}, // light pink/white
+	{222, "#000000"}, // light yellow/orange
+	{230, "#000000"}, // yellow/white
+	{253, "#000000"}, // grey
+	{255, "#000000"}, // white
 }
 
 func (t *Terrain) CreateNpc() {
@@ -73,9 +78,10 @@ func (t *Terrain) CreateNpc() {
 		tradeTowns = append(tradeTowns, town)
 	}
 
+	color := ColorPossibilities[rand.Intn(len(ColorPossibilities)-1)]
 	npc := Npc{
-		id:     common.GenID(pos),
-		avatar: CreateAvatar(pos, '⏏', ColorPossibilities[rand.Intn(len(ColorPossibilities)-1)]),
+		id:     common.GenID(pos, color.Foreground),
+		avatar: CreateAvatar(pos, '⏏', color),
 		agenda: Agenda{
 			goal:        GoalTypeTrade,
 			tradeTarget: 0,
@@ -142,10 +148,28 @@ func (t *Terrain) CalcNpcMovements() {
 
 func (t *Terrain) GetNpcAvatars() []AvatarReadOnly {
 	var avs []AvatarReadOnly
-	for npc := range t.Npcs {
-		avs = append(avs, t.Npcs[npc].avatar)
+	for _, npc := range t.Npcs {
+		avs = append(avs, npc.avatar)
 	}
 	return avs
+}
+
+func (t *Terrain) GetVisibleNpcAvatars(c common.Coordinates) []AvatarReadOnly {
+	v := common.GetViewableArea(c)
+	viewable := map[int]AvatarReadOnly{}
+	keys := []int{}
+	for _, npc := range t.Npcs {
+		if common.IsPositionWithin(npc.avatar.GetPos(), v) {
+			keys = append(keys, npc.avatar.GetX())
+			viewable[npc.avatar.GetX()] = npc.avatar
+		}
+	}
+	sorted := []AvatarReadOnly{}
+	sort.Ints(keys)
+	for _, key := range keys {
+		sorted = append(sorted, viewable[key])
+	}
+	return sorted
 }
 
 func decideDirection(o []DirectionCost, dest common.Coordinates) DirectionCost {
