@@ -25,13 +25,32 @@ type model struct {
 	action   int
 }
 
+var ScreenInitialized = false
+var WorldInitialized = false
+
 func (m model) Init() tea.Cmd {
 	// Just return `nil`, which means "no I/O right now, please."
 	return nil
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// reset action command
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.logger.Info(fmt.Sprintf("Window size: %v", msg))
+		common.SetWindowSize(msg.Width, msg.Height)
+		ScreenInitialized = true
+		if !WorldInitialized {
+			m.terrain.GenerateWorld()
+			m.terrain.GenerateTowns()
+			m.terrain.InitNpcs()
+			m.terrain.GenerateMiniMap()
+			WorldInitialized = true
+		}
+		return m, nil
+	}
+	if !ScreenInitialized {
+		return m, nil
+	}
 	if m.viewType == ViewTypeMiniMap {
 		return m.miniMapInput(msg)
 	} else if m.action == common.UserActionIdExamine {
@@ -42,16 +61,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	if !WorldInitialized {
+		return ""
+	}
 	highlight := ExamineData.GetFocusedEntity()
-	h := highlight
-	h.SetID(fmt.Sprintf("%v-%v", h.GetID(), "viewtest"))
 	npcs := m.terrain.GetVisibleNpcs(m.player.GetPos())
 	visible := []common.AvatarReadOnly{}
 	for _, npc := range npcs {
 		visible = append(visible, &npc)
 	}
 	if m.viewType == ViewTypeMiniMap {
-		return m.terrain.MiniMap.Paint(&m.player, []common.AvatarReadOnly{}, h)
+		return m.terrain.MiniMap.Paint(&m.player, []common.AvatarReadOnly{}, highlight)
 	} else if m.viewType == ViewTypeHeatMap {
 		return m.terrain.Towns[0].HeatMap.Paint(&m.player, visible, highlight)
 	} else {
@@ -59,10 +79,9 @@ func (m model) View() string {
 			// user is not doing some meta-action, NPCs can move
 			m.terrain.CalcNpcMovements()
 		}
-		m.logger.Debug(fmt.Sprintf("ExamineData passed-in: %v, %v", highlight.GetID(), highlight.GetBackgroundColor()))
 
 		// display main map
-		return m.terrain.World.Paint(&m.player, visible, h)
+		return m.terrain.World.Paint(&m.player, visible, highlight)
 	}
 }
 
@@ -71,10 +90,6 @@ func main() {
 	logger.Info("Starting...")
 
 	t := terrain.Init(logger)
-	t.GenerateWorld()
-	t.GenerateTowns()
-	t.InitNpcs()
-	t.GenerateMiniMap()
 
 	// ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 	if _, err := tea.NewProgram(model{

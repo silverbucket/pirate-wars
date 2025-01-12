@@ -5,5 +5,6 @@ import (
 )
 
 func Create(t *terrain.Terrain) terrain.Avatar {
-	return terrain.CreateAvatar(t.RandomPositionDeepWater(), '⏏', terrain.ColorScheme{"0", "#ffffff"})
+	p := terrain.CreateAvatar(t.RandomPositionDeepWater(), '⏏', terrain.ColorScheme{"0", "#ffffff"})
+	return p
 }

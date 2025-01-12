@@ -80,8 +80,8 @@ func (n *Npc) GetBackgroundColor() string {
 	return n.avatar.bgColor
 }
 
-func (n *Npc) SetBackgroundColor(color string) {
-	n.avatar.bgColor = color
+func (n *Npc) Highlight() {
+	n.avatar.SetBlink(true)
 }
 
 func (ns *Npcs) ForEach(fn func(n Npc)) {

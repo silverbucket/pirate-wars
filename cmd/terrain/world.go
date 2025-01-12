@@ -60,6 +60,8 @@ func (world MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRea
 	// overlay map of all avatars
 	overlay := make(map[string]common.AvatarReadOnly)
 
+	world.logger.Info(fmt.Sprintf("ViewPort set to %v, %v", common.ViewWidth, common.ViewHeight))
+
 	if world.isMiniMap {
 		v = common.ViewableArea{0, 0, len(world.grid[0]), len(world.grid)}
 		// mini map views the whole map
@@ -79,16 +81,16 @@ func (world MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRea
 	}
 
 	h := entity.GetPos()
-	world.logger.Debug(fmt.Sprintf("highlight entity? %v", entity.GetPos()))
 	if h.X >= 0 {
-		world.logger.Debug(fmt.Sprintf("[%v] highlighting (prev bg color: %v)", entity.GetID(), entity.GetBackgroundColor()))
+		world.logger.Debug(fmt.Sprintf("[%v] highlighting", entity.GetID(), entity.GetBackgroundColor()))
 		// actual entity to examine, we should highlight it
-		entity.SetBackgroundColor("15")
+		entity.Highlight()
 		overlay[fmt.Sprintf("%03d%03d", h.X, h.Y)] = entity
 	}
 
 	world.logger.Info(fmt.Sprintf("Viewable Area %v", v))
-	world.logger.Info(fmt.Sprintf("Paining world with %v viewable NPCs", len(npcs)))
+	world.logger.Info(fmt.Sprintf("Player position %v", avatar.GetPos()))
+	world.logger.Info(fmt.Sprintf("Painting world with %v viewable NPCs", len(npcs)))
 
 	for y := v.Top; y < v.Bottom; y++ {
 		var row = make([]string, rowWidth)

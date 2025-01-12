@@ -5,6 +5,7 @@ go 1.23.1
 require (
 	github.com/charmbracelet/bubbletea v1.2.4
 	github.com/charmbracelet/lipgloss v1.0.0
+	github.com/dariubs/percent v1.0.0
 	github.com/ojrac/opensimplex-go v1.0.2
 	go.uber.org/zap v1.27.0
 )

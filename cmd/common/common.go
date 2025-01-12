@@ -6,14 +6,12 @@ import (
 )
 
 const (
-	LogFile       = "pirate-wars.log"
-	WorldWidth    = 600 // Y
-	WorldHeight   = 600 // X
-	TotalTowns    = 20
-	ViewWidth     = 75
-	ViewHeight    = 50
-	MiniMapFactor = 11
-	TotalNpcs     = 100
+	LogFile     = "pirate-wars.log"
+	WorldWidth  = 600 // Y
+	WorldHeight = 600 // X
+	TotalTowns  = 20
+	//MiniMapFactor = 11 // 24
+	TotalNpcs = 100
 )
 
 type ViewPort struct {

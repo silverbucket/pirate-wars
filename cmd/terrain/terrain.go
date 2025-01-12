@@ -34,16 +34,6 @@ func Init(logger *zap.SugaredLogger) *Terrain {
 		worldGrid[i] = make([]TerrainType, common.WorldHeight)
 	}
 
-	// Calculate MiniMap dimensions
-	height := len(worldGrid) / common.MiniMapFactor
-	width := len(worldGrid[0]) / common.MiniMapFactor
-
-	// Create new 2D slice
-	miniMap := make([][]TerrainType, height+1)
-	for i := range miniMap {
-		miniMap[i] = make([]TerrainType, width+1)
-	}
-
 	return &Terrain{
 		Logger: logger,
 		props: Props{
@@ -62,7 +52,7 @@ func Init(logger *zap.SugaredLogger) *Terrain {
 		MiniMap: MapView{
 			isMiniMap: true,
 			logger:    logger,
-			grid:      miniMap,
+			grid:      [][]TerrainType{},
 		},
 	}
 }
@@ -119,6 +109,16 @@ func (t *Terrain) GenerateWorld() {
 }
 
 func (t *Terrain) GenerateMiniMap() {
+	// Calculate MiniMap dimensions
+	height := len(t.World.grid) / common.MiniMapFactor
+	width := len(t.World.grid[0]) / common.MiniMapFactor
+
+	// Create new 2D slice
+	t.MiniMap.grid = make([][]TerrainType, height+1)
+	for i := range t.MiniMap.grid {
+		t.MiniMap.grid[i] = make([]TerrainType, width+1)
+	}
+
 	// Down-sample
 	for i, row := range t.World.grid {
 		for j, val := range row {

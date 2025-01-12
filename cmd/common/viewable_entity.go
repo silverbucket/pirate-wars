@@ -8,7 +8,7 @@ type ViewableEntity interface {
 	SetID(string)
 	GetForegroundColor() string
 	GetBackgroundColor() string
-	SetBackgroundColor(string)
+	Highlight()
 	Render() string
 }
 
@@ -30,6 +30,7 @@ func (e *EmptyViewableEntity) GetBackgroundColor() string {
 	return ""
 }
 func (e *EmptyViewableEntity) SetBackgroundColor(string) {}
+func (e *EmptyViewableEntity) Highlight()                {}
 
 func NewEmptyViewableEntity() *EmptyViewableEntity {
 	return &EmptyViewableEntity{}
