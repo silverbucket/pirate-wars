@@ -87,10 +87,10 @@ func (t *Terrain) GenerateTownHeatMap(town *Town) bool {
 		}
 	}
 	if count < 200 {
-		t.Logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap aborted with %v iterations", town.GetId(), town.GetPos(), count))
+		t.Logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap aborted with %v iterations", town.GetID(), town.GetPos(), count))
 		return false
 	} else {
-		t.Logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap completed with %v iterations", town.GetId(), town.GetPos(), count))
+		t.Logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap completed with %v iterations", town.GetID(), town.GetPos(), count))
 		return true
 	}
 }

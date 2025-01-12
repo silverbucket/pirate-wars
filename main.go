@@ -20,7 +20,7 @@ const ViewTypeMiniMap = 2
 type model struct {
 	logger   *zap.SugaredLogger
 	terrain  terrain.Terrain
-	player   *terrain.Avatar
+	player   terrain.Avatar
 	viewType int
 	action   int
 }
@@ -42,18 +42,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	viewable := ExamineData.List[ExamineData.Idx]
+	highlight := ExamineData.GetFocusedEntity()
+	h := highlight
+	h.SetID(fmt.Sprintf("%v-%v", h.GetID(), "viewtest"))
+	npcs := m.terrain.GetVisibleNpcs(m.player.GetPos())
+	visible := []common.AvatarReadOnly{}
+	for _, npc := range npcs {
+		visible = append(visible, &npc)
+	}
 	if m.viewType == ViewTypeMiniMap {
-		return m.terrain.MiniMap.Paint(m.player, []common.AvatarReadOnly{}, viewable)
+		return m.terrain.MiniMap.Paint(&m.player, []common.AvatarReadOnly{}, h)
 	} else if m.viewType == ViewTypeHeatMap {
-		return m.terrain.Towns[0].HeatMap.Paint(m.player, m.terrain.GetVisibleNpcAvatars(m.player.GetPos()), viewable)
+		return m.terrain.Towns[0].HeatMap.Paint(&m.player, visible, highlight)
 	} else {
 		if m.action == common.UserActionIdNone {
 			// user is not doing some meta-action, NPCs can move
 			m.terrain.CalcNpcMovements()
 		}
+		m.logger.Debug(fmt.Sprintf("ExamineData passed-in: %v, %v", highlight.GetID(), highlight.GetBackgroundColor()))
+
 		// display main map
-		return m.terrain.World.Paint(m.player, m.terrain.GetVisibleNpcAvatars(m.player.GetPos()), viewable)
+		return m.terrain.World.Paint(&m.player, visible, h)
 	}
 }
 

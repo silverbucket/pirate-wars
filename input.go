@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbletea"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/terrain"
 )
 
 var ExamineData = common.NewUserActionExamine()
@@ -51,7 +52,11 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// examine something on the map
 		case "x":
 			m.action = common.UserActionIdExamine
+			npcs := m.terrain.GetVisibleNpcs(m.player.GetPos())
 			ExamineData = common.NewUserActionExamine()
+			npcs.ForEach(func(n terrain.Npc) {
+				ExamineData.AddItem(&n)
+			})
 
 		case "left", "h", "a":
 			c := m.player.GetPos()
@@ -177,20 +182,10 @@ func (m model) actionInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ExamineData = common.NewUserActionExamine()
 
 		case "left", "h", "a":
-			size := len(ExamineData.List)
-			if ExamineData.Idx < 0 {
-				// left
-				ExamineData.Idx = size - 1
-			} else {
-				// right
-				if ExamineData.Idx == size-1 {
-					ExamineData.Idx = 0
-				} else {
-					ExamineData.Idx = ExamineData.Idx + 1
-				}
-			}
+			ExamineData.FocusLeft()
 
 		case "right", "l", "d":
+			ExamineData.FocusRight()
 
 		}
 	}

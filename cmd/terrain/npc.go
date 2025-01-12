@@ -24,9 +24,11 @@ type Agenda struct {
 
 type Npc struct {
 	id     string
-	avatar *Avatar
+	avatar Avatar
 	agenda Agenda
 }
+
+type Npcs []Npc
 
 var ColorPossibilities = []ColorScheme{
 	{"9", "0"},   // strong red
@@ -58,16 +60,34 @@ func (n *Npc) SetPos(p common.Coordinates) {
 	n.avatar.pos = p
 }
 
-func (n *Npc) GetId() string {
+func (n *Npc) GetID() string {
 	return n.id
 }
 
-func (n *Npc) GetColor() string {
+func (n *Npc) SetID(s string) {
+	n.id = s
+}
+
+func (n *Npc) GetForegroundColor() string {
 	return n.avatar.fgColor
 }
 
 func (n *Npc) Render() string {
 	return n.avatar.Render()
+}
+
+func (n *Npc) GetBackgroundColor() string {
+	return n.avatar.bgColor
+}
+
+func (n *Npc) SetBackgroundColor(color string) {
+	n.avatar.bgColor = color
+}
+
+func (ns *Npcs) ForEach(fn func(n Npc)) {
+	for _, n := range *ns {
+		fn(n)
+	}
 }
 
 func (t *Terrain) CreateNpc() {
@@ -156,7 +176,7 @@ func (t *Terrain) CalcNpcMovements() {
 		if target.X == npcpos.X && target.Y == npcpos.Y {
 			t.Logger.Debug(fmt.Sprintf("[%v] NPC stuck at %v! Travelling to town at %v (cost %v)", npc.id, npcpos, town.GetPos(), cost))
 		} else {
-			t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v)", npc.id, npcpos, target, cost))
+			t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (bg color: %v)", npc.id, npcpos, target, cost, npc.GetBackgroundColor()))
 			if !common.IsPositionAdjacent(npcpos, target) {
 				t.Logger.Debug(fmt.Sprintf("[%v] NPC warp! from %v to %v", npc.id, npcpos, target))
 			}
@@ -165,26 +185,26 @@ func (t *Terrain) CalcNpcMovements() {
 	}
 }
 
-func (t *Terrain) GetNpcAvatars() []common.AvatarReadOnly {
-	var avs []common.AvatarReadOnly
+func (t *Terrain) GetNpcs() Npcs {
+	var avs Npcs
 	for _, npc := range t.Npcs {
-		avs = append(avs, &npc)
+		avs = append(avs, npc)
 	}
 	return avs
 }
 
-func (t *Terrain) GetVisibleNpcAvatars(c common.Coordinates) []common.AvatarReadOnly {
+func (t *Terrain) GetVisibleNpcs(c common.Coordinates) Npcs {
 	v := common.GetViewableArea(c)
-	viewable := map[int]common.AvatarReadOnly{}
+	viewable := map[int]Npc{}
 	keys := []int{}
 	for _, npc := range t.Npcs {
 		p := npc.GetPos()
 		if common.IsPositionWithin(p, v) {
 			keys = append(keys, p.X)
-			viewable[p.X] = &npc
+			viewable[p.X] = npc
 		}
 	}
-	sorted := []common.AvatarReadOnly{}
+	sorted := Npcs{}
 	sort.Ints(keys)
 	for _, key := range keys {
 		sorted = append(sorted, viewable[key])

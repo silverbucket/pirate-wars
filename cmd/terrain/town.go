@@ -12,7 +12,7 @@ type Town struct {
 	HeatMap HeatMap
 }
 
-func (t *Town) GetId() string {
+func (t *Town) GetID() string {
 	return t.id
 }
 

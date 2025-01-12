@@ -21,10 +21,6 @@ func (a *Avatar) GetPos() common.Coordinates {
 	return a.pos
 }
 
-func (a *Avatar) SetBackgroundColor(c string) {
-	a.bgColor = c
-}
-
 func (a *Avatar) Render() string {
 	return lipgloss.NewStyle().
 		Foreground(lipgloss.Color(a.fgColor)).
@@ -35,6 +31,6 @@ func (a *Avatar) Render() string {
 		Render(fmt.Sprintf("%c", a.char))
 }
 
-func CreateAvatar(coordinates common.Coordinates, c rune, color ColorScheme) *Avatar {
-	return &Avatar{pos: coordinates, char: c, fgColor: color.Foreground, bgColor: color.Background}
+func CreateAvatar(coordinates common.Coordinates, c rune, color ColorScheme) Avatar {
+	return Avatar{pos: coordinates, char: c, fgColor: color.Foreground, bgColor: color.Background}
 }

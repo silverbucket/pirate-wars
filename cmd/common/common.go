@@ -16,33 +16,6 @@ const (
 	TotalNpcs     = 100
 )
 
-// User Action Types
-const (
-	UserActionIdNone              = 0
-	UserActionIdExamine           = 1
-	UserActionIdInfo              = 2
-	UserActionIdHelp              = 3
-	UserActionIdMiniMap           = 4
-	UserActionIdDebugHeatMap      = 5
-	UserActionIdDebugViewableNpcs = 6
-)
-
-type UserActionExamine struct {
-	ID   int
-	Idx  int
-	List []ViewableEntity
-}
-
-type ViewableEntity interface {
-	GetPos() Coordinates
-	GetId() string
-	GetColor() string
-	Render() string
-	SetBackgroundColor(string)
-}
-
-type EmptyViewableEntity struct{}
-
 type ViewPort struct {
 	width   int
 	height  int
@@ -79,23 +52,6 @@ type AvatarReadOnly interface {
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
-
-func (e EmptyViewableEntity) GetPos() Coordinates {
-	return Coordinates{-1, -1}
-}
-func (e EmptyViewableEntity) GetId() string {
-	return ""
-}
-func (e EmptyViewableEntity) GetColor() string {
-	return ""
-}
-func (e EmptyViewableEntity) Render() string            { return "" }
-func (e EmptyViewableEntity) SetBackgroundColor(string) {}
-
-func NewUserActionExamine() UserActionExamine {
-	n := []ViewableEntity{EmptyViewableEntity{}}
-	return UserActionExamine{ID: UserActionIdExamine, Idx: 0, List: n}
-}
 
 func GenID(pos Coordinates) string {
 	b := letterRunes[rand.Intn(len(letterRunes))]
