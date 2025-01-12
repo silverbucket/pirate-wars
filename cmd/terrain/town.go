@@ -12,33 +12,10 @@ type Town struct {
 	HeatMap HeatMap
 }
 
-const TownColor = 1
-
 func (t *Town) GetId() string {
 	return t.id
 }
 
-func (t *Town) GetX() int {
-	return t.pos[0].X
-}
-func (t *Town) GetMiniMapX() int {
-	return t.pos[0].X / common.MiniMapFactor
-}
-
-func (t *Town) GetY() int {
-	return t.pos[0].Y
-}
-
-func (t *Town) GetMiniMapY() int {
-	return t.pos[0].Y / common.MiniMapFactor
-}
-
-func (t *Town) GetMiniMapPos() common.Coordinates {
-	return common.Coordinates{
-		X: t.pos[0].X / common.MiniMapFactor,
-		Y: t.pos[0].Y / common.MiniMapFactor,
-	}
-}
 func (t *Town) GetPos() common.Coordinates {
 	return t.pos[0]
 }
@@ -54,7 +31,7 @@ func (t *Town) AccessibleFrom(c common.Coordinates) bool {
 }
 
 func (t *Terrain) MakeGhostTown(town *Town) {
-	t.Logger.Info(fmt.Sprintf("[%v] Town turns to ghost town at %v, %v", town.id, town.GetX(), town.GetY()))
+	t.Logger.Info(fmt.Sprintf("[%v] Town turns to ghost town at %v", town.id, town.GetPos()))
 	for _, c := range town.pos {
 		t.World.SetPositionType(c, TypeGhostTown)
 	}
@@ -71,7 +48,7 @@ func (t *Terrain) CreateTown(c common.Coordinates) Town {
 	}
 
 	town := Town{
-		id:  common.GenID(c, TownColor),
+		id:  common.GenID(c),
 		pos: []common.Coordinates{c},
 		HeatMap: HeatMap{
 			grid: heatMap,

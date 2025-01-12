@@ -8,13 +8,12 @@ import (
 )
 
 type ColorScheme struct {
-	Foreground int
+	Foreground string
 	Background string
 }
 
 // ChanceToMove Percentage chance an NPC will calculate movement per tick
 const ChanceToMove = 50
-
 const GoalTypeTrade = 1
 
 type Agenda struct {
@@ -30,25 +29,45 @@ type Npc struct {
 }
 
 var ColorPossibilities = []ColorScheme{
-	{9, "#000000"},   // strong red
-	{10, "#000000"},  // green
-	{11, "#000000"},  // yellow
-	{14, "#000000"},  // bright cyan
-	{15, "#000000"},  // off-white
-	{46, "#000000"},  // blue/green
-	{69, "#000000"},  // faded cyan
-	{86, "#000000"},  // light cyan
-	{93, "#000000"},  // fuchsia
-	{172, "#000000"}, // off pink
-	{193, "#000000"}, // light green
-	{201, "#000000"}, // pink
-	{207, "#000000"}, // light pink
-	{211, "#000000"}, // lighter pink
-	{218, "#000000"}, // light pink/white
-	{222, "#000000"}, // light yellow/orange
-	{230, "#000000"}, // yellow/white
-	{253, "#000000"}, // grey
-	{255, "#000000"}, // white
+	{"9", "0"},   // strong red
+	{"10", "0"},  // green
+	{"11", "0"},  // yellow
+	{"14", "0"},  // bright cyan
+	{"15", "0"},  // off-white
+	{"46", "0"},  // blue/green
+	{"69", "0"},  // faded cyan
+	{"86", "0"},  // light cyan
+	{"93", "0"},  // fuchsia
+	{"172", "0"}, // off pink
+	{"193", "0"}, // light green
+	{"201", "0"}, // pink
+	{"207", "0"}, // light pink
+	{"211", "0"}, // lighter pink
+	{"218", "0"}, // light pink/white
+	{"222", "0"}, // light yellow/orange
+	{"230", "0"}, // yellow/white
+	{"253", "0"}, // grey
+	{"255", "0"}, // white
+}
+
+func (n *Npc) GetPos() common.Coordinates {
+	return n.avatar.pos
+}
+
+func (n *Npc) SetPos(p common.Coordinates) {
+	n.avatar.pos = p
+}
+
+func (n *Npc) GetId() string {
+	return n.id
+}
+
+func (n *Npc) GetColor() string {
+	return n.avatar.fgColor
+}
+
+func (n *Npc) Render() string {
+	return n.avatar.Render()
 }
 
 func (t *Terrain) CreateNpc() {
@@ -64,7 +83,7 @@ func (t *Terrain) CreateNpc() {
 		if len(tradeTowns) > 2 {
 			break
 		} else if len(tradeTowns) == 2 {
-			if (town.GetY() == tradeTowns[0].GetY() && town.GetY() == tradeTowns[0].GetY()) || !town.AccessibleFrom(pos) {
+			if common.CoordsMatch(town.GetPos(), tradeTowns[0].GetPos()) || !town.AccessibleFrom(pos) {
 				// either same town, or inaccessible from position
 				if tryCount > 20 {
 					// abort creation
@@ -80,7 +99,7 @@ func (t *Terrain) CreateNpc() {
 
 	color := ColorPossibilities[rand.Intn(len(ColorPossibilities)-1)]
 	npc := Npc{
-		id:     common.GenID(pos, color.Foreground),
+		id:     common.GenID(pos),
 		avatar: CreateAvatar(pos, '⏏', color),
 		agenda: Agenda{
 			goal:        GoalTypeTrade,
@@ -119,7 +138,7 @@ func (t *Terrain) CalcNpcMovements() {
 		// find next move by cost on heatmap
 		opts := []DirectionCost{}
 		for _, dir := range common.Directions {
-			n := common.AddDirection(npc.avatar.GetPos(), dir)
+			n := common.AddDirection(npc.GetPos(), dir)
 			if !common.Inbounds(n) {
 				// don't check out of bounds
 				continue
@@ -132,39 +151,40 @@ func (t *Terrain) CalcNpcMovements() {
 		pick := decideDirection(opts, town.GetPos())
 		target := pick.pos
 		cost := pick.cost
-		npcpos := npc.avatar.GetPos()
+		npcpos := npc.GetPos()
 
-		if target.X == npc.avatar.GetX() && target.Y == npc.avatar.GetY() {
+		if target.X == npcpos.X && target.Y == npcpos.Y {
 			t.Logger.Debug(fmt.Sprintf("[%v] NPC stuck at %v! Travelling to town at %v (cost %v)", npc.id, npcpos, town.GetPos(), cost))
 		} else {
 			t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v)", npc.id, npcpos, target, cost))
 			if !common.IsPositionAdjacent(npcpos, target) {
 				t.Logger.Debug(fmt.Sprintf("[%v] NPC warp! from %v to %v", npc.id, npcpos, target))
 			}
-			npc.avatar.SetPos(target)
+			npc.SetPos(target)
 		}
 	}
 }
 
-func (t *Terrain) GetNpcAvatars() []AvatarReadOnly {
-	var avs []AvatarReadOnly
+func (t *Terrain) GetNpcAvatars() []common.AvatarReadOnly {
+	var avs []common.AvatarReadOnly
 	for _, npc := range t.Npcs {
-		avs = append(avs, npc.avatar)
+		avs = append(avs, &npc)
 	}
 	return avs
 }
 
-func (t *Terrain) GetVisibleNpcAvatars(c common.Coordinates) []AvatarReadOnly {
+func (t *Terrain) GetVisibleNpcAvatars(c common.Coordinates) []common.AvatarReadOnly {
 	v := common.GetViewableArea(c)
-	viewable := map[int]AvatarReadOnly{}
+	viewable := map[int]common.AvatarReadOnly{}
 	keys := []int{}
 	for _, npc := range t.Npcs {
-		if common.IsPositionWithin(npc.avatar.GetPos(), v) {
-			keys = append(keys, npc.avatar.GetX())
-			viewable[npc.avatar.GetX()] = npc.avatar
+		p := npc.GetPos()
+		if common.IsPositionWithin(p, v) {
+			keys = append(keys, p.X)
+			viewable[p.X] = &npc
 		}
 	}
-	sorted := []AvatarReadOnly{}
+	sorted := []common.AvatarReadOnly{}
 	sort.Ints(keys)
 	for _, key := range keys {
 		sorted = append(sorted, viewable[key])

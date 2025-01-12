@@ -34,7 +34,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// reset action command
 	if m.viewType == ViewTypeMiniMap {
 		return m.miniMapInput(msg)
-	} else if m.action == common.UserActionExamine {
+	} else if m.action == common.UserActionIdExamine {
 		return m.actionInput(msg)
 	} else {
 		return m.sailingInput(msg)
@@ -42,17 +42,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	viewable := ExamineData.List[ExamineData.Idx]
 	if m.viewType == ViewTypeMiniMap {
-		return m.terrain.MiniMap.Paint(m.player, []terrain.AvatarReadOnly{})
+		return m.terrain.MiniMap.Paint(m.player, []common.AvatarReadOnly{}, viewable)
 	} else if m.viewType == ViewTypeHeatMap {
-		return m.terrain.Towns[0].HeatMap.Paint(m.player, m.terrain.GetVisibleNpcAvatars(m.player.GetPos()))
+		return m.terrain.Towns[0].HeatMap.Paint(m.player, m.terrain.GetVisibleNpcAvatars(m.player.GetPos()), viewable)
 	} else {
-		if m.action == common.UserActionNone {
+		if m.action == common.UserActionIdNone {
 			// user is not doing some meta-action, NPCs can move
 			m.terrain.CalcNpcMovements()
 		}
 		// display main map
-		return m.terrain.World.Paint(m.player, m.terrain.GetVisibleNpcAvatars(m.player.GetPos()))
+		return m.terrain.World.Paint(m.player, m.terrain.GetVisibleNpcAvatars(m.player.GetPos()), viewable)
 	}
 }
 
@@ -68,9 +69,11 @@ func main() {
 
 	// ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 	if _, err := tea.NewProgram(model{
-		logger:  logger,
-		terrain: *t,
-		player:  player.Create(t),
+		logger:   logger,
+		terrain:  *t,
+		player:   player.Create(t),
+		viewType: ViewTypeMainMap,
+		action:   common.UserActionIdNone,
 	}, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)

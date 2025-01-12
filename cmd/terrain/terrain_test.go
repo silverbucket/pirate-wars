@@ -26,10 +26,7 @@ type AvatarMock struct {
 func (av AvatarMock) Render() string {
 	return ""
 }
-func (av AvatarMock) GetX() int        { return av.pos.X }
-func (av AvatarMock) GetMiniMapX() int { return av.pos.X }
-func (av AvatarMock) GetY() int        { return av.pos.X }
-func (av AvatarMock) GetMiniMapY() int { return av.pos.X }
+func (av AvatarMock) GetPos() CoordinatesMock { return av.pos }
 
 func TestPaint(t *testing.T) {
 	t.Cleanup(cleanup)
@@ -38,5 +35,5 @@ func TestPaint(t *testing.T) {
 	tr := Init(logger)
 	tr.GenerateWorld()
 	tr.GenerateTowns()
-	tr.World.Paint(avatar, []AvatarReadOnly{})
+	tr.World.Paint(avatar, []AvatarMock{}, avatar)
 }

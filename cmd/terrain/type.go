@@ -55,10 +55,10 @@ var TypeLookup = map[TerrainType]TypeQualities{
 	TypeHighland:     {symbol: ':', style: createTerrainItem("142"), Passable: true, RequiresBoat: false},
 	TypeRock:         {symbol: '%', style: createTerrainItem("244"), Passable: true, RequiresBoat: false},
 	TypePeak:         {symbol: '^', style: createTerrainItem("15"), Passable: false, RequiresBoat: false},
-	TypeTown:         {symbol: '⩎', style: createTerrainItem(lipgloss.Color(fmt.Sprintf("%v", TownColor))), Passable: true, RequiresBoat: false},
+	TypeTown:         {symbol: '⩎', style: createTerrainItem("1"), Passable: true, RequiresBoat: false},
 	TypeGhostTown:    {symbol: '⩎', style: createTerrainItem("94"), Passable: true, RequiresBoat: false},
 }
 
 func (tt *TerrainType) Render() string {
-	return fmt.Sprintf(TypeLookup[*tt].style.PaddingLeft(1).PaddingRight(1).Render("%c"), TypeLookup[*tt].symbol)
+	return TypeLookup[*tt].style.PaddingLeft(1).PaddingRight(1).Render(fmt.Sprintf("%c", TypeLookup[*tt].symbol))
 }

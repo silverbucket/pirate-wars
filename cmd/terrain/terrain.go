@@ -132,7 +132,7 @@ func (t *Terrain) GenerateMiniMap() {
 		}
 	}
 	for _, o := range t.Towns {
-		t.MiniMap.SetPositionType(o.GetMiniMapPos(), TypeTown)
+		t.MiniMap.SetPositionType(common.GetMiniMapScale(o.GetPos()), TypeTown)
 	}
 }
 

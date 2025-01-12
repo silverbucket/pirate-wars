@@ -18,14 +18,30 @@ const (
 
 // User Action Types
 const (
-	UserActionNone              = 0
-	UserActionExamine           = 1
-	UserActionInfo              = 2
-	UserActionHelp              = 3
-	UserActionMiniMap           = 4
-	UserActionDebugHeatMap      = 5
-	UserActionDebugViewableNpcs = 6
+	UserActionIdNone              = 0
+	UserActionIdExamine           = 1
+	UserActionIdInfo              = 2
+	UserActionIdHelp              = 3
+	UserActionIdMiniMap           = 4
+	UserActionIdDebugHeatMap      = 5
+	UserActionIdDebugViewableNpcs = 6
 )
+
+type UserActionExamine struct {
+	ID   int
+	Idx  int
+	List []ViewableEntity
+}
+
+type ViewableEntity interface {
+	GetPos() Coordinates
+	GetId() string
+	GetColor() string
+	Render() string
+	SetBackgroundColor(string)
+}
+
+type EmptyViewableEntity struct{}
 
 type ViewPort struct {
 	width   int
@@ -57,11 +73,33 @@ var Directions = []Coordinates{
 	{0, 1},   // right
 }
 
+type AvatarReadOnly interface {
+	GetPos() Coordinates
+	Render() string
+}
+
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 
-func GenID(pos Coordinates, color int) string {
+func (e EmptyViewableEntity) GetPos() Coordinates {
+	return Coordinates{-1, -1}
+}
+func (e EmptyViewableEntity) GetId() string {
+	return ""
+}
+func (e EmptyViewableEntity) GetColor() string {
+	return ""
+}
+func (e EmptyViewableEntity) Render() string            { return "" }
+func (e EmptyViewableEntity) SetBackgroundColor(string) {}
+
+func NewUserActionExamine() UserActionExamine {
+	n := []ViewableEntity{EmptyViewableEntity{}}
+	return UserActionExamine{ID: UserActionIdExamine, Idx: 0, List: n}
+}
+
+func GenID(pos Coordinates) string {
 	b := letterRunes[rand.Intn(len(letterRunes))]
-	return fmt.Sprintf("%v%03d%03d%03d", string(b), pos.X, pos.Y, color)
+	return fmt.Sprintf("%v%03d%03d", string(b), pos.X, pos.Y)
 }
 
 func Inbounds(c Coordinates) bool {
@@ -123,5 +161,24 @@ func GetViewableArea(pos Coordinates) ViewableArea {
 	if top < 0 {
 		top = 0
 	}
-	return ViewableArea{top, left, ViewHeight + top - 1, ViewWidth + left - 1}
+	bottom := ViewHeight + top - 1
+	if bottom > WorldHeight-1 {
+		bottom = WorldHeight - 1
+	}
+	right := ViewWidth + left - 1
+	if right > WorldWidth-1 {
+		right = WorldWidth - 1
+	}
+	return ViewableArea{top, left, bottom, right}
+}
+
+func GetMiniMapScale(c Coordinates) Coordinates {
+	return Coordinates{c.X / MiniMapFactor, c.Y / MiniMapFactor}
+}
+
+func CoordsMatch(c Coordinates, p Coordinates) bool {
+	if c.X == p.X && c.Y == p.Y {
+		return true
+	}
+	return false
 }
