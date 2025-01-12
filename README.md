@@ -28,7 +28,7 @@ You currently cannot interaction with the towns or ships.
 ### Commands
 * `ctrl-q`: Quit
 * `m`: Mini-map
-* ~~`x`: Examine something on the map~~
+* `x`: Examine something on the map
 * ~~`i`: View your info~~
 * ~~`?`: Help screen~~
 
@@ -69,3 +69,8 @@ You currently cannot interaction with the towns or ships.
 * Name your ship(s)
 * Maintain a fleet
 * Appoint Captains?
+
+### Misc
+* Lipgloss adaptive colors, for highlighting entities
+* Bubbles loading spinner
+* Bubbles help hints on bottom of screen

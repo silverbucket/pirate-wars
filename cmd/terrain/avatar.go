@@ -26,6 +26,10 @@ func (a *Avatar) SetBlink(b bool) {
 	a.blink = b
 }
 
+func (a *Avatar) SetBackgroundColor(c string) {
+	a.bgColor = c
+}
+
 func (a *Avatar) Render() string {
 	return lipgloss.NewStyle().
 		Foreground(lipgloss.Color(a.fgColor)).

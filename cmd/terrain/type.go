@@ -1,7 +1,6 @@
 package terrain
 
 import (
-	"errors"
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -31,15 +30,6 @@ type TypeQualities struct {
 	style        lipgloss.Style
 	Passable     bool
 	RequiresBoat bool
-}
-
-func GetType(i int) (TerrainType, error) {
-	for k := range TypeLookup {
-		if int(k) == i {
-			return k, nil
-		}
-	}
-	return 0, errors.New("invalid type")
 }
 
 func createTerrainItem(color lipgloss.Color) lipgloss.Style {
