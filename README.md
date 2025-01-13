@@ -41,6 +41,7 @@ You currently cannot interaction with the towns or ships.
 * Visit towns (currently you cannot enter them)
 * View mini-map of entire world, with towns listed (`m`)
 * NPC boats with basic pathfinding AI
+* View NPC ship details
 
 ### Towns
 * Towns don't spawn towns in small land-locked areas, however larger inaccessible can form with the terrain generation.
@@ -61,7 +62,6 @@ You currently cannot interaction with the towns or ships.
 * Dont allow overlap of ships (collision detection)
 
 ### Ships 
-* View ship details
 * Fire from boat
 * Upgrade
 * Repair
