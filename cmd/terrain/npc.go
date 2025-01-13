@@ -24,6 +24,9 @@ type Agenda struct {
 
 type Npc struct {
 	id     string
+	name   string
+	eType  string
+	flag   string
 	avatar Avatar
 	agenda Agenda
 }
@@ -50,6 +53,16 @@ var ColorPossibilities = []ColorScheme{
 	{"230", "0"}, // yellow/white
 	{"253", "0"}, // grey
 	{"255", "0"}, // white
+}
+
+func (n *Npc) GetName() string {
+	return n.name
+}
+func (n *Npc) GetType() string {
+	return n.eType
+}
+func (n *Npc) GetFlag() string {
+	return n.flag
 }
 
 func (n *Npc) GetPos() common.Coordinates {
@@ -119,8 +132,12 @@ func (t *Terrain) CreateNpc() {
 	}
 
 	color := ColorPossibilities[rand.Intn(len(ColorPossibilities)-1)]
+
 	npc := Npc{
 		id:     common.GenID(pos),
+		eType:  "NPC",
+		name:   common.GenerateCaptainName(),
+		flag:   common.GetRandomFlag(),
 		avatar: CreateAvatar(pos, '⏏', color),
 		agenda: Agenda{
 			goal:        GoalTypeTrade,
@@ -177,7 +194,7 @@ func (t *Terrain) CalcNpcMovements() {
 		if target.X == npcpos.X && target.Y == npcpos.Y {
 			t.Logger.Debug(fmt.Sprintf("[%v] NPC stuck at %v! Travelling to town at %v (cost %v)", npc.id, npcpos, town.GetPos(), cost))
 		} else {
-			t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (bg color: %v)", npc.id, npcpos, target, cost, npc.GetBackgroundColor()))
+			//t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (bg color: %v)", npc.id, npcpos, target, cost, npc.GetBackgroundColor()))
 			if !common.IsPositionAdjacent(npcpos, target) {
 				t.Logger.Debug(fmt.Sprintf("[%v] NPC warp! from %v to %v", npc.id, npcpos, target))
 			}

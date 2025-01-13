@@ -36,20 +36,54 @@ var borderStyle = lipgloss.Border{
 	Right:       "│",
 	TopLeft:     "╭",
 	TopRight:    "╮",
-	BottomLeft:  "┘",
-	BottomRight: "└",
+	BottomLeft:  "└",
+	BottomRight: "┘",
 }
 
-var SidebarStyle = lipgloss.NewStyle().
-	Align(lipgloss.Left).
-	Border(borderStyle).
-	Foreground(lipgloss.Color("#FAFAFA")).
-	BorderForeground(lipgloss.Color("33")).
-	Background(lipgloss.Color("0")).
-	Margin(1, 3, 0, 0).
-	Padding(1, 2).
-	Height(19).
-	Width(20)
+func getSidebarStyle() lipgloss.Style {
+	var sidebarWidth = (common.InfoPaneSize * 3)
+	if sidebarWidth > 25 {
+		sidebarWidth += 1
+	} else if sidebarWidth > 18 {
+		sidebarWidth += 2
+	} else {
+		sidebarWidth += 3
+	}
+	return lipgloss.NewStyle().
+		Align(lipgloss.Left).
+		Border(borderStyle).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		BorderForeground(lipgloss.Color("33")).
+		Background(lipgloss.Color("0")).
+		//Margin(1, 1, 0, 0).
+		Padding(1).
+		Height(19).
+		Width(sidebarWidth)
+}
+
+var subtle = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
+var base = lipgloss.NewStyle().Foreground(lipgloss.Color("15"))
+
+var bullet = lipgloss.NewStyle().SetString("·").
+	Foreground(lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}).
+	PaddingRight(1).
+	String()
+
+var listItem = func(s string) string {
+	return bullet + lipgloss.NewStyle().
+		Strikethrough(true).
+		Foreground(lipgloss.AdaptiveColor{Light: "#969B86", Dark: "#696969"}).
+		Render(s)
+}
+
+var listHeader = base.
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderBottom(true).
+	BorderForeground(subtle).
+	MarginRight(2).
+	Render
+
+//var listItem = base.PaddingLeft(2).Render
 
 func (m model) Init() tea.Cmd {
 	// Just return `nil`, which means "no I/O right now, please."
@@ -61,6 +95,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.logger.Info(fmt.Sprintf("Window size: %v", msg))
 		common.SetWindowSize(msg.Width, msg.Height)
+		m.logger.Info(fmt.Sprintf("Info pane size %v", common.InfoPaneSize))
 		ScreenInitialized = true
 		if !WorldInitialized {
 			m.terrain.GenerateWorld()
@@ -117,12 +152,20 @@ func (m model) View() string {
 
 		if m.action == common.UserActionIdExamine {
 			bottomText += fmt.Sprintf("examining %v", highlight.GetID())
-			sidePanel += fmt.Sprintf("NPC: %v", highlight.GetID())
+			sidePanel = lipgloss.JoinVertical(lipgloss.Left,
+				listHeader(highlight.GetName()),
+				listItem(fmt.Sprintf("Flag: %v", highlight.GetFlag())),
+				listItem(fmt.Sprintf("ID: %v", highlight.GetID())),
+				listItem(fmt.Sprintf("Type: %v", highlight.GetType())),
+				listItem(fmt.Sprintf("Color: %v", highlight.GetForegroundColor())),
+				listItem(fmt.Sprintf("Name: %v", highlight.GetName())),
+			)
 		}
+		s := getSidebarStyle()
 		content := lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			paint,
-			SidebarStyle.MarginRight(0).Render(sidePanel),
+			s.MarginRight(0).Render(sidePanel),
 		)
 		content += "\n" + lipgloss.JoinHorizontal(lipgloss.Top,
 			bottomText)

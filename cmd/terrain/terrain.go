@@ -139,7 +139,7 @@ func (t *Terrain) GenerateMiniMap() {
 func (t *Terrain) RandomPositionDeepWater() common.Coordinates {
 	for {
 		c := common.Coordinates{X: rand.Intn(common.WorldWidth-2) + 1, Y: rand.Intn(common.WorldHeight-2) + 1}
-		t.Logger.Info(fmt.Sprintf("Random position deep water at: %v, %v", c, t.World.GetPositionType(c)))
+		//t.Logger.Info(fmt.Sprintf("Random position deep water at: %v, %v", c, t.World.GetPositionType(c)))
 		if t.World.GetPositionType(c) == TypeDeepWater {
 			return c
 		}

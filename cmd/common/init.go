@@ -23,10 +23,12 @@ func SetWindowSize(width int, height int) {
 	scale++
 	InfoPaneSize = startingInfoPaneSize + (infoPaneSizeIncrements * scale)
 	ViewWidth = (width / 3) - InfoPaneSize
-	ViewHeight = height - 1
-	//fmt.Println(fmt.Sprintf("Set viewport width to %v of total %v (subtracted info-pane: %v) (scale: %v)", ViewWidth, width, InfoPaneSize, scale))
+	ViewHeight = height - scale
+	//fmt.Println(fmt.Sprintf("Screen:: %v %v", width, height))
+	//fmt.Println(fmt.Sprintf("Viewport: %v, %v", ViewWidth, ViewHeight))
+	//fmt.Println(fmt.Sprintf("Viewport: %v, %v  (subtracted info-pane: %v) (scale: %v)\n", ViewWidth, width, InfoPaneSize, scale))
 	CalcMiniMapFactor(scale)
-	//fmt.Println(fmt.Sprintf("(MiniMapFactor: %v)", MiniMapFactor))
+	//fmt.Println(fmt.Sprintf("(MiniMapFactor: %v\n)", MiniMapFactor))
 	//os.Exit(1)
 }
 
