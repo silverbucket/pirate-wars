@@ -82,7 +82,7 @@ func (world MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRea
 
 	h := entity.GetPos()
 	if h.X >= 0 {
-		world.logger.Debug(fmt.Sprintf("[%v] highlighting", entity.GetID(), entity.GetBackgroundColor()))
+		world.logger.Debug(fmt.Sprintf("[%v] highlighting", entity.GetID()))
 		// actual entity to examine, we should highlight it
 		entity.Highlight()
 		overlay[fmt.Sprintf("%03d%03d", h.X, h.Y)] = entity

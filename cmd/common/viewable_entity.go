@@ -8,9 +8,7 @@ type ViewableEntity interface {
 	GetName() string
 	GetPos() Coordinates
 	GetID() string
-	SetID(string)
 	GetForegroundColor() string
-	GetBackgroundColor() string
 	Highlight()
 	Render() string
 }
@@ -32,17 +30,11 @@ func (e *EmptyViewableEntity) GetFlag() string {
 func (e *EmptyViewableEntity) GetType() string {
 	return ""
 }
-func (e *EmptyViewableEntity) SetID(s string) {
-}
 func (e *EmptyViewableEntity) GetForegroundColor() string {
 	return ""
 }
 func (e *EmptyViewableEntity) Render() string { return "" }
-func (e *EmptyViewableEntity) GetBackgroundColor() string {
-	return ""
-}
-func (e *EmptyViewableEntity) SetBackgroundColor(string) {}
-func (e *EmptyViewableEntity) Highlight()                {}
+func (e *EmptyViewableEntity) Highlight()     {}
 
 func NewEmptyViewableEntity() *EmptyViewableEntity {
 	return &EmptyViewableEntity{}
