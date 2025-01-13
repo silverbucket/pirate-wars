@@ -54,12 +54,13 @@ You currently cannot interaction with the towns or ships.
 * Buy/sell goods
 * Found your own town? (Pirate hideaway?)
 
-#### World Map
+#### Travel
 * Engage with NPCs
 * Improved NPC AI
 * Hire/Dig channels pathways?
 * Land defenses/fortifications
-* Dont allow overlap of ships (collision detection)
+* Don't allow overlap of ships (collision detection)
+* Wind direction determines ease of travel (consume more food when going against wind)
 
 ### Ships 
 * Fire from boat

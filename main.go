@@ -40,50 +40,62 @@ var borderStyle = lipgloss.Border{
 	BottomRight: "┘",
 }
 
+var screenStyle lipgloss.Style
+
+func SetScreenStyle(width int, height int) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color("15")).
+		Background(lipgloss.Color("0")).
+		Width(width).
+		Height(height)
+}
+
 func getSidebarStyle() lipgloss.Style {
-	var sidebarWidth = (common.InfoPaneSize * 3)
-	if sidebarWidth > 25 {
-		sidebarWidth += 1
-	} else if sidebarWidth > 18 {
-		sidebarWidth += 2
+	var SidebarWidth = (common.InfoPaneSize * 3)
+	if SidebarWidth > 25 {
+		SidebarWidth += 1
+	} else if SidebarWidth > 18 {
+		SidebarWidth += 2
 	} else {
-		sidebarWidth += 3
+		SidebarWidth += 3
 	}
 	return lipgloss.NewStyle().
 		Align(lipgloss.Left).
 		Border(borderStyle).
 		Foreground(lipgloss.Color("#FAFAFA")).
 		BorderForeground(lipgloss.Color("33")).
+		BorderBackground(lipgloss.Color("0")).
 		Background(lipgloss.Color("0")).
 		//Margin(1, 1, 0, 0).
 		Padding(1).
-		Height(19).
-		Width(sidebarWidth)
+		Height(20).
+		Width(SidebarWidth)
 }
 
-var subtle = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
-var base = lipgloss.NewStyle().Foreground(lipgloss.Color("15"))
+var base = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("0"))
 
 var bullet = lipgloss.NewStyle().SetString("·").
-	Foreground(lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}).
+	Foreground(lipgloss.Color("#43BF6D")).
+	Background(lipgloss.Color("0")).
 	PaddingRight(1).
 	String()
 
 var listItem = func(s string) string {
 	return bullet + lipgloss.NewStyle().
 		Strikethrough(true).
-		Foreground(lipgloss.AdaptiveColor{Light: "#969B86", Dark: "#696969"}).
+		Foreground(lipgloss.Color("#969B86")).
+		Background(lipgloss.Color("0")).
 		Render(s)
 }
 
 var listHeader = base.
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderBottom(true).
-	BorderForeground(subtle).
-	MarginRight(2).
+	//BorderStyle(lipgloss.NormalBorder()).
+	//BorderBottom(true).
+	Background(lipgloss.Color("0")).
+	BorderBackground(lipgloss.Color("0")).
+	PaddingBottom(1).
+	Width(100).
 	Render
-
-//var listItem = base.PaddingLeft(2).Render
 
 func (m model) Init() tea.Cmd {
 	// Just return `nil`, which means "no I/O right now, please."
@@ -96,6 +108,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logger.Info(fmt.Sprintf("Window size: %v", msg))
 		common.SetWindowSize(msg.Width, msg.Height)
 		m.logger.Info(fmt.Sprintf("Info pane size %v", common.InfoPaneSize))
+		screenStyle = SetScreenStyle(msg.Width, msg.Height)
 		ScreenInitialized = true
 		if !WorldInitialized {
 			m.terrain.GenerateWorld()
@@ -153,7 +166,7 @@ func (m model) View() string {
 		if m.action == common.UserActionIdExamine {
 			bottomText += fmt.Sprintf("examining %v", highlight.GetID())
 			sidePanel = lipgloss.JoinVertical(lipgloss.Left,
-				listHeader(highlight.GetName()),
+				listHeader(fmt.Sprintf("%v", highlight.GetName())),
 				listItem(fmt.Sprintf("Flag: %v", highlight.GetFlag())),
 				listItem(fmt.Sprintf("ID: %v", highlight.GetID())),
 				listItem(fmt.Sprintf("Type: %v", highlight.GetType())),
@@ -165,11 +178,11 @@ func (m model) View() string {
 		content := lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			paint,
-			s.MarginRight(0).Render(sidePanel),
+			s.Background(lipgloss.Color("0")).Render(sidePanel),
 		)
 		content += "\n" + lipgloss.JoinHorizontal(lipgloss.Top,
 			bottomText)
-		return content
+		return screenStyle.Render(content)
 	}
 }
 
