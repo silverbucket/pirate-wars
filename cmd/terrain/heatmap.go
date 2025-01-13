@@ -87,63 +87,40 @@ func (t *Terrain) GenerateTownHeatMap(town *Town) bool {
 		}
 	}
 	if count < 200 {
-		t.Logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap aborted with %v iterations", town.GetId(), town.GetPos(), count))
+		t.Logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap aborted with %v iterations", town.GetID(), town.GetPos(), count))
 		return false
 	} else {
-		t.Logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap completed with %v iterations", town.GetId(), town.GetPos(), count))
+		t.Logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap completed with %v iterations", town.GetID(), town.GetPos(), count))
 		return true
 	}
 }
 
-//func (t *Terrain) GenerateHeatMaps() {
-//	for _, town := range t.Towns {
-//		t.Logger.Info(fmt.Sprintf("Generating heatmap for town at %v, %v", town.pos.X, town.pos.Y))
-//		t.GenerateTownHeatMap(&town)
-//	}
-//}
-
-func (h *HeatMap) Paint(avatar AvatarReadOnly, npcs []AvatarReadOnly) string {
-	left := 0
-	top := 0
-	worldHeight := len(h.grid)
-	worldWidth := len(h.grid[0])
-	viewHeight := worldHeight
-	viewWidth := worldWidth
-	rowWidth := worldWidth
+func (h *HeatMap) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOnly, highlight common.ViewableEntity) string {
+	// center viewport on avatar
+	v := common.GetViewableArea(avatar.GetPos())
+	rowWidth := common.ViewWidth
 
 	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
 
 	// overlay map of all avatars
-	overlay := make(map[string]AvatarReadOnly)
+	overlay := make(map[string]common.AvatarReadOnly)
+	c := avatar.GetPos()
+	overlay[fmt.Sprintf("%03d%03d", c.X, c.Y)] = avatar
 
-	// center viewport on avatar
-	left = avatar.GetX() - (common.ViewWidth / 3)
-	top = avatar.GetY() - (common.ViewHeight / 3)
-	if left < 0 {
-		left = 0
-	}
-	if top < 0 {
-		top = 0
-	}
-	viewHeight = common.ViewHeight + top
-	viewWidth = common.ViewWidth + left
-	rowWidth = common.ViewWidth
-
-	overlay[fmt.Sprintf("%03d%03d", avatar.GetX(), avatar.GetY())] = avatar
 	// on the world map we draw the NPCs
 	for _, n := range npcs {
-		overlay[fmt.Sprintf("%03d%03d", n.GetX(), n.GetY())] = n
+		p := n.GetPos()
+		overlay[fmt.Sprintf("%03d%03d", p.X, p.Y)] = n
 	}
 
-	//world.logger.Debug(fmt.Sprintf("avatar position:  X:%v Y:%v", avs[0].GetX, avs[0].GetY()))
-	for y := top; y < worldHeight && y < viewHeight; y++ {
+	for y := v.Top; y < v.Bottom; y++ {
 		var row = make([]string, rowWidth)
-		for x := left; x < worldWidth && x < viewWidth; x++ {
+		for x := v.Left; x < v.Right; x++ {
 			item, ok := overlay[fmt.Sprintf("%03d%03d", x, y)]
 			if ok {
-				row[x-left] = item.Render()
+				row[x-v.Left] = item.Render()
 			} else {
-				row[x-left] = h.grid[x][y].Render()
+				row[x-v.Left] = h.grid[x][y].Render()
 			}
 		}
 		viewport.Row(row...).BorderColumn(false)

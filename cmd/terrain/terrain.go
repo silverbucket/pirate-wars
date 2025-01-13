@@ -34,16 +34,6 @@ func Init(logger *zap.SugaredLogger) *Terrain {
 		worldGrid[i] = make([]TerrainType, common.WorldHeight)
 	}
 
-	// Calculate MiniMap dimensions
-	height := len(worldGrid) / common.MiniMapFactor
-	width := len(worldGrid[0]) / common.MiniMapFactor
-
-	// Create new 2D slice
-	miniMap := make([][]TerrainType, height+1)
-	for i := range miniMap {
-		miniMap[i] = make([]TerrainType, width+1)
-	}
-
 	return &Terrain{
 		Logger: logger,
 		props: Props{
@@ -62,13 +52,13 @@ func Init(logger *zap.SugaredLogger) *Terrain {
 		MiniMap: MapView{
 			isMiniMap: true,
 			logger:    logger,
-			grid:      miniMap,
+			grid:      [][]TerrainType{},
 		},
 	}
 }
 
 func (t *Terrain) GenerateWorld() {
-	t.Logger.Info("Initializing world")
+	t.Logger.Info("Initializing world...")
 	noise := opensimplex.New(rand.Int63())
 
 	for x := 0; x < t.props.width; x++ {
@@ -119,6 +109,16 @@ func (t *Terrain) GenerateWorld() {
 }
 
 func (t *Terrain) GenerateMiniMap() {
+	// Calculate MiniMap dimensions
+	height := len(t.World.grid) / common.MiniMapFactor
+	width := len(t.World.grid[0]) / common.MiniMapFactor
+
+	// Create new 2D slice
+	t.MiniMap.grid = make([][]TerrainType, height+1)
+	for i := range t.MiniMap.grid {
+		t.MiniMap.grid[i] = make([]TerrainType, width+1)
+	}
+
 	// Down-sample
 	for i, row := range t.World.grid {
 		for j, val := range row {
@@ -132,13 +132,14 @@ func (t *Terrain) GenerateMiniMap() {
 		}
 	}
 	for _, o := range t.Towns {
-		t.MiniMap.SetPositionType(o.GetMiniMapPos(), TypeTown)
+		t.MiniMap.SetPositionType(common.GetMiniMapScale(o.GetPos()), TypeTown)
 	}
 }
 
 func (t *Terrain) RandomPositionDeepWater() common.Coordinates {
 	for {
 		c := common.Coordinates{X: rand.Intn(common.WorldWidth-2) + 1, Y: rand.Intn(common.WorldHeight-2) + 1}
+		//t.Logger.Info(fmt.Sprintf("Random position deep water at: %v, %v", c, t.World.GetPositionType(c)))
 		if t.World.GetPositionType(c) == TypeDeepWater {
 			return c
 		}

@@ -19,14 +19,18 @@ You currently cannot interaction with the towns or ships.
 
 ### Navigation
 ```
- y k u
- l   h
- b j n
+ q w e        y k u
+ a   d  -or-  l   h
+ z x c        b j n
 ```
 *(or arrow keys)*
 
 ### Commands
+* `ctrl-q`: Quit
 * `m`: Mini-map
+* `x`: Examine something on the map
+* ~~`i`: View your info~~
+* ~~`?`: Help screen~~
 
 ### Developer Commands
 * `p`: View heat-map for town 0 (debug purposes)
@@ -37,6 +41,7 @@ You currently cannot interaction with the towns or ships.
 * Visit towns (currently you cannot enter them)
 * View mini-map of entire world, with towns listed (`m`)
 * NPC boats with basic pathfinding AI
+* View NPC ship details
 
 ### Towns
 * Towns don't spawn towns in small land-locked areas, however larger inaccessible can form with the terrain generation.
@@ -57,7 +62,6 @@ You currently cannot interaction with the towns or ships.
 * Dont allow overlap of ships (collision detection)
 
 ### Ships 
-* View ship details
 * Fire from boat
 * Upgrade
 * Repair
@@ -65,3 +69,8 @@ You currently cannot interaction with the towns or ships.
 * Name your ship(s)
 * Maintain a fleet
 * Appoint Captains?
+
+### Misc
+* Lipgloss adaptive colors, for highlighting entities
+* Bubbles loading spinner
+* Bubbles help hints on bottom of screen

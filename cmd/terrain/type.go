@@ -1,7 +1,6 @@
 package terrain
 
 import (
-	"errors"
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -33,15 +32,6 @@ type TypeQualities struct {
 	RequiresBoat bool
 }
 
-func GetType(i int) (TerrainType, error) {
-	for k := range TypeLookup {
-		if int(k) == i {
-			return k, nil
-		}
-	}
-	return 0, errors.New("invalid type")
-}
-
 func createTerrainItem(color lipgloss.Color) lipgloss.Style {
 	return lipgloss.NewStyle().Background(color).Padding(0).Margin(0)
 }
@@ -60,5 +50,5 @@ var TypeLookup = map[TerrainType]TypeQualities{
 }
 
 func (tt *TerrainType) Render() string {
-	return fmt.Sprintf(TypeLookup[*tt].style.PaddingLeft(1).PaddingRight(1).Render("%c"), TypeLookup[*tt].symbol)
+	return TypeLookup[*tt].style.PaddingLeft(1).PaddingRight(1).Render(fmt.Sprintf("%c", TypeLookup[*tt].symbol))
 }

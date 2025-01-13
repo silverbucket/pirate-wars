@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbletea"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/terrain"
 )
+
+var ExamineData = common.NewUserActionExamine()
 
 func (m model) miniMapInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -13,12 +16,12 @@ func (m model) miniMapInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Cool, what was the actual key pressed?
 		switch msg.String() {
 		// These keys should exit the program.
-		case "ctrl+c", "q":
+		case "ctrl+c", "ctrl+q":
 			return m, tea.Quit
 
 		// The "m" key toggles the minimap
 		case "m", "enter":
-			m.printMiniMap = false
+			m.viewType = ViewTypeMainMap
 		}
 	}
 	return m, nil
@@ -30,116 +33,161 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// Cool, what was the actual key pressed?
 		switch msg.String() {
+
 		// These keys should exit the program.
-		case "ctrl+c", "q":
+		case "ctrl+c", "ctrl+q":
 			return m, tea.Quit
 
 		// The "m" key displays the minimap
 		case "m":
-			m.printMiniMap = true
+			m.viewType = ViewTypeMiniMap
 
 		case "p":
-			m.settings.heatMapEnabled = !m.settings.heatMapEnabled
+			if m.viewType == ViewTypeHeatMap {
+				m.viewType = ViewTypeMainMap
+			} else {
+				m.viewType = ViewTypeHeatMap
+			}
 
-		case "left", "h":
-			if m.player.GetX() > 0 {
-				target := m.player.GetX() - 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: target,
-					Y: m.player.GetY(),
-				}) {
-					m.player.SetX(target)
+		// examine something on the map
+		case "x":
+			m.action = common.UserActionIdExamine
+			npcs := m.terrain.GetVisibleNpcs(m.player.GetPos())
+			ExamineData = common.NewUserActionExamine()
+			npcs.ForEach(func(n terrain.Npc) {
+				ExamineData.AddItem(&n)
+			})
+
+		case "left", "h", "a":
+			c := m.player.GetPos()
+			if c.X > 0 {
+				t := common.Coordinates{
+					X: c.X - 1,
+					Y: c.Y,
+				}
+				if m.terrain.World.IsPassableByBoat(t) {
+					m.player.SetPos(t)
 				}
 			}
 
-		case "right", "l":
-			if m.player.GetX() < m.terrain.World.GetWidth()-1 {
-				target := m.player.GetX() + 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: target,
-					Y: m.player.GetY(),
-				}) {
-					m.player.SetX(target)
+		case "right", "l", "d":
+			c := m.player.GetPos()
+			if c.X < m.terrain.World.GetWidth()-1 {
+				t := common.Coordinates{
+					X: c.X + 1,
+					Y: c.Y,
+				}
+				if m.terrain.World.IsPassableByBoat(t) {
+					m.player.SetPos(t)
 				}
 			}
 
 		// The "up" and "k" keys move the cursor up
-		case "up", "k":
-			if m.player.GetY() > 0 {
-				target := m.player.GetY() - 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: m.player.GetX(),
-					Y: target,
-				}) {
-					m.player.SetY(target)
+		case "up", "k", "w":
+			c := m.player.GetPos()
+			if c.Y > 0 {
+				t := common.Coordinates{
+					X: c.X,
+					Y: c.Y - 1,
+				}
+				if m.terrain.World.IsPassableByBoat(t) {
+					m.player.SetPos(t)
 				}
 			}
 
 		// The "down" and "j" keys move the cursor down
-		case "down", "j":
-			if m.player.GetY() < m.terrain.World.GetHeight()-1 {
-				target := m.player.GetY() + 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: m.player.GetX(),
-					Y: target,
-				}) {
-					m.player.SetY(target)
+		case "down", "j", "s":
+			c := m.player.GetPos()
+			if c.Y < m.terrain.World.GetHeight()-1 {
+				t := common.Coordinates{
+					X: c.X,
+					Y: c.Y + 1,
+				}
+				if m.terrain.World.IsPassableByBoat(t) {
+					m.player.SetPos(t)
 				}
 			}
 
 		// The "up+left" and "y" keys move the cursor diagonal up+left
-		case "up+left", "y":
-			if m.player.GetY() > 0 && m.player.GetX() > 0 {
-				targetY := m.player.GetY() - 1
-				targetX := m.player.GetX() - 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: targetX,
-					Y: targetY,
-				}) {
-					m.player.SetPos(common.Coordinates{X: targetX, Y: targetY})
+		case "up+left", "y", "q":
+			c := m.player.GetPos()
+			if c.Y > 0 && c.X > 0 {
+				t := common.Coordinates{
+					X: c.X - 1,
+					Y: c.Y - 1,
+				}
+				if m.terrain.World.IsPassableByBoat(t) {
+					m.player.SetPos(t)
 				}
 			}
 
 		// The "down+left" and "b" keys move the cursor diagonal down+left
-		case "down+left", "b":
-			if m.player.GetY() < m.terrain.World.GetHeight()-1 && m.player.GetX() > 0 {
-				targetY := m.player.GetY() + 1
-				targetX := m.player.GetX() - 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: targetX,
-					Y: targetY,
-				}) {
-					m.player.SetPos(common.Coordinates{X: targetX, Y: targetY})
+		case "down+left", "b", "z":
+			c := m.player.GetPos()
+			if c.Y < m.terrain.World.GetHeight()-1 && c.X > 0 {
+				t := common.Coordinates{
+					X: c.X - 1,
+					Y: c.Y + 1,
+				}
+				if m.terrain.World.IsPassableByBoat(t) {
+					m.player.SetPos(t)
 				}
 			}
 
 		// The "upright" and "u" keys move the cursor diagonal up+left
-		case "up+right", "u":
-			if m.player.GetY() > 0 && m.player.GetX() < m.terrain.World.GetWidth()-1 {
-				targetY := m.player.GetY() - 1
-				targetX := m.player.GetX() + 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: targetX,
-					Y: targetY,
-				}) {
-					m.player.SetPos(common.Coordinates{X: targetX, Y: targetY})
+		case "up+right", "u", "e":
+			c := m.player.GetPos()
+			if c.Y > 0 && c.X < m.terrain.World.GetWidth()-1 {
+				t := common.Coordinates{
+					X: c.X + 1,
+					Y: c.Y - 1,
+				}
+				if m.terrain.World.IsPassableByBoat(t) {
+					m.player.SetPos(t)
 				}
 			}
 
 		// The "downright" and "n" keys move the cursor diagonal down+left
-		case "down+right", "n":
-			if m.player.GetY() < m.terrain.World.GetHeight()-1 && m.player.GetX() < m.terrain.World.GetWidth()-1 {
-				targetY := m.player.GetY() + 1
-				targetX := m.player.GetX() + 1
-				if m.terrain.World.IsPassableByBoat(common.Coordinates{
-					X: targetX,
-					Y: targetY,
-				}) {
-					m.player.SetPos(common.Coordinates{X: targetX, Y: targetY})
+		case "down+right", "n", "c":
+			c := m.player.GetPos()
+			if c.Y < m.terrain.World.GetHeight()-1 && c.X < m.terrain.World.GetWidth()-1 {
+				t := common.Coordinates{
+					X: c.X + 1,
+					Y: c.Y + 1,
+				}
+				if m.terrain.World.IsPassableByBoat(t) {
+					m.player.SetPos(t)
 				}
 			}
 		}
 	}
-	m.logger.Debug(fmt.Sprintf("Player position x:%v y:%v", m.player.GetX(), m.player.GetY()))
+	m.logger.Debug(fmt.Sprintf("Player position %v", m.player.GetPos()))
+	return m, nil
+}
+
+func (m model) actionInput(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	// Is it a key press?
+	case tea.KeyMsg:
+		// Cool, what was the actual key pressed?
+		switch msg.String() {
+
+		// These keys should exit the program.
+		case "ctrl+c", "ctrl+q":
+			return m, tea.Quit
+
+		// exit examine mode
+		case "x", "return":
+			m.action = common.UserActionIdNone
+			ExamineData = common.NewUserActionExamine()
+
+		case "left", "h", "a":
+			ExamineData.FocusLeft()
+
+		case "right", "l", "d":
+			ExamineData.FocusRight()
+
+		}
+	}
 	return m, nil
 }

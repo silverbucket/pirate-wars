@@ -13,14 +13,6 @@ type MapView struct {
 	isMiniMap bool
 }
 
-type AvatarReadOnly interface {
-	GetX() int
-	GetY() int
-	GetMiniMapX() int
-	GetMiniMapY() int
-	Render() string
-}
-
 func (world MapView) isAdjacentToWater(c common.Coordinates) bool {
 	adjacentCoords := world.GetAdjacentCoords(c)
 	isAdjacentWater := false
@@ -59,53 +51,59 @@ func (world MapView) GetHeight() int {
 	return len(world.grid)
 }
 
-func (world MapView) Paint(avatar AvatarReadOnly, npcs []AvatarReadOnly) string {
-	left := 0
-	top := 0
-	worldHeight := len(world.grid)
-	worldWidth := len(world.grid[0])
-	viewHeight := worldHeight
-	viewWidth := worldWidth
-	rowWidth := worldWidth
+func (world MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOnly, entity common.ViewableEntity) string {
+	v := common.ViewableArea{}
+	rowWidth := common.ViewWidth
 
 	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
 
 	// overlay map of all avatars
-	overlay := make(map[string]AvatarReadOnly)
+	overlay := make(map[string]common.AvatarReadOnly)
+
+	world.logger.Info(fmt.Sprintf("ViewPort set to %v, %v", common.ViewWidth, common.ViewHeight))
 
 	if world.isMiniMap {
+		v = common.ViewableArea{0, 0, len(world.grid[0]), len(world.grid)}
+		// mini map views the whole map
+		rowWidth = common.WorldWidth
 		// always display main character avatar on the minimap
-		overlay[fmt.Sprintf("%03d%03d", avatar.GetMiniMapX(), avatar.GetMiniMapY())] = avatar
+		mm := common.GetMiniMapScale(avatar.GetPos())
+		overlay[fmt.Sprintf("%03d%03d", mm.X, mm.Y)] = avatar
 	} else {
-		// center viewport on avatar
-		left = avatar.GetX() - (common.ViewWidth / 2)
-		top = avatar.GetY() - (common.ViewHeight / 2)
-		if left < 0 {
-			left = 0
-		}
-		if top < 0 {
-			top = 0
-		}
-		viewHeight = common.ViewHeight + top
-		viewWidth = common.ViewWidth + left
-		rowWidth = common.ViewWidth
-
-		overlay[fmt.Sprintf("%03d%03d", avatar.GetX(), avatar.GetY())] = avatar
+		v = common.GetViewableArea(avatar.GetPos())
+		p := avatar.GetPos()
+		overlay[fmt.Sprintf("%03d%03d", p.X, p.Y)] = avatar
 		// on the world map we draw the NPCs
 		for _, n := range npcs {
-			overlay[fmt.Sprintf("%03d%03d", n.GetX(), n.GetY())] = n
+			c := n.GetPos()
+			overlay[fmt.Sprintf("%03d%03d", c.X, c.Y)] = n
 		}
 	}
 
-	//world.logger.Debug(fmt.Sprintf("avatar position:  X:%v Y:%v", avs[0].GetX, avs[0].GetY()))
-	for y := top; y < worldHeight && y < viewHeight; y++ {
+	h := entity.GetPos()
+	if h.X >= 0 {
+		world.logger.Debug(fmt.Sprintf("[%v] highlighting", entity.GetID()))
+		// actual entity to examine, we should highlight it
+		entity.Highlight()
+		overlay[fmt.Sprintf("%03d%03d", h.X, h.Y)] = entity
+	}
+
+	world.logger.Info(fmt.Sprintf("Viewable Area %v", v))
+	world.logger.Info(fmt.Sprintf("Player position %v", avatar.GetPos()))
+	world.logger.Info(fmt.Sprintf("Painting world with %v viewable NPCs", len(npcs)))
+
+	for y := v.Top; y < v.Bottom; y++ {
 		var row = make([]string, rowWidth)
-		for x := left; x < worldWidth && x < viewWidth; x++ {
+		for x := v.Left; x < v.Right; x++ {
+
 			item, ok := overlay[fmt.Sprintf("%03d%03d", x, y)]
 			if ok {
-				row[x-left] = item.Render()
+				row[x-v.Left] = item.Render()
 			} else {
-				row[x-left] = world.grid[x][y].Render()
+				//world.logger.Debug(
+				//	fmt.Sprintf("row[%v] = world.grid[%v][%v] [row len(%v), gridX len(%v), gridY len(%v)]",
+				//		x-v.Left, x, y, len(row), len(world.grid), len(world.grid[0])))
+				row[x-v.Left] = world.grid[x][y].Render()
 			}
 		}
 		viewport.Row(row...).BorderColumn(false)
