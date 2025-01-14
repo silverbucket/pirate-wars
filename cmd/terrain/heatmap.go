@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss/table"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/screen"
 )
 
 const HeatmapUnprocessed = -1
@@ -98,7 +99,7 @@ func (t *Terrain) GenerateTownHeatMap(town *Town) bool {
 func (h *HeatMap) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOnly, highlight common.ViewableEntity) string {
 	// center viewport on avatar
 	v := common.GetViewableArea(avatar.GetPos())
-	rowWidth := common.ViewWidth
+	rowWidth := screen.ViewWidth
 
 	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
 

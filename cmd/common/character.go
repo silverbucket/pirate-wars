@@ -20,11 +20,11 @@ func GenerateCaptainName() string {
 	var title = []string{"Captain", "Admiral", "Apprentice", "Pirate", "Skipper", "Commander", "Boatswain", "Officer",
 		"Traitor", "Ghostly", "Commodore", "Agent", "Seaman", "Rebel", "Privateer", "First Mate", "Buccaneer", "Sir"}
 	var name = []string{"Gleeson", "Orvin", "Ripley", "Preston", "Eldon", "Dorset", "Falk", "Jorge", "Frederick",
-		"Hunter", "Jasper", "Salvodor", "Hailey", "Rackham", "Crowther", "Lucifer", "Woolworth", "Dunstan", "Clare",
+		"Hunter", "Jasper", "Salvodor", "Hailey", "Rackham", "Crowther", "Lucifer", "Woolworth", "Dunstan", "Claire",
 		"Kaiser", "Kerwin", "Morris", "Ulrik", "Asema", "Storm", "Gladwin", "Morse", "Zell", "Penny", "Janice",
 		"Barbara", "Ironia", "Shauntelle", "Elvira", "Esmeralda", "Bob", "Trixie", "Wendy", "Franz", "Peggy", "Anous",
 		"Dick", "Gaylord", "Angus", "Pud", "Bruce", "Marty", "Wolfgang", "Hyacinth", "Zimoslav", "Rufulus", "Nolif",
-		"Lollie", "Malvina", "Claire", "Stella", "Xensor", "Bentley", "Cordelia", "Johnson", "Muff", "Titus", "Anthony"}
+		"Lollie", "Malvina", "Stella", "Xensor", "Bentley", "Cordelia", "Johnson", "Muff", "Titus", "Anthony"}
 	var flair = []string{"Dishonest", "Soft Heart", "Balding", "Rum Lover", "Two Toes", "Hair", "Gloomy",
 		"Cutthroat", "Dastardly", "Vile", "Ripe", "Pungent", "Piggy", "Pleasant", "Crazy", "Weasel", "Squealer", "Feral",
 		"Snake", "Slayer", "Ghostly", "Traitor", "Coxswain", "One-tooth", "Windy", "Butter", "Betrayer", "Foxy"}

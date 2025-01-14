@@ -8,6 +8,7 @@ import (
 	"os"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/player"
+	"pirate-wars/cmd/screen"
 	"pirate-wars/cmd/terrain"
 )
 
@@ -51,7 +52,7 @@ func SetScreenStyle(width int, height int) lipgloss.Style {
 }
 
 func getSidebarStyle() lipgloss.Style {
-	var SidebarWidth = (common.InfoPaneSize * 3)
+	var SidebarWidth = (screen.InfoPaneSize * 3)
 	if SidebarWidth > 25 {
 		SidebarWidth += 1
 	} else if SidebarWidth > 18 {
@@ -82,7 +83,6 @@ var bullet = lipgloss.NewStyle().SetString("·").
 
 var listItem = func(s string) string {
 	return bullet + lipgloss.NewStyle().
-		Strikethrough(true).
 		Foreground(lipgloss.Color("#969B86")).
 		Background(lipgloss.Color("0")).
 		Render(s)
@@ -106,8 +106,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.logger.Info(fmt.Sprintf("Window size: %v", msg))
-		common.SetWindowSize(msg.Width, msg.Height)
-		m.logger.Info(fmt.Sprintf("Info pane size %v", common.InfoPaneSize))
+		screen.SetWindowSize(msg.Width, msg.Height)
+		m.logger.Info(fmt.Sprintf("Info pane size %v", screen.InfoPaneSize))
 		screenStyle = SetScreenStyle(msg.Width, msg.Height)
 		ScreenInitialized = true
 		if !WorldInitialized {
@@ -171,7 +171,6 @@ func (m model) View() string {
 				listItem(fmt.Sprintf("ID: %v", highlight.GetID())),
 				listItem(fmt.Sprintf("Type: %v", highlight.GetType())),
 				listItem(fmt.Sprintf("Color: %v", highlight.GetForegroundColor())),
-				listItem(fmt.Sprintf("Name: %v", highlight.GetName())),
 			)
 		}
 		s := getSidebarStyle()

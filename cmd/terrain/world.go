@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 	"go.uber.org/zap"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/screen"
 )
 
 type MapView struct {
@@ -53,14 +54,14 @@ func (world MapView) GetHeight() int {
 
 func (world MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOnly, entity common.ViewableEntity) string {
 	v := common.ViewableArea{}
-	rowWidth := common.ViewWidth
+	rowWidth := screen.ViewWidth
 
 	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
 
 	// overlay map of all avatars
 	overlay := make(map[string]common.AvatarReadOnly)
 
-	world.logger.Info(fmt.Sprintf("ViewPort set to %v, %v", common.ViewWidth, common.ViewHeight))
+	world.logger.Info(fmt.Sprintf("ViewPort set to %v, %v", screen.ViewWidth, screen.ViewHeight))
 
 	if world.isMiniMap {
 		v = common.ViewableArea{0, 0, len(world.grid[0]), len(world.grid)}

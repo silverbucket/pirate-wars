@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 	"math/rand"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/screen"
 )
 
 type Props struct {
@@ -110,8 +111,8 @@ func (t *Terrain) GenerateWorld() {
 
 func (t *Terrain) GenerateMiniMap() {
 	// Calculate MiniMap dimensions
-	height := len(t.World.grid) / common.MiniMapFactor
-	width := len(t.World.grid[0]) / common.MiniMapFactor
+	height := len(t.World.grid) / screen.MiniMapFactor
+	width := len(t.World.grid[0]) / screen.MiniMapFactor
 
 	// Create new 2D slice
 	t.MiniMap.grid = make([][]TerrainType, height+1)
@@ -124,8 +125,8 @@ func (t *Terrain) GenerateMiniMap() {
 		for j, val := range row {
 			// Calculate corresponding index in new slice
 			c := common.Coordinates{
-				X: i / common.MiniMapFactor,
-				Y: j / common.MiniMapFactor,
+				X: i / screen.MiniMapFactor,
+				Y: j / screen.MiniMapFactor,
 			}
 			// Assign original TerrainType value
 			t.MiniMap.SetPositionType(c, val)

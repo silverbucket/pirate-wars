@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"math/rand"
+	"pirate-wars/cmd/screen"
 )
 
 const (
@@ -10,8 +11,7 @@ const (
 	WorldWidth  = 600 // Y
 	WorldHeight = 600 // X
 	TotalTowns  = 20
-	//MiniMapFactor = 11 // 24
-	TotalNpcs = 100
+	TotalNpcs   = 100
 )
 
 type ViewPort struct {
@@ -107,19 +107,19 @@ func diff(a, b int) int {
 
 func GetViewableArea(pos Coordinates) ViewableArea {
 	// center viewport on avatar
-	left := pos.X - (ViewWidth / 2)
-	top := pos.Y - (ViewHeight / 2)
+	left := pos.X - (screen.ViewWidth / 2)
+	top := pos.Y - (screen.ViewHeight / 2)
 	if left < 0 {
 		left = 0
 	}
 	if top < 0 {
 		top = 0
 	}
-	bottom := ViewHeight + top - 1
+	bottom := screen.ViewHeight + top - 1
 	if bottom > WorldHeight-1 {
 		bottom = WorldHeight - 1
 	}
-	right := ViewWidth + left - 1
+	right := screen.ViewWidth + left - 1
 	if right > WorldWidth-1 {
 		right = WorldWidth - 1
 	}
@@ -127,7 +127,7 @@ func GetViewableArea(pos Coordinates) ViewableArea {
 }
 
 func GetMiniMapScale(c Coordinates) Coordinates {
-	return Coordinates{c.X / MiniMapFactor, c.Y / MiniMapFactor}
+	return Coordinates{c.X / screen.MiniMapFactor, c.Y / screen.MiniMapFactor}
 }
 
 func CoordsMatch(c Coordinates, p Coordinates) bool {
