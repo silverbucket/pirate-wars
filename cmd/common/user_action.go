@@ -31,7 +31,8 @@ func (e *UserActionExamine) GetFocusedEntity() ViewableEntity {
 func (e *UserActionExamine) FocusLeft() {
 	size := len(e.list)
 	if size > 1 {
-		e.list = append(e.list[:size-1], e.list[size-1])
+		e.list = append(ViewableEntities{e.list[size-1]}, e.list[:size-1]...)
+		// e.list = append(e.list[:size-1], e.list[size-1])
 	}
 }
 
