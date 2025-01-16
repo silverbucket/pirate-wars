@@ -30,12 +30,22 @@ func (av AvatarMock) GetType() string            { return "" }
 func (av AvatarMock) GetName() string            { return "" }
 func (av AvatarMock) GetForegroundColor() string { return "" }
 
+func TestWorldInit(t *testing.T) {
+	t.Cleanup(cleanup)
+	c := common.Coordinates{X: 10, Y: 10}
+	logger := initTestLogger()
+	world := Init(logger)
+	world.SetPositionType(c, 99)
+	tt := world.GetPositionType(c)
+	if tt != 99 {
+		t.Fatalf("SetPositionType not set")
+	}
+}
+
 func TestPaint(t *testing.T) {
 	t.Cleanup(cleanup)
 	avatar := AvatarMock{pos: common.Coordinates{X: 100, Y: 100}, char: '@'}
 	logger := initTestLogger()
-	tr := Init(logger)
-	tr.GenerateWorld()
-	tr.GenerateTowns()
-	tr.World.Paint(avatar, []common.AvatarReadOnly{}, avatar)
+	world := Init(logger)
+	world.Paint(avatar, []common.AvatarReadOnly{}, avatar, 1)
 }
