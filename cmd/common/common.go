@@ -14,12 +14,6 @@ const (
 	TotalNpcs   = 100
 )
 
-type ViewPort struct {
-	width   int
-	height  int
-	topLeft int
-}
-
 type ViewableArea struct {
 	Top    int
 	Left   int

@@ -1,10 +1,12 @@
-package terrain
+package town
 
 import (
 	"fmt"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/screen"
+	"pirate-wars/cmd/terrain"
 )
 
 const HeatmapUnprocessed = -1
@@ -13,8 +15,8 @@ const MaxMovementCost = HeatMapCost(999999)
 const LandMovementBase = HeatMapCost(5000)
 
 type DirectionCost struct {
-	pos  common.Coordinates
-	cost HeatMapCost
+	Pos  common.Coordinates
+	Cost HeatMapCost
 }
 
 type HeatMapCost int
@@ -31,7 +33,7 @@ func (h *HeatMap) GetCost(c common.Coordinates) HeatMapCost {
 	return h.grid[c.X][c.Y]
 }
 
-func (t *Terrain) GenerateTownHeatMap(town *Town) bool {
+func (town *Town) generateHeatMap(world terrain.MapView) bool {
 	// Define the starting point
 	// Queue contains points to visit, cost
 	queue := []DirectionCost{{town.GetPos(), 0}}
@@ -43,17 +45,17 @@ func (t *Terrain) GenerateTownHeatMap(town *Town) bool {
 		j := queue[0]
 		queue = queue[1:]
 
-		c := j.pos
-		cost := j.cost
+		c := j.Pos
+		cost := j.Cost
 
 		//t.Logger.Infof("[towm %v] Processing %v, %v", t`own, x, y)
-		if t.World.IsPassableByBoat(c) {
+		if world.IsPassableByBoat(c) {
 			//t.Logger.Debug(fmt.Sprintf("[town %v] Assigning cost %v, %v = %v [%v]", town, x, y, cost, t.Towns[town].HeatMap[x][y]))
-			if t.World.GetPositionType(c) == TypeShallowWater {
+			if world.GetPositionType(c) == terrain.TypeShallowWater {
 				// shallow water costs more (dangerous)
 				cost = cost + 10
 				town.HeatMap.SetCost(c, cost)
-			} else if t.World.GetPositionType(c) == TypeOpenWater {
+			} else if world.GetPositionType(c) == terrain.TypeOpenWater {
 				// open water faster than shallow, but not as fast as deep
 				cost = cost + 5
 				town.HeatMap.SetCost(c, cost)
@@ -62,7 +64,7 @@ func (t *Terrain) GenerateTownHeatMap(town *Town) bool {
 			}
 			cost = cost + 1
 		} else {
-			if cost == 0 && t.World.GetPositionType(c) == TypeTown {
+			if cost == 0 && world.GetPositionType(c) == terrain.TypeTown {
 				// starting town is the cheapest
 				town.HeatMap.SetCost(c, cost)
 			} else {
@@ -77,7 +79,7 @@ func (t *Terrain) GenerateTownHeatMap(town *Town) bool {
 
 			// Check if the new point is within bounds of the map and not visited
 			if common.Inbounds(n) && town.HeatMap.GetCost(n) == HeatmapUnprocessed {
-				if t.World.IsLand(n) {
+				if world.IsLand(n) {
 					town.HeatMap.SetCost(n, MaxMovementCost)
 				} else {
 					//t.Logger.Debug(fmt.Sprintf("[town %v] (%v, %v) Adding direction %v, %v -- heatmap:%v", town, x, y, newX, newY, t.Towns[town].HeatMap[newX][newY]))
@@ -88,10 +90,10 @@ func (t *Terrain) GenerateTownHeatMap(town *Town) bool {
 		}
 	}
 	if count < 200 {
-		t.Logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap aborted with %v iterations", town.GetID(), town.GetPos(), count))
+		town.logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap aborted with %v iterations", town.GetID(), town.GetPos(), count))
 		return false
 	} else {
-		t.Logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap completed with %v iterations", town.GetID(), town.GetPos(), count))
+		town.logger.Debug(fmt.Sprintf("[%v] Town at %v heatmap completed with %v iterations", town.GetID(), town.GetPos(), count))
 		return true
 	}
 }
@@ -131,5 +133,19 @@ func (h *HeatMap) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOn
 }
 
 func (hc *HeatMapCost) Render() string {
-	return fmt.Sprintf(createTerrainItem("0").PaddingLeft(1).PaddingRight(1).Render("%v"), *hc)
+	return fmt.Sprintf(lipgloss.NewStyle().Background(lipgloss.Color("0")).PaddingLeft(1).PaddingRight(1).Margin(0).Render("%v"), *hc)
+}
+
+func DecideDirection(o []DirectionCost, dest common.Coordinates) DirectionCost {
+	lowestCost := MaxMovementCost
+	choice := DirectionCost{}
+	for _, e := range o {
+		if e.Cost <= lowestCost && e.Cost >= 0 {
+			lowestCost = e.Cost
+			//possibilities = append(possibilities, e.pos)
+			choice = e
+		}
+	}
+	//return common.ClosestTo(dest, possibilities)
+	return choice
 }

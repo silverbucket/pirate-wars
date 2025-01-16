@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss/table"
 	"go.uber.org/zap"
+	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/screen"
 )
@@ -14,7 +15,7 @@ type MapView struct {
 	isMiniMap bool
 }
 
-func (world MapView) isAdjacentToWater(c common.Coordinates) bool {
+func (world *MapView) IsAdjacentToWater(c common.Coordinates) bool {
 	adjacentCoords := world.GetAdjacentCoords(c)
 	isAdjacentWater := false
 	for _, a := range adjacentCoords {
@@ -26,7 +27,7 @@ func (world MapView) isAdjacentToWater(c common.Coordinates) bool {
 	return isAdjacentWater
 }
 
-func (world MapView) GetAdjacentCoords(c common.Coordinates) []common.Coordinates {
+func (world *MapView) GetAdjacentCoords(c common.Coordinates) []common.Coordinates {
 	var adjacentCoords []common.Coordinates
 	for i := -1; i <= 1; i++ {
 		for j := -1; j <= 1; j++ {
@@ -44,15 +45,15 @@ func (world MapView) GetAdjacentCoords(c common.Coordinates) []common.Coordinate
 	return adjacentCoords
 }
 
-func (world MapView) GetWidth() int {
+func (world *MapView) GetWidth() int {
 	return len(world.grid[0])
 }
 
-func (world MapView) GetHeight() int {
+func (world *MapView) GetHeight() int {
 	return len(world.grid)
 }
 
-func (world MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOnly, entity common.ViewableEntity) string {
+func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOnly, entity common.ViewableEntity) string {
 	v := common.ViewableArea{}
 	rowWidth := screen.ViewWidth
 
@@ -113,28 +114,38 @@ func (world MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRea
 	return fmt.Sprintln(viewport)
 }
 
-func (world MapView) IsPassableByBoat(c common.Coordinates) bool {
+func (world *MapView) IsPassableByBoat(c common.Coordinates) bool {
 	tt := world.GetPositionType(c)
 	return TypeLookup[tt].RequiresBoat
 }
 
-func (world MapView) IsPassable(c common.Coordinates) bool {
+func (world *MapView) IsPassable(c common.Coordinates) bool {
 	tt := world.GetPositionType(c)
 	return TypeLookup[tt].Passable
 }
 
-func (world MapView) GetPositionType(c common.Coordinates) TerrainType {
+func (world *MapView) GetPositionType(c common.Coordinates) TerrainType {
 	return world.grid[c.X][c.Y]
 }
 
-func (world MapView) SetPositionType(c common.Coordinates, t TerrainType) {
+func (world *MapView) SetPositionType(c common.Coordinates, t TerrainType) {
 	world.grid[c.X][c.Y] = t
 }
 
-func (world MapView) IsLand(c common.Coordinates) bool {
+func (world *MapView) IsLand(c common.Coordinates) bool {
 	tt := world.grid[c.X][c.Y]
 	if tt == TypeBeach || tt == TypeLowland || tt == TypeHighland || tt == TypePeak || tt == TypeRock {
 		return true
 	}
 	return false
+}
+
+func (world *MapView) RandomPositionDeepWater() common.Coordinates {
+	for {
+		c := common.Coordinates{X: rand.Intn(common.WorldWidth-2) + 1, Y: rand.Intn(common.WorldHeight-2) + 1}
+		//t.Logger.Info(fmt.Sprintf("Random position deep water at: %v, %v", c, t.World.GetPositionType(c)))
+		if world.GetPositionType(c) == TypeDeepWater {
+			return c
+		}
+	}
 }

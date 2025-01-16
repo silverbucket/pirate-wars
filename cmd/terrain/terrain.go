@@ -19,12 +19,20 @@ type Props struct {
 }
 
 type Terrain struct {
-	Logger  *zap.SugaredLogger
-	props   Props
-	World   MapView
-	MiniMap MapView
-	Towns   []Town
-	Npcs    []Npc
+	Logger   *zap.SugaredLogger
+	props    Props
+	World    MapView
+	MiniMap  MapView
+	mapItems []MapItem
+}
+
+type MapItem interface {
+	GetPos() common.Coordinates
+	GetTerrainType() TerrainType
+}
+
+func (t *Terrain) SetMapItem(m MapItem) {
+	t.mapItems = append(t.mapItems, m)
 }
 
 func Init(logger *zap.SugaredLogger) *Terrain {
@@ -55,6 +63,7 @@ func Init(logger *zap.SugaredLogger) *Terrain {
 			logger:    logger,
 			grid:      [][]TerrainType{},
 		},
+		mapItems: []MapItem{},
 	}
 }
 
@@ -132,17 +141,7 @@ func (t *Terrain) GenerateMiniMap() {
 			t.MiniMap.SetPositionType(c, val)
 		}
 	}
-	for _, o := range t.Towns {
-		t.MiniMap.SetPositionType(common.GetMiniMapScale(o.GetPos()), TypeTown)
-	}
-}
-
-func (t *Terrain) RandomPositionDeepWater() common.Coordinates {
-	for {
-		c := common.Coordinates{X: rand.Intn(common.WorldWidth-2) + 1, Y: rand.Intn(common.WorldHeight-2) + 1}
-		//t.Logger.Info(fmt.Sprintf("Random position deep water at: %v, %v", c, t.World.GetPositionType(c)))
-		if t.World.GetPositionType(c) == TypeDeepWater {
-			return c
-		}
+	for _, m := range t.mapItems {
+		t.MiniMap.SetPositionType(common.GetMiniMapScale(m.GetPos()), m.GetTerrainType())
 	}
 }

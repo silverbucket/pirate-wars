@@ -7,9 +7,11 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/player"
 	"pirate-wars/cmd/screen"
 	"pirate-wars/cmd/terrain"
+	"pirate-wars/cmd/town"
 )
 
 const BASE_LOG_LEVEL = zap.DebugLevel
@@ -22,7 +24,9 @@ const ViewTypeMiniMap = 2
 type model struct {
 	logger   *zap.SugaredLogger
 	terrain  *terrain.Terrain
-	player   terrain.Avatar
+	player   npc.Avatar
+	npcs     npc.Npcs
+	towns    town.Towns
 	viewType int
 	action   int
 }
@@ -112,9 +116,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		ScreenInitialized = true
 		if !WorldInitialized {
 			m.terrain.GenerateWorld()
-			m.terrain.GenerateTowns()
-			m.terrain.InitNpcs()
-			m.player = player.Create(m.terrain)
+			m.towns = town.Init(m.terrain.World, m.logger)
+			m.npcs = npc.Init(m.towns, m.terrain.World, m.logger)
+			m.player = player.Create(m.terrain.World)
 			WorldInitialized = true
 			m.logger.Info(fmt.Sprintf("Player initialized at: %v, %v",
 				m.player.GetPos(), m.terrain.World.GetPositionType(m.player.GetPos())))
@@ -141,9 +145,9 @@ func (m model) View() string {
 	}
 
 	highlight := ExamineData.GetFocusedEntity()
-	npcs := m.terrain.GetVisibleNpcs(m.player.GetPos())
+	npcs := m.npcs.GetVisible(m.player.GetPos())
 	visible := []common.AvatarReadOnly{}
-	for _, npc := range npcs {
+	for _, npc := range npcs.GetList() {
 		visible = append(visible, &npc)
 	}
 
@@ -152,12 +156,10 @@ func (m model) View() string {
 
 	if m.viewType == ViewTypeMiniMap {
 		return m.terrain.MiniMap.Paint(&m.player, []common.AvatarReadOnly{}, highlight)
-	} else if m.viewType == ViewTypeHeatMap {
-		return m.terrain.Towns[0].HeatMap.Paint(&m.player, visible, highlight)
 	} else {
 		if m.action == common.UserActionIdNone {
 			// user is not doing some meta-action, NPCs can move
-			m.terrain.CalcNpcMovements()
+			m.npcs.CalcMovements()
 		}
 
 		// display main map
@@ -195,7 +197,7 @@ func main() {
 	if _, err := tea.NewProgram(model{
 		logger:   logger,
 		terrain:  t,
-		player:   terrain.Avatar{},
+		player:   npc.Avatar{},
 		viewType: ViewTypeMainMap,
 		action:   common.UserActionIdNone,
 	}, tea.WithAltScreen()).Run(); err != nil {
