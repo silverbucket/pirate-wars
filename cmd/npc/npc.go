@@ -5,8 +5,8 @@ import (
 	"go.uber.org/zap"
 	"math/rand"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/terrain"
 	"pirate-wars/cmd/town"
+	"pirate-wars/cmd/world"
 	"sort"
 )
 
@@ -84,7 +84,7 @@ func (ns *Npcs) ForEach(fn func(n Npc)) {
 	}
 }
 
-func (ns *Npcs) Create(towns town.Towns, world terrain.MapView) {
+func (ns *Npcs) Create(towns *town.Towns, world *world.MapView) {
 	pos := world.RandomPositionDeepWater()
 	tradeTowns := []town.Town{}
 
@@ -130,7 +130,7 @@ func (ns *Npcs) Create(towns town.Towns, world terrain.MapView) {
 	ns.list = append(ns.list, npc)
 }
 
-func Init(towns town.Towns, world terrain.MapView, logger *zap.SugaredLogger) Npcs {
+func Init(towns *town.Towns, world *world.MapView, logger *zap.SugaredLogger) *Npcs {
 	ns := Npcs{
 		logger: logger,
 	}
@@ -138,7 +138,7 @@ func Init(towns town.Towns, world terrain.MapView, logger *zap.SugaredLogger) Np
 		ns.Create(towns, world)
 	}
 	logger.Infof("Npcs initialization completed: %d", len(ns.list))
-	return ns
+	return &ns
 }
 
 func (ns *Npcs) CalcMovements() {

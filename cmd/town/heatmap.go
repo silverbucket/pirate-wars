@@ -7,6 +7,7 @@ import (
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/screen"
 	"pirate-wars/cmd/terrain"
+	"pirate-wars/cmd/world"
 )
 
 const HeatmapUnprocessed = -1
@@ -33,7 +34,7 @@ func (h *HeatMap) GetCost(c common.Coordinates) HeatMapCost {
 	return h.grid[c.X][c.Y]
 }
 
-func (town *Town) generateHeatMap(world terrain.MapView) bool {
+func (town *Town) generateHeatMap(world *world.MapView) bool {
 	// Define the starting point
 	// Queue contains points to visit, cost
 	queue := []DirectionCost{{town.GetPos(), 0}}

@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/terrain"
+	"pirate-wars/cmd/world"
 )
 
 type Towns struct {
@@ -15,10 +16,11 @@ type Towns struct {
 }
 
 type Town struct {
-	id      string
-	pos     []common.Coordinates
-	logger  *zap.SugaredLogger
-	HeatMap HeatMap
+	id          string
+	pos         []common.Coordinates
+	terrainType terrain.TerrainType
+	logger      *zap.SugaredLogger
+	HeatMap     HeatMap
 }
 
 var townList []Town
@@ -31,6 +33,14 @@ func (t *Town) GetPos() common.Coordinates {
 	return t.pos[0]
 }
 
+func (t *Town) GetTerrainType() terrain.TerrainType {
+	return t.terrainType
+}
+
+func (t *Town) SetTerrainType(tt terrain.TerrainType) {
+	t.terrainType = tt
+}
+
 func (t *Town) AccessibleFrom(c common.Coordinates) bool {
 	for _, d := range common.Directions {
 		n := common.AddDirection(c, d)
@@ -41,14 +51,15 @@ func (t *Town) AccessibleFrom(c common.Coordinates) bool {
 	return true
 }
 
-func (t *Town) MakeGhostTown(world terrain.MapView) {
+func (t *Town) MakeGhostTown(world *world.MapView) {
 	t.logger.Info(fmt.Sprintf("[%v] Town turns to ghost town at %v", t.id, t.GetPos()))
 	for _, c := range t.pos {
+		t.SetTerrainType(terrain.TypeGhostTown)
 		world.SetPositionType(c, terrain.TypeGhostTown)
 	}
 }
 
-func (ts *Towns) CreateTown(c common.Coordinates, world terrain.MapView) Town {
+func (ts *Towns) CreateTown(c common.Coordinates, world *world.MapView) Town {
 	var heatMap = make([][]HeatMapCost, common.WorldHeight)
 
 	for i := range heatMap {
@@ -59,9 +70,10 @@ func (ts *Towns) CreateTown(c common.Coordinates, world terrain.MapView) Town {
 	}
 
 	town := Town{
-		id:     common.GenID(c),
-		pos:    []common.Coordinates{c},
-		logger: ts.logger,
+		id:          common.GenID(c),
+		pos:         []common.Coordinates{c},
+		terrainType: terrain.TypeTown,
+		logger:      ts.logger,
 		HeatMap: HeatMap{
 			grid: heatMap,
 		},
@@ -79,11 +91,11 @@ func (ts *Towns) CreateTown(c common.Coordinates, world terrain.MapView) Town {
 			town.pos = append(town.pos, a)
 		}
 	}
-
+	world.SetMapItem(&town)
 	return town
 }
 
-func (ts *Towns) initializeTowns(fn func() common.Coordinates, world terrain.MapView) []Town {
+func (ts *Towns) initializeTowns(fn func() common.Coordinates, world *world.MapView) []Town {
 	ts.logger.Info(fmt.Sprintf("Initializing %v towns", common.TotalTowns))
 	for i := 0; i < common.TotalTowns; i++ {
 		for {
@@ -108,14 +120,14 @@ func (ts *Towns) initializeTowns(fn func() common.Coordinates, world terrain.Map
 	return townList
 }
 
-func Init(world terrain.MapView, logger *zap.SugaredLogger) Towns {
+func Init(world *world.MapView, logger *zap.SugaredLogger) *Towns {
 	ts := Towns{
 		logger: logger,
 		list:   []Town{},
 	}
 	ts.list = ts.initializeTowns(common.RandomPosition, world)
 	ts.logger.Info(fmt.Sprintf("Created %v towns", len(ts.list)))
-	return ts
+	return &ts
 }
 
 func (ts *Towns) GetRandomTown() (Town, error) {

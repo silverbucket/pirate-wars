@@ -12,21 +12,19 @@ import (
 	"pirate-wars/cmd/screen"
 	"pirate-wars/cmd/terrain"
 	"pirate-wars/cmd/town"
+	"pirate-wars/cmd/world"
 )
 
 const BASE_LOG_LEVEL = zap.DebugLevel
 const DEV_MODE = true
 
-const ViewTypeMainMap = 0
-const ViewTypeHeatMap = 1
-const ViewTypeMiniMap = 2
-
 type model struct {
 	logger   *zap.SugaredLogger
 	terrain  *terrain.Terrain
-	player   npc.Avatar
-	npcs     npc.Npcs
-	towns    town.Towns
+	world    *world.MapView
+	player   *npc.Avatar
+	npcs     *npc.Npcs
+	towns    *town.Towns
 	viewType int
 	action   int
 }
@@ -115,22 +113,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		screenStyle = SetScreenStyle(msg.Width, msg.Height)
 		ScreenInitialized = true
 		if !WorldInitialized {
-			m.terrain.GenerateWorld()
-			m.towns = town.Init(m.terrain.World, m.logger)
-			m.npcs = npc.Init(m.towns, m.terrain.World, m.logger)
-			m.player = player.Create(m.terrain.World)
+			m.world = world.Init(m.logger)
+			m.towns = town.Init(m.world, m.logger)
+			m.npcs = npc.Init(m.towns, m.world, m.logger)
+			m.player = player.Create(m.world)
 			WorldInitialized = true
 			m.logger.Info(fmt.Sprintf("Player initialized at: %v, %v",
-				m.player.GetPos(), m.terrain.World.GetPositionType(m.player.GetPos())))
+				m.player.GetPos(), m.world.GetPositionType(m.player.GetPos())))
 		}
-		m.terrain.GenerateMiniMap()
+		m.world.GenerateMiniMap()
 		return m, nil
 	}
 	if !ScreenInitialized || !WorldInitialized {
 		return m, nil
 	}
 
-	if m.viewType == ViewTypeMiniMap {
+	if m.viewType == world.ViewTypeMiniMap {
 		return m.miniMapInput(msg)
 	} else if m.action == common.UserActionIdExamine {
 		return m.actionInput(msg)
@@ -154,8 +152,8 @@ func (m model) View() string {
 	bottomText := ""
 	sidePanel := ""
 
-	if m.viewType == ViewTypeMiniMap {
-		return m.terrain.MiniMap.Paint(&m.player, []common.AvatarReadOnly{}, highlight)
+	if m.viewType == world.ViewTypeMiniMap {
+		return m.world.Paint(m.player, []common.AvatarReadOnly{}, highlight, world.ViewTypeMiniMap)
 	} else {
 		if m.action == common.UserActionIdNone {
 			// user is not doing some meta-action, NPCs can move
@@ -163,7 +161,7 @@ func (m model) View() string {
 		}
 
 		// display main map
-		paint := m.terrain.World.Paint(&m.player, visible, highlight)
+		paint := m.world.Paint(m.player, visible, highlight, world.ViewTypeMainMap)
 
 		if m.action == common.UserActionIdExamine {
 			bottomText += fmt.Sprintf("examining %v", highlight.GetID())
@@ -191,14 +189,12 @@ func main() {
 	logger := createLogger()
 	logger.Info("Starting...")
 
-	t := terrain.Init(logger)
+	//t := terrain.Init(logger)
 
 	// ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 	if _, err := tea.NewProgram(model{
 		logger:   logger,
-		terrain:  t,
-		player:   npc.Avatar{},
-		viewType: ViewTypeMainMap,
+		viewType: world.ViewTypeMainMap,
 		action:   common.UserActionIdNone,
 	}, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
