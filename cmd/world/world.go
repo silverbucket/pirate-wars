@@ -36,10 +36,10 @@ var WorldProps = Props{
 }
 
 type MiniMapView struct {
-	grid [][]terrain.TerrainType
+	grid [][]terrain.Type
 }
 type MapView struct {
-	grid     [][]terrain.TerrainType
+	grid     [][]terrain.Type
 	logger   *zap.SugaredLogger
 	miniMap  MiniMapView
 	mapItems []MapItem
@@ -47,7 +47,7 @@ type MapView struct {
 
 type MapItem interface {
 	GetPos() common.Coordinates
-	GetTerrainType() terrain.TerrainType
+	GetTerrainType() terrain.Type
 }
 
 func (world *MapView) SetMapItem(m MapItem) {
@@ -102,11 +102,11 @@ func (world *MapView) IsPassable(c common.Coordinates) bool {
 	return terrain.TypeLookup[tt].Passable
 }
 
-func (world *MapView) GetPositionType(c common.Coordinates) terrain.TerrainType {
+func (world *MapView) GetPositionType(c common.Coordinates) terrain.Type {
 	return world.grid[c.X][c.Y]
 }
 
-func (world *MapView) SetPositionType(c common.Coordinates, tt terrain.TerrainType) {
+func (world *MapView) SetPositionType(c common.Coordinates, tt terrain.Type) {
 	world.grid[c.X][c.Y] = tt
 }
 
@@ -190,9 +190,9 @@ func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRe
 }
 
 func Init(logger *zap.SugaredLogger) *MapView {
-	worldGrid := make([][]terrain.TerrainType, common.WorldHeight)
+	worldGrid := make([][]terrain.Type, common.WorldHeight)
 	for i := range worldGrid {
-		worldGrid[i] = make([]terrain.TerrainType, common.WorldHeight)
+		worldGrid[i] = make([]terrain.Type, common.WorldHeight)
 	}
 	world := MapView{
 		logger:   logger,

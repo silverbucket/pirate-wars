@@ -6,7 +6,7 @@ import (
 	"pirate-wars/cmd/terrain"
 )
 
-func (mm *MiniMapView) SetPositionType(c common.Coordinates, tt terrain.TerrainType) {
+func (mm *MiniMapView) SetPositionType(c common.Coordinates, tt terrain.Type) {
 	mm.grid[c.X][c.Y] = tt
 }
 
@@ -17,10 +17,10 @@ func (world *MapView) GenerateMiniMap() {
 
 	// Create new 2D slice
 	world.miniMap = MiniMapView{
-		grid: make([][]terrain.TerrainType, height+1),
+		grid: make([][]terrain.Type, height+1),
 	}
 	for i := range world.miniMap.grid {
-		world.miniMap.grid[i] = make([]terrain.TerrainType, width+1)
+		world.miniMap.grid[i] = make([]terrain.Type, width+1)
 	}
 
 	// Down-sample
@@ -31,7 +31,7 @@ func (world *MapView) GenerateMiniMap() {
 				X: i / screen.MiniMapFactor,
 				Y: j / screen.MiniMapFactor,
 			}
-			// Assign original TerrainType value
+			// Assign original Type value
 			world.miniMap.SetPositionType(c, val)
 		}
 	}

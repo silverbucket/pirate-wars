@@ -10,7 +10,6 @@ import (
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/player"
 	"pirate-wars/cmd/screen"
-	"pirate-wars/cmd/terrain"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/world"
 )
@@ -20,7 +19,6 @@ const DEV_MODE = true
 
 type model struct {
 	logger   *zap.SugaredLogger
-	terrain  *terrain.Terrain
 	world    *world.MapView
 	player   *npc.Avatar
 	npcs     *npc.Npcs

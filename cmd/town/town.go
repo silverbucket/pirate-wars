@@ -18,7 +18,7 @@ type Towns struct {
 type Town struct {
 	id          string
 	pos         []common.Coordinates
-	terrainType terrain.TerrainType
+	terrainType terrain.Type
 	logger      *zap.SugaredLogger
 	HeatMap     HeatMap
 }
@@ -33,11 +33,11 @@ func (t *Town) GetPos() common.Coordinates {
 	return t.pos[0]
 }
 
-func (t *Town) GetTerrainType() terrain.TerrainType {
+func (t *Town) GetTerrainType() terrain.Type {
 	return t.terrainType
 }
 
-func (t *Town) SetTerrainType(tt terrain.TerrainType) {
+func (t *Town) SetTerrainType(tt terrain.Type) {
 	t.terrainType = tt
 }
 

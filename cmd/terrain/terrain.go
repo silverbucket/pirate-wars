@@ -23,7 +23,7 @@ const (
 	TypeGhostTown    = 9
 )
 
-type TerrainType int
+type Type int
 
 type TypeQualities struct {
 	symbol       rune
@@ -36,7 +36,7 @@ func createTerrainItem(color lipgloss.Color) lipgloss.Style {
 	return lipgloss.NewStyle().Background(color).Padding(0).Margin(0)
 }
 
-var TypeLookup = map[TerrainType]TypeQualities{
+var TypeLookup = map[Type]TypeQualities{
 	TypeDeepWater:    {symbol: '⏖', style: createTerrainItem("18"), Passable: true, RequiresBoat: true},
 	TypeOpenWater:    {symbol: '⏝', style: createTerrainItem("20"), Passable: true, RequiresBoat: true},
 	TypeShallowWater: {symbol: '⏑', style: createTerrainItem("26"), Passable: true, RequiresBoat: true},
@@ -49,6 +49,6 @@ var TypeLookup = map[TerrainType]TypeQualities{
 	TypeGhostTown:    {symbol: '⩎', style: createTerrainItem("94"), Passable: true, RequiresBoat: false},
 }
 
-func (tt *TerrainType) Render() string {
+func (tt *Type) Render() string {
 	return TypeLookup[*tt].style.PaddingLeft(1).PaddingRight(1).Render(fmt.Sprintf("%c", TypeLookup[*tt].symbol))
 }

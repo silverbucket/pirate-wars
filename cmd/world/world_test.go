@@ -1,4 +1,4 @@
-package terrain
+package world
 
 import (
 	"go.uber.org/zap"
