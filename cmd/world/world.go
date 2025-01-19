@@ -139,13 +139,16 @@ func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRe
 
 	world.logger.Info(fmt.Sprintf("ViewPort set to %v, %v", screen.ViewWidth, screen.ViewHeight))
 
+	grid := world.grid
+
 	if viewType == ViewTypeMiniMap {
-		v = common.ViewableArea{0, 0, len(world.grid[0]), len(world.grid)}
+		v = common.ViewableArea{0, 0, len(world.miniMap.grid[0]), len(world.miniMap.grid)}
 		// mini map views the whole map
 		rowWidth = common.WorldWidth
 		// always display main character avatar on the minimap
 		mm := common.GetMiniMapScale(avatar.GetPos())
 		overlay[fmt.Sprintf("%03d%03d", mm.X, mm.Y)] = avatar
+		grid = world.miniMap.grid
 	} else {
 		v = common.GetViewableArea(avatar.GetPos())
 		p := avatar.GetPos()
@@ -177,10 +180,10 @@ func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRe
 			if ok {
 				row[x-v.Left] = item.Render()
 			} else {
-				//world.logger.Debug(
-				//	fmt.Sprintf("row[%v] = world.grid[%v][%v] [row len(%v), gridX len(%v), gridY len(%v)]",
-				//		x-v.Left, x, y, len(row), len(world.grid), len(world.grid[0])))
-				row[x-v.Left] = world.grid[x][y].Render()
+				world.logger.Debug(
+					fmt.Sprintf("row[%v] = grid[%v][%v] [row len(%v), gridX len(%v), gridY len(%v)]",
+						x-v.Left, x, y, len(row), len(grid), len(grid[0])))
+				row[x-v.Left] = grid[x][y].Render()
 			}
 		}
 		viewport.Row(row...).BorderColumn(false)
@@ -190,9 +193,9 @@ func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRe
 }
 
 func Init(logger *zap.SugaredLogger) *MapView {
-	worldGrid := make([][]terrain.Type, common.WorldHeight)
+	worldGrid := make([][]terrain.Type, WorldProps.width)
 	for i := range worldGrid {
-		worldGrid[i] = make([]terrain.Type, common.WorldHeight)
+		worldGrid[i] = make([]terrain.Type, WorldProps.height)
 	}
 	world := MapView{
 		logger:   logger,
