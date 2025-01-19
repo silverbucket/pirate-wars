@@ -76,7 +76,7 @@ func GenerateCaptainName() string {
 		if roll() && roll() {
 			fullName = append(fullName, grab(placeSuffix))
 		}
-	} else if roll() && roll() {
+	} else if roll() && roll() && roll() && roll() && roll() {
 		fullName = append(fullName, "yon")
 		fullName = append(fullName, grab(place))
 	}

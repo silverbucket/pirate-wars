@@ -1,16 +1,14 @@
-package terrain
+package npc
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"math/rand"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/town"
+	"pirate-wars/cmd/world"
 	"sort"
 )
-
-type ColorScheme struct {
-	Foreground string
-	Background string
-}
 
 // ChanceToMove Percentage chance an NPC will calculate movement per tick
 const ChanceToMove = 50
@@ -19,7 +17,7 @@ const GoalTypeTrade = 1
 type Agenda struct {
 	goal        int
 	tradeTarget int
-	tadeRoute   []Town
+	tadeRoute   []town.Town
 }
 
 type Npc struct {
@@ -27,32 +25,14 @@ type Npc struct {
 	name   string
 	eType  string
 	flag   string
+	logger *zap.SugaredLogger
 	avatar Avatar
 	agenda Agenda
 }
 
-type Npcs []Npc
-
-var ColorPossibilities = []ColorScheme{
-	{"9", "0"},   // strong red
-	{"10", "0"},  // green
-	{"11", "0"},  // yellow
-	{"14", "0"},  // bright cyan
-	{"15", "0"},  // off-white
-	{"46", "0"},  // blue/green
-	{"69", "0"},  // faded cyan
-	{"86", "0"},  // light cyan
-	{"93", "0"},  // fuchsia
-	{"172", "0"}, // off pink
-	{"193", "0"}, // light green
-	{"201", "0"}, // pink
-	{"207", "0"}, // light pink
-	{"211", "0"}, // lighter pink
-	{"218", "0"}, // light pink/white
-	{"222", "0"}, // light yellow/orange
-	{"230", "0"}, // yellow/white
-	{"253", "0"}, // grey
-	{"255", "0"}, // white
+type Npcs struct {
+	logger *zap.SugaredLogger
+	list   []Npc
 }
 
 func (n *Npc) GetName() string {
@@ -99,36 +79,36 @@ func (n *Npc) Highlight() {
 }
 
 func (ns *Npcs) ForEach(fn func(n Npc)) {
-	for _, n := range *ns {
+	for _, n := range ns.list {
 		fn(n)
 	}
 }
 
-func (t *Terrain) CreateNpc() {
-	pos := t.RandomPositionDeepWater()
-	tradeTowns := []Town{}
+func (ns *Npcs) Create(towns *town.Towns, world *world.MapView) {
+	pos := world.RandomPositionDeepWater()
+	tradeTowns := []town.Town{}
 
 	tryCount := 0
 	for {
 		tryCount++
 
-		town := t.GetRandomTown()
+		newTown, _ := towns.GetRandomTown()
 		// ensure towns are unique
 		if len(tradeTowns) > 2 {
 			break
 		} else if len(tradeTowns) == 2 {
-			if common.CoordsMatch(town.GetPos(), tradeTowns[0].GetPos()) || !town.AccessibleFrom(pos) {
+			if common.CoordsMatch(newTown.GetPos(), tradeTowns[0].GetPos()) || !newTown.AccessibleFrom(pos) {
 				// either same town, or inaccessible from position
 				if tryCount > 20 {
 					// abort creation
-					t.Logger.Info(fmt.Sprintf("Failed creating npc at position %d, skipping [town: %v, accessible?: %v]", pos, town.GetPos(), town.AccessibleFrom(pos)))
+					ns.logger.Info(fmt.Sprintf("Failed creating npc at position %d, skipping [town: %v, accessible?: %v]", pos, newTown.GetPos(), newTown.AccessibleFrom(pos)))
 					return
 				}
 				// try again
 				continue
 			}
 		}
-		tradeTowns = append(tradeTowns, town)
+		tradeTowns = append(tradeTowns, newTown)
 	}
 
 	color := ColorPossibilities[rand.Intn(len(ColorPossibilities)-1)]
@@ -136,6 +116,7 @@ func (t *Terrain) CreateNpc() {
 	npc := Npc{
 		id:     common.GenID(pos),
 		eType:  "NPC",
+		logger: ns.logger,
 		name:   common.GenerateCaptainName(),
 		flag:   common.GetRandomFlag(),
 		avatar: CreateAvatar(pos, '⏏', color),
@@ -145,36 +126,40 @@ func (t *Terrain) CreateNpc() {
 			tadeRoute:   tradeTowns,
 		},
 	}
-	t.Logger.Infof("[%v] NPC created at %d, %d", npc.id, pos.X, pos.Y)
-	t.Npcs = append(t.Npcs, npc)
+	ns.logger.Infof("[%v] NPC created at %d, %d", npc.id, pos.X, pos.Y)
+	ns.list = append(ns.list, npc)
 }
 
-func (t *Terrain) InitNpcs() {
-	for i := 0; i < common.TotalNpcs; i++ {
-		t.CreateNpc()
+func Init(towns *town.Towns, world *world.MapView, logger *zap.SugaredLogger) *Npcs {
+	ns := Npcs{
+		logger: logger,
 	}
-	t.Logger.Infof("Npcs initialization completed: %d", len(t.Npcs))
+	for i := 0; i < common.TotalNpcs; i++ {
+		ns.Create(towns, world)
+	}
+	logger.Infof("NPCs initialized: %d", len(ns.list))
+	return &ns
 }
 
-func (t *Terrain) CalcNpcMovements() {
-	for i := range t.Npcs {
+func (ns *Npcs) CalcMovements() {
+	for i := range ns.list {
 		if rand.Intn(100) > ChanceToMove {
 			continue
 		}
 
-		npc := &t.Npcs[i]
-		town := &npc.agenda.tadeRoute[npc.agenda.tradeTarget]
+		npc := &ns.list[i]
+		targetTown := &npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 
 		// if we're already at our destination, flip our trade route
-		if town.HeatMap.GetCost(npc.avatar.GetPos()) < 3 {
+		if targetTown.HeatMap.GetCost(npc.avatar.GetPos()) < 3 {
 			oldTown := npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 			npc.agenda.tradeTarget = npc.agenda.tradeTarget ^ 1
-			town = &npc.agenda.tadeRoute[npc.agenda.tradeTarget]
-			t.Logger.Info(fmt.Sprintf("[%v] NPC movement trade route switch town %v to town %v", npc.id, oldTown.GetPos(), town.GetPos()))
+			targetTown = &npc.agenda.tadeRoute[npc.agenda.tradeTarget]
+			ns.logger.Info(fmt.Sprintf("[%v] NPC movement trade route switch town %v to town %v", npc.id, oldTown.GetPos(), targetTown.GetPos()))
 		}
 
 		// find next move by cost on heatmap
-		opts := []DirectionCost{}
+		opts := []town.DirectionCost{}
 		for _, dir := range common.Directions {
 			n := common.AddDirection(npc.GetPos(), dir)
 			if !common.Inbounds(n) {
@@ -183,39 +168,35 @@ func (t *Terrain) CalcNpcMovements() {
 			}
 			//t.Logger.Debug(fmt.Sprintf("New heatmap coordinates check [%v][%v]", newX, newY))
 			//t.Logger.Debug(fmt.Sprintf("Npc at %v, %v - checking square %v, %v cost:%v [lowest cost: %v]", newPosition.X, newPosition.Y, newX, newY, town.HeatMap[newX][newY], lowestCost)
-			opts = append(opts, DirectionCost{n, town.HeatMap.GetCost(n)})
+			opts = append(opts, town.DirectionCost{n, targetTown.HeatMap.GetCost(n)})
 		}
 
-		pick := decideDirection(opts, town.GetPos())
-		target := pick.pos
-		cost := pick.cost
+		pick := town.DecideDirection(opts, targetTown.GetPos())
+		target := pick.Pos
+		cost := pick.Cost
 		npcpos := npc.GetPos()
 
 		if target.X == npcpos.X && target.Y == npcpos.Y {
-			t.Logger.Debug(fmt.Sprintf("[%v] NPC stuck at %v! Travelling to town at %v (cost %v)", npc.id, npcpos, town.GetPos(), cost))
+			ns.logger.Debug(fmt.Sprintf("[%v] NPC stuck at %v! Travelling to town at %v (cost %v)", npc.id, npcpos, targetTown.GetPos(), cost))
 		} else {
 			//t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (bg color: %v)", npc.id, npcpos, target, cost, npc.GetBackgroundColor()))
 			if !common.IsPositionAdjacent(npcpos, target) {
-				t.Logger.Debug(fmt.Sprintf("[%v] NPC warp! from %v to %v", npc.id, npcpos, target))
+				ns.logger.Debug(fmt.Sprintf("[%v] NPC warp! from %v to %v", npc.id, npcpos, target))
 			}
 			npc.SetPos(target)
 		}
 	}
 }
 
-func (t *Terrain) GetNpcs() Npcs {
-	var avs Npcs
-	for _, npc := range t.Npcs {
-		avs = append(avs, npc)
-	}
-	return avs
+func (ns *Npcs) GetList() []Npc {
+	return ns.list
 }
 
-func (t *Terrain) GetVisibleNpcs(c common.Coordinates) Npcs {
+func (ns *Npcs) GetVisible(c common.Coordinates) Npcs {
 	v := common.GetViewableArea(c)
 	viewable := map[int]Npc{}
 	keys := []int{}
-	for _, npc := range t.Npcs {
+	for _, npc := range ns.list {
 		p := npc.GetPos()
 		if common.IsPositionWithin(p, v) {
 			keys = append(keys, p.X)
@@ -225,21 +206,7 @@ func (t *Terrain) GetVisibleNpcs(c common.Coordinates) Npcs {
 	sorted := Npcs{}
 	sort.Ints(keys)
 	for _, key := range keys {
-		sorted = append(sorted, viewable[key])
+		sorted.list = append(sorted.list, viewable[key])
 	}
 	return sorted
-}
-
-func decideDirection(o []DirectionCost, dest common.Coordinates) DirectionCost {
-	lowestCost := MaxMovementCost
-	choice := DirectionCost{}
-	for _, e := range o {
-		if e.cost <= lowestCost && e.cost >= 0 {
-			lowestCost = e.cost
-			//possibilities = append(possibilities, e.pos)
-			choice = e
-		}
-	}
-	//return common.ClosestTo(dest, possibilities)
-	return choice
 }

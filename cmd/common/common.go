@@ -14,12 +14,6 @@ const (
 	TotalNpcs   = 100
 )
 
-type ViewPort struct {
-	width   int
-	height  int
-	topLeft int
-}
-
 type ViewableArea struct {
 	Top    int
 	Left   int
@@ -71,7 +65,7 @@ func IsPositionAdjacent(p Coordinates, t Coordinates) bool {
 }
 
 func IsPositionWithin(c Coordinates, v ViewableArea) bool {
-	if (v.Left < c.X && c.X < v.Right) && (v.Top < c.Y && c.Y < v.Bottom) {
+	if (v.Left <= c.X && c.X <= v.Right) && (v.Top <= c.Y && c.Y <= v.Bottom) {
 		return true
 	}
 	return false
