@@ -43,12 +43,12 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "m":
 			m.viewType = world.ViewTypeMiniMap
 
-		case "p":
-			if m.viewType == world.ViewTypeHeatMap {
-				m.viewType = world.ViewTypeMainMap
-			} else {
-				m.viewType = world.ViewTypeHeatMap
-			}
+		//case "p":
+		//	if m.viewType == world.ViewTypeHeatMap {
+		//		m.viewType = world.ViewTypeMainMap
+		//	} else {
+		//		m.viewType = world.ViewTypeHeatMap
+		//	}
 
 		// examine something on the map
 		case "x":

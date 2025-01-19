@@ -137,7 +137,7 @@ func Init(towns *town.Towns, world *world.MapView, logger *zap.SugaredLogger) *N
 	for i := 0; i < common.TotalNpcs; i++ {
 		ns.Create(towns, world)
 	}
-	logger.Infof("Npcs initialization completed: %d", len(ns.list))
+	logger.Infof("NPCs initialized: %d", len(ns.list))
 	return &ns
 }
 

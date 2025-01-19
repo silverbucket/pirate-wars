@@ -131,7 +131,6 @@ func Init(world *world.MapView, logger *zap.SugaredLogger) *Towns {
 }
 
 func (ts *Towns) GetRandomTown() (Town, error) {
-	ts.logger.Info(fmt.Sprintf("## GetRandomTown gett index : %v", len(ts.list)))
 	if len(ts.list) == 0 {
 		return Town{}, errors.New("no towns found")
 	}
