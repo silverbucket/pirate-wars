@@ -9,7 +9,7 @@ import (
 	"pirate-wars/cmd/world"
 )
 
-var ExamineData = user_action.Examine()()
+var ExamineData = user_action.Examine()
 
 func (m model) miniMapInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -55,7 +55,7 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "x":
 			m.action = user_action.UserActionIdExamine
 			npcs := m.npcs.GetVisible(m.player.GetPos())
-			ExamineData = user_action.Examine()()
+			ExamineData = user_action.Examine()
 			npcs.ForEach(func(n npc.Npc) {
 				ExamineData.AddItem(&n)
 			})
@@ -181,7 +181,7 @@ func (m model) actionInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// exit examine mode
 		case "x", "return":
 			m.action = user_action.UserActionIdNone
-			ExamineData = user_action.Examine()()
+			ExamineData = user_action.Examine()
 
 		case "left", "h", "a":
 			ExamineData.FocusLeft()

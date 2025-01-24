@@ -6,7 +6,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"go.uber.org/zap"
 	"os"
-	"pirate-wars/cmd/action"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/dialog"
 	"pirate-wars/cmd/npc"
