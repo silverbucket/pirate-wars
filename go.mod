@@ -7,7 +7,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/ojrac/opensimplex-go v1.0.2
 	go.uber.org/zap v1.27.0
-	golang.org/x/text v0.3.8
+	golang.org/x/text v0.21.0
 )
 
 require (
@@ -24,6 +24,6 @@ require (
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/sync v0.9.0 // indirect
+	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.27.0 // indirect
 )
