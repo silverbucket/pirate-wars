@@ -5,10 +5,11 @@ import (
 	"github.com/charmbracelet/bubbletea"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/npc"
+	"pirate-wars/cmd/user_action"
 	"pirate-wars/cmd/world"
 )
 
-var ExamineData = common.NewUserActionExamine()
+var ExamineData = user_action.Examine()()
 
 func (m model) miniMapInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -52,9 +53,9 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// examine something on the map
 		case "x":
-			m.action = common.UserActionIdExamine
+			m.action = user_action.UserActionIdExamine
 			npcs := m.npcs.GetVisible(m.player.GetPos())
-			ExamineData = common.NewUserActionExamine()
+			ExamineData = user_action.Examine()()
 			npcs.ForEach(func(n npc.Npc) {
 				ExamineData.AddItem(&n)
 			})
@@ -179,8 +180,8 @@ func (m model) actionInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// exit examine mode
 		case "x", "return":
-			m.action = common.UserActionIdNone
-			ExamineData = common.NewUserActionExamine()
+			m.action = user_action.UserActionIdNone
+			ExamineData = user_action.Examine()()
 
 		case "left", "h", "a":
 			ExamineData.FocusLeft()
