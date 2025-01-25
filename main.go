@@ -64,7 +64,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.viewType == world.ViewTypeMiniMap {
 		return m.miniMapInput(msg)
 	} else if m.action == user_action.UserActionIdExamine {
-		return m.actionInput(msg)
+		return m.examineInput(msg)
 	} else {
 		return m.sailingInput(msg)
 	}
@@ -74,6 +74,8 @@ func (m model) View() string {
 	if !m.initialized {
 		return "Loading..."
 	}
+
+	m.logger.Debug(fmt.Sprintf("Player position %v", m.player.GetPos()))
 
 	highlight := ExamineData.GetFocusedEntity()
 	npcs := m.npcs.GetVisible(m.player.GetPos())
@@ -86,7 +88,9 @@ func (m model) View() string {
 	sidePanel := ""
 
 	if m.viewType == world.ViewTypeMiniMap {
-		return m.world.Paint(m.player, []common.AvatarReadOnly{}, highlight, world.ViewTypeMiniMap)
+		paint := m.world.Paint(m.player, []common.AvatarReadOnly{}, highlight, world.ViewTypeMiniMap)
+		paint += helpText(miniMapKeyMap)
+		return paint
 	} else {
 		if m.action == user_action.UserActionIdNone {
 			// user is not doing some meta-action, NPCs can move
@@ -97,7 +101,7 @@ func (m model) View() string {
 		paint := m.world.Paint(m.player, visible, highlight, world.ViewTypeMainMap)
 
 		if m.action == user_action.UserActionIdExamine {
-			bottomText += fmt.Sprintf("examining %v", highlight.GetID())
+			bottomText += helpText(examineKeyMap)
 			sidePanel = lipgloss.JoinVertical(lipgloss.Left,
 				dialog.ListHeader(fmt.Sprintf("%v", highlight.GetName())),
 				dialog.ListItem(fmt.Sprintf("Flag: %v", highlight.GetFlag())),
@@ -105,6 +109,8 @@ func (m model) View() string {
 				dialog.ListItem(fmt.Sprintf("Type: %v", highlight.GetType())),
 				dialog.ListItem(fmt.Sprintf("Color: %v", highlight.GetForegroundColor())),
 			)
+		} else {
+			bottomText += helpText(sailingKeyMap)
 		}
 		s := dialog.GetSidebarStyle()
 		content := lipgloss.JoinHorizontal(
@@ -116,6 +122,30 @@ func (m model) View() string {
 			bottomText)
 		return m.screen.Render(content)
 	}
+}
+
+func helpText(km KeyMap) string {
+	r := ""
+	f := true
+	for _, k := range km {
+		s := ""
+		t := true
+		for _, i := range k.key {
+			if t {
+				t = false
+			} else {
+				s += "/"
+			}
+			s += fmt.Sprintf("%v", i)
+		}
+		if f {
+			f = false
+		} else {
+			r += ", "
+		}
+		r += fmt.Sprintf("%v: %v", s, k.help)
+	}
+	return dialog.HelpStyle(r)
 }
 
 func main() {

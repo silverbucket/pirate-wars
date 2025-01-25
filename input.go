@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/charmbracelet/bubbletea"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/npc"
@@ -11,56 +10,80 @@ import (
 
 var ExamineData = user_action.Examine()
 
+type keyItem struct {
+	key  []string
+	help string
+	exec func(m model) (tea.Model, tea.Cmd)
+}
+
+type KeyMap []keyItem
+
+func keyQuit(m model) (tea.Model, tea.Cmd) {
+	return m, tea.Quit
+}
+
+var miniMapKeyMap = KeyMap{
+	{
+		key:  []string{"ctrl+q"},
+		help: "quit",
+		exec: keyQuit,
+	},
+	{
+		key:  []string{"m", "enter"},
+		help: "exit minimap",
+		exec: func(m model) (tea.Model, tea.Cmd) {
+			m.viewType = world.ViewTypeMainMap
+			return m, nil
+		},
+	},
+}
+
 func (m model) miniMapInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	// Is it a key press?
 	case tea.KeyMsg:
-		// Cool, what was the actual key pressed?
-		switch msg.String() {
-		// These keys should exit the program.
-		case "ctrl+c", "ctrl+q":
-			return m, tea.Quit
-
-		// The "m" key toggles the minimap
-		case "m", "enter":
-			m.viewType = world.ViewTypeMainMap
+		input := msg.String()
+		for _, e := range miniMapKeyMap {
+			for _, k := range e.key {
+				if input == k {
+					return e.exec(m)
+				}
+			}
 		}
 	}
 	return m, nil
 }
 
-func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	// Is it a key press?
-	case tea.KeyMsg:
-		// Cool, what was the actual key pressed?
-		switch msg.String() {
-
-		// These keys should exit the program.
-		case "ctrl+c", "ctrl+q":
-			return m, tea.Quit
-
-		// The "m" key displays the minimap
-		case "m":
+var sailingKeyMap = KeyMap{
+	{
+		key:  []string{"ctrl+q"},
+		help: "quit",
+		exec: keyQuit,
+	},
+	{
+		key:  []string{"m"},
+		help: "view minimap",
+		exec: func(m model) (tea.Model, tea.Cmd) {
 			m.viewType = world.ViewTypeMiniMap
-
-		//case "p":
-		//	if m.viewType == world.ViewTypeHeatMap {
-		//		m.viewType = world.ViewTypeMainMap
-		//	} else {
-		//		m.viewType = world.ViewTypeHeatMap
-		//	}
-
-		// examine something on the map
-		case "x":
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"x"},
+		help: "examine",
+		exec: func(m model) (tea.Model, tea.Cmd) {
 			m.action = user_action.UserActionIdExamine
 			npcs := m.npcs.GetVisible(m.player.GetPos())
 			ExamineData = user_action.Examine()
 			npcs.ForEach(func(n npc.Npc) {
 				ExamineData.AddItem(&n)
 			})
-
-		case "left", "h", "a":
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"left", "h", "a"},
+		help: "move left",
+		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.X > 0 {
 				t := common.Coordinates{
@@ -71,8 +94,13 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.player.SetPos(t)
 				}
 			}
-
-		case "right", "l", "d":
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"right", "l", "d"},
+		help: "move right",
+		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.X < m.world.GetWidth()-1 {
 				t := common.Coordinates{
@@ -83,9 +111,13 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.player.SetPos(t)
 				}
 			}
-
-		// The "up" and "k" keys move the cursor up
-		case "up", "k", "w":
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"up", "k", "w"},
+		help: "move up",
+		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y > 0 {
 				t := common.Coordinates{
@@ -96,9 +128,13 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.player.SetPos(t)
 				}
 			}
-
-		// The "down" and "j" keys move the cursor down
-		case "down", "j", "s":
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"down", "j", "s"},
+		help: "move down",
+		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y < m.world.GetHeight()-1 {
 				t := common.Coordinates{
@@ -109,9 +145,13 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.player.SetPos(t)
 				}
 			}
-
-		// The "up+left" and "y" keys move the cursor diagonal up+left
-		case "up+left", "y", "q":
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"up+left", "q", "y"},
+		help: "move up & left",
+		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y > 0 && c.X > 0 {
 				t := common.Coordinates{
@@ -122,9 +162,13 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.player.SetPos(t)
 				}
 			}
-
-		// The "down+left" and "b" keys move the cursor diagonal down+left
-		case "down+left", "b", "z":
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"down+left", "b", "z"},
+		help: "move down & left",
+		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y < m.world.GetHeight()-1 && c.X > 0 {
 				t := common.Coordinates{
@@ -135,9 +179,13 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.player.SetPos(t)
 				}
 			}
-
-		// The "upright" and "u" keys move the cursor diagonal up+left
-		case "up+right", "u", "e":
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"up+right", "u", "e"},
+		help: "move up & right",
+		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y > 0 && c.X < m.world.GetWidth()-1 {
 				t := common.Coordinates{
@@ -148,9 +196,13 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.player.SetPos(t)
 				}
 			}
-
-		// The "downright" and "n" keys move the cursor diagonal down+left
-		case "down+right", "n", "c":
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"down+right", "n", "c"},
+		help: "move down & right",
+		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y < m.world.GetHeight()-1 && c.X < m.world.GetWidth()-1 {
 				t := common.Coordinates{
@@ -161,34 +213,77 @@ func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.player.SetPos(t)
 				}
 			}
+			return m, nil
+		},
+	},
+}
+
+//case "p":
+//	if m.viewType == world.ViewTypeHeatMap {
+//		m.viewType = world.ViewTypeMainMap
+//	} else {
+//		m.viewType = world.ViewTypeHeatMap
+//	}
+
+func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		input := msg.String()
+		for _, e := range sailingKeyMap {
+			for _, k := range e.key {
+				if input == k {
+					return e.exec(m)
+				}
+			}
 		}
 	}
-	m.logger.Debug(fmt.Sprintf("Player position %v", m.player.GetPos()))
 	return m, nil
 }
 
-func (m model) actionInput(msg tea.Msg) (tea.Model, tea.Cmd) {
+var examineKeyMap = KeyMap{
+	{
+		key:  []string{"ctrl+q"},
+		help: "quit",
+		exec: keyQuit,
+	},
+	{
+		key:  []string{"x", "enter"},
+		help: "exit examine mode",
+		exec: func(m model) (tea.Model, tea.Cmd) {
+			m.action = user_action.UserActionIdNone
+			ExamineData = user_action.Examine()
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"left", "h", "a"},
+		help: "examine item left",
+		exec: func(m model) (tea.Model, tea.Cmd) {
+			ExamineData.FocusLeft()
+			return m, nil
+		},
+	},
+	{
+		key:  []string{"right", "l", "d"},
+		help: "examine item right",
+		exec: func(m model) (tea.Model, tea.Cmd) {
+			ExamineData.FocusRight()
+			return m, nil
+		},
+	},
+}
+
+func (m model) examineInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	// Is it a key press?
 	case tea.KeyMsg:
-		// Cool, what was the actual key pressed?
-		switch msg.String() {
-
-		// These keys should exit the program.
-		case "ctrl+c", "ctrl+q":
-			return m, tea.Quit
-
-		// exit examine mode
-		case "x", "return":
-			m.action = user_action.UserActionIdNone
-			ExamineData = user_action.Examine()
-
-		case "left", "h", "a":
-			ExamineData.FocusLeft()
-
-		case "right", "l", "d":
-			ExamineData.FocusRight()
-
+		input := msg.String()
+		for _, e := range examineKeyMap {
+			for _, k := range e.key {
+				if input == k {
+					return e.exec(m)
+				}
+			}
 		}
 	}
 	return m, nil
