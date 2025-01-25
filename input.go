@@ -54,14 +54,10 @@ func (m model) miniMapInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 var sailingKeyMap = KeyMap{
-	{
-		key:  []string{"ctrl+q"},
-		help: "quit",
-		exec: keyQuit,
-	},
+
 	{
 		key:  []string{"m"},
-		help: "view minimap",
+		help: "minimap",
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			m.viewType = world.ViewTypeMiniMap
 			return m, nil
@@ -149,7 +145,7 @@ var sailingKeyMap = KeyMap{
 		},
 	},
 	{
-		key:  []string{"up+left", "q", "y"},
+		key:  []string{"q", "y"},
 		help: "move up & left",
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
@@ -166,7 +162,7 @@ var sailingKeyMap = KeyMap{
 		},
 	},
 	{
-		key:  []string{"down+left", "b", "z"},
+		key:  []string{"b", "z"},
 		help: "move down & left",
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
@@ -183,7 +179,7 @@ var sailingKeyMap = KeyMap{
 		},
 	},
 	{
-		key:  []string{"up+right", "u", "e"},
+		key:  []string{"u", "e"},
 		help: "move up & right",
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
@@ -200,7 +196,7 @@ var sailingKeyMap = KeyMap{
 		},
 	},
 	{
-		key:  []string{"down+right", "n", "c"},
+		key:  []string{"n", "c"},
 		help: "move down & right",
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
@@ -215,6 +211,11 @@ var sailingKeyMap = KeyMap{
 			}
 			return m, nil
 		},
+	},
+	{
+		key:  []string{"ctrl+q"},
+		help: "quit",
+		exec: keyQuit,
 	},
 }
 

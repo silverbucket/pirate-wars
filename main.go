@@ -141,7 +141,7 @@ func helpText(km KeyMap) string {
 		if f {
 			f = false
 		} else {
-			r += ", "
+			r += " • "
 		}
 		r += fmt.Sprintf("%v: %v", s, k.help)
 	}
