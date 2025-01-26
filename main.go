@@ -62,11 +62,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.viewType == world.ViewTypeMiniMap {
-		return m.miniMapInput(msg)
+		return m.getInput(msg, miniMapKeyMap)
 	} else if m.action == user_action.UserActionIdExamine {
-		return m.examineInput(msg)
+		return m.getInput(msg, examineKeyMap)
 	} else {
-		return m.sailingInput(msg)
+		return m.getInput(msg, sailingKeyMap)
 	}
 }
 
@@ -135,6 +135,15 @@ func helpText(km KeyMap) string {
 				t = false
 			} else {
 				s += "/"
+			}
+			if i == "up" {
+				i = "↑"
+			} else if i == "down" {
+				i = "↓"
+			} else if i == "left" {
+				i = "←"
+			} else if i == "right" {
+				i = "→"
 			}
 			s += fmt.Sprintf("%v", i)
 		}

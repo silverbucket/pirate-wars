@@ -10,39 +10,25 @@ import (
 
 var ExamineData = user_action.Examine()
 
+const KeyCatAdmin = 0
+const KeyCatNav = 1
+const KeyCatAction = 3
+const KeyCatAux = 4
+
 type keyItem struct {
 	key  []string
+	cat  int
 	help string
 	exec func(m model) (tea.Model, tea.Cmd)
 }
 
 type KeyMap []keyItem
 
-func keyQuit(m model) (tea.Model, tea.Cmd) {
-	return m, tea.Quit
-}
-
-var miniMapKeyMap = KeyMap{
-	{
-		key:  []string{"ctrl+q"},
-		help: "quit",
-		exec: keyQuit,
-	},
-	{
-		key:  []string{"m", "enter"},
-		help: "exit minimap",
-		exec: func(m model) (tea.Model, tea.Cmd) {
-			m.viewType = world.ViewTypeMainMap
-			return m, nil
-		},
-	},
-}
-
-func (m model) miniMapInput(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) getInput(msg tea.Msg, km KeyMap) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		input := msg.String()
-		for _, e := range miniMapKeyMap {
+		for _, e := range km {
 			for _, k := range e.key {
 				if input == k {
 					return e.exec(m)
@@ -53,11 +39,33 @@ func (m model) miniMapInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-var sailingKeyMap = KeyMap{
+func keyQuit(m model) (tea.Model, tea.Cmd) {
+	return m, tea.Quit
+}
 
+var miniMapKeyMap = KeyMap{
+	{
+		key:  []string{"ctrl+q"},
+		cat:  KeyCatAdmin,
+		help: "quit",
+		exec: keyQuit,
+	},
+	{
+		key:  []string{"m", "enter"},
+		cat:  KeyCatAux,
+		help: "exit minimap",
+		exec: func(m model) (tea.Model, tea.Cmd) {
+			m.viewType = world.ViewTypeMainMap
+			return m, nil
+		},
+	},
+}
+
+var sailingKeyMap = KeyMap{
 	{
 		key:  []string{"m"},
 		help: "minimap",
+		cat:  KeyCatAux,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			m.viewType = world.ViewTypeMiniMap
 			return m, nil
@@ -66,6 +74,7 @@ var sailingKeyMap = KeyMap{
 	{
 		key:  []string{"x"},
 		help: "examine",
+		cat:  KeyCatAction,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			m.action = user_action.UserActionIdExamine
 			npcs := m.npcs.GetVisible(m.player.GetPos())
@@ -78,7 +87,8 @@ var sailingKeyMap = KeyMap{
 	},
 	{
 		key:  []string{"left", "h", "a"},
-		help: "move left",
+		help: "left",
+		cat:  KeyCatNav,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.X > 0 {
@@ -95,7 +105,8 @@ var sailingKeyMap = KeyMap{
 	},
 	{
 		key:  []string{"right", "l", "d"},
-		help: "move right",
+		help: "right",
+		cat:  KeyCatNav,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.X < m.world.GetWidth()-1 {
@@ -112,7 +123,8 @@ var sailingKeyMap = KeyMap{
 	},
 	{
 		key:  []string{"up", "k", "w"},
-		help: "move up",
+		help: "up",
+		cat:  KeyCatNav,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y > 0 {
@@ -129,7 +141,8 @@ var sailingKeyMap = KeyMap{
 	},
 	{
 		key:  []string{"down", "j", "s"},
-		help: "move down",
+		help: "down",
+		cat:  KeyCatNav,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y < m.world.GetHeight()-1 {
@@ -146,7 +159,8 @@ var sailingKeyMap = KeyMap{
 	},
 	{
 		key:  []string{"q", "y"},
-		help: "move up & left",
+		help: "up & left",
+		cat:  KeyCatNav,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y > 0 && c.X > 0 {
@@ -163,7 +177,8 @@ var sailingKeyMap = KeyMap{
 	},
 	{
 		key:  []string{"b", "z"},
-		help: "move down & left",
+		help: "down & left",
+		cat:  KeyCatNav,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y < m.world.GetHeight()-1 && c.X > 0 {
@@ -180,7 +195,8 @@ var sailingKeyMap = KeyMap{
 	},
 	{
 		key:  []string{"u", "e"},
-		help: "move up & right",
+		help: "up & right",
+		cat:  KeyCatNav,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y > 0 && c.X < m.world.GetWidth()-1 {
@@ -197,7 +213,8 @@ var sailingKeyMap = KeyMap{
 	},
 	{
 		key:  []string{"n", "c"},
-		help: "move down & right",
+		help: "down & right",
+		cat:  KeyCatNav,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			c := m.player.GetPos()
 			if c.Y < m.world.GetHeight()-1 && c.X < m.world.GetWidth()-1 {
@@ -215,6 +232,7 @@ var sailingKeyMap = KeyMap{
 	{
 		key:  []string{"ctrl+q"},
 		help: "quit",
+		cat:  KeyCatAdmin,
 		exec: keyQuit,
 	},
 }
@@ -226,30 +244,17 @@ var sailingKeyMap = KeyMap{
 //		m.viewType = world.ViewTypeHeatMap
 //	}
 
-func (m model) sailingInput(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		input := msg.String()
-		for _, e := range sailingKeyMap {
-			for _, k := range e.key {
-				if input == k {
-					return e.exec(m)
-				}
-			}
-		}
-	}
-	return m, nil
-}
-
 var examineKeyMap = KeyMap{
 	{
 		key:  []string{"ctrl+q"},
 		help: "quit",
+		cat:  KeyCatAdmin,
 		exec: keyQuit,
 	},
 	{
 		key:  []string{"x", "enter"},
 		help: "exit examine mode",
+		cat:  KeyCatAux,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			m.action = user_action.UserActionIdNone
 			ExamineData = user_action.Examine()
@@ -259,6 +264,7 @@ var examineKeyMap = KeyMap{
 	{
 		key:  []string{"left", "h", "a"},
 		help: "examine item left",
+		cat:  KeyCatNav,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			ExamineData.FocusLeft()
 			return m, nil
@@ -267,25 +273,10 @@ var examineKeyMap = KeyMap{
 	{
 		key:  []string{"right", "l", "d"},
 		help: "examine item right",
+		cat:  KeyCatNav,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			ExamineData.FocusRight()
 			return m, nil
 		},
 	},
-}
-
-func (m model) examineInput(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	// Is it a key press?
-	case tea.KeyMsg:
-		input := msg.String()
-		for _, e := range examineKeyMap {
-			for _, k := range e.key {
-				if input == k {
-					return e.exec(m)
-				}
-			}
-		}
-	}
-	return m, nil
 }
