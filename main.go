@@ -62,11 +62,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.viewType == world.ViewTypeMiniMap {
-		return m.miniMapInput(msg)
+		return m.getInput(msg, miniMapKeyMap)
 	} else if m.action == user_action.UserActionIdExamine {
-		return m.actionInput(msg)
+		return m.getInput(msg, examineKeyMap)
 	} else {
-		return m.sailingInput(msg)
+		return m.getInput(msg, sailingKeyMap)
 	}
 }
 
@@ -74,6 +74,8 @@ func (m model) View() string {
 	if !m.initialized {
 		return "Loading..."
 	}
+
+	m.logger.Debug(fmt.Sprintf("Player position %v", m.player.GetPos()))
 
 	highlight := ExamineData.GetFocusedEntity()
 	npcs := m.npcs.GetVisible(m.player.GetPos())
@@ -86,7 +88,9 @@ func (m model) View() string {
 	sidePanel := ""
 
 	if m.viewType == world.ViewTypeMiniMap {
-		return m.world.Paint(m.player, []common.AvatarReadOnly{}, highlight, world.ViewTypeMiniMap)
+		paint := m.world.Paint(m.player, []common.AvatarReadOnly{}, highlight, world.ViewTypeMiniMap)
+		paint += helpText(miniMapKeyMap, KeyCatAux)
+		return paint
 	} else {
 		if m.action == user_action.UserActionIdNone {
 			// user is not doing some meta-action, NPCs can move
@@ -97,13 +101,20 @@ func (m model) View() string {
 		paint := m.world.Paint(m.player, visible, highlight, world.ViewTypeMainMap)
 
 		if m.action == user_action.UserActionIdExamine {
-			bottomText += fmt.Sprintf("examining %v", highlight.GetID())
+			bottomText += helpText(examineKeyMap, KeyCatAction)
 			sidePanel = lipgloss.JoinVertical(lipgloss.Left,
 				dialog.ListHeader(fmt.Sprintf("%v", highlight.GetName())),
 				dialog.ListItem(fmt.Sprintf("Flag: %v", highlight.GetFlag())),
 				dialog.ListItem(fmt.Sprintf("ID: %v", highlight.GetID())),
 				dialog.ListItem(fmt.Sprintf("Type: %v", highlight.GetType())),
 				dialog.ListItem(fmt.Sprintf("Color: %v", highlight.GetForegroundColor())),
+			)
+		} else {
+			bottomText += lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				helpText(sailingKeyMap, KeyCatAction),
+				helpText(sailingKeyMap, KeyCatAux),
+				helpText(sailingKeyMap, KeyCatAdmin),
 			)
 		}
 		s := dialog.GetSidebarStyle()
@@ -112,10 +123,46 @@ func (m model) View() string {
 			paint,
 			s.Background(lipgloss.Color("0")).Render(sidePanel),
 		)
-		content += "\n" + lipgloss.JoinHorizontal(lipgloss.Top,
-			bottomText)
+		content += "\n" + bottomText
 		return m.screen.Render(content)
 	}
+}
+
+func helpText(km KeyMap, cat int) string {
+	r := ""
+	f := true
+	for _, k := range km {
+		if k.cat != cat {
+			continue
+		}
+		s := ""
+		t := true
+		for _, i := range k.key {
+			if t {
+				t = false
+			} else {
+				s += "/"
+			}
+			if i == "up" {
+				i = "↑"
+			} else if i == "down" {
+				i = "↓"
+			} else if i == "left" {
+				i = "←"
+			} else if i == "right" {
+				i = "→"
+			}
+			s += fmt.Sprintf("%v", i)
+		}
+
+		if f {
+			f = false
+		} else {
+			r += " • "
+		}
+		r += fmt.Sprintf("%v: %v", s, k.help)
+	}
+	return dialog.HelpStyle(r)
 }
 
 func main() {

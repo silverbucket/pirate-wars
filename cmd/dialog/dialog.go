@@ -69,3 +69,5 @@ var ListHeader = base.
 	PaddingBottom(1).
 	Width(100).
 	Render
+
+var HelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render
