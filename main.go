@@ -89,7 +89,7 @@ func (m model) View() string {
 
 	if m.viewType == world.ViewTypeMiniMap {
 		paint := m.world.Paint(m.player, []common.AvatarReadOnly{}, highlight, world.ViewTypeMiniMap)
-		paint += helpText(miniMapKeyMap)
+		paint += helpText(miniMapKeyMap, KeyCatAux)
 		return paint
 	} else {
 		if m.action == user_action.UserActionIdNone {
@@ -101,7 +101,7 @@ func (m model) View() string {
 		paint := m.world.Paint(m.player, visible, highlight, world.ViewTypeMainMap)
 
 		if m.action == user_action.UserActionIdExamine {
-			bottomText += helpText(examineKeyMap)
+			bottomText += helpText(examineKeyMap, KeyCatAction)
 			sidePanel = lipgloss.JoinVertical(lipgloss.Left,
 				dialog.ListHeader(fmt.Sprintf("%v", highlight.GetName())),
 				dialog.ListItem(fmt.Sprintf("Flag: %v", highlight.GetFlag())),
@@ -110,7 +110,12 @@ func (m model) View() string {
 				dialog.ListItem(fmt.Sprintf("Color: %v", highlight.GetForegroundColor())),
 			)
 		} else {
-			bottomText += helpText(sailingKeyMap)
+			bottomText += lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				helpText(sailingKeyMap, KeyCatAction),
+				helpText(sailingKeyMap, KeyCatAux),
+				helpText(sailingKeyMap, KeyCatAdmin),
+			)
 		}
 		s := dialog.GetSidebarStyle()
 		content := lipgloss.JoinHorizontal(
@@ -118,16 +123,18 @@ func (m model) View() string {
 			paint,
 			s.Background(lipgloss.Color("0")).Render(sidePanel),
 		)
-		content += "\n" + lipgloss.JoinHorizontal(lipgloss.Top,
-			bottomText)
+		content += "\n" + bottomText
 		return m.screen.Render(content)
 	}
 }
 
-func helpText(km KeyMap) string {
+func helpText(km KeyMap, cat int) string {
 	r := ""
 	f := true
 	for _, k := range km {
+		if k.cat != cat {
+			continue
+		}
 		s := ""
 		t := true
 		for _, i := range k.key {
@@ -147,6 +154,7 @@ func helpText(km KeyMap) string {
 			}
 			s += fmt.Sprintf("%v", i)
 		}
+
 		if f {
 			f = false
 		} else {

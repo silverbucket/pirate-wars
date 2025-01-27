@@ -63,6 +63,15 @@ var miniMapKeyMap = KeyMap{
 
 var sailingKeyMap = KeyMap{
 	{
+		key:  []string{"?"},
+		cat:  KeyCatAdmin,
+		help: "help",
+		exec: func(m model) (tea.Model, tea.Cmd) {
+			m.action = user_action.UserActionIdHelp
+			return m, nil
+		},
+	},
+	{
 		key:  []string{"m"},
 		help: "minimap",
 		cat:  KeyCatAux,
