@@ -50,7 +50,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.npcs = npc.Init(m.towns, m.world, m.logger)
 			m.player = player.Create(m.world)
 			m.initialized = true
-			m.logger.Info(fmt.Sprintf("Player initialized at: %v, %v",
+			m.logger.Info(fmt.Sprintf("Player initialized at: %+v, %v",
 				m.player.GetPos(), m.world.GetPositionType(m.player.GetPos())))
 		}
 		// redrew minimap every time screen resizes
@@ -75,10 +75,8 @@ func (m model) View() string {
 		return "Loading..."
 	}
 
-	m.logger.Debug(fmt.Sprintf("Player position %v", m.player.GetPos()))
-
 	highlight := ExamineData.GetFocusedEntity()
-	npcs := m.npcs.GetVisible(m.player.GetPos())
+	npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
 	visible := []common.AvatarReadOnly{}
 	for _, n := range npcs.GetList() {
 		visible = append(visible, &n)

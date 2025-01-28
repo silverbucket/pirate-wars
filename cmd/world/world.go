@@ -38,6 +38,7 @@ var WorldProps = Props{
 type MiniMapView struct {
 	grid [][]terrain.Type
 }
+
 type MapView struct {
 	grid     [][]terrain.Type
 	logger   *zap.SugaredLogger
@@ -129,20 +130,21 @@ func (world *MapView) RandomPositionDeepWater() common.Coordinates {
 }
 
 func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOnly, entity common.ViewableEntity, viewType ViewType) string {
-	v := common.ViewableArea{}
-	rowWidth := screen.ViewWidth
+	v := common.Viewport{}
+	rowWidth := screen.Dimensions.Width
 
 	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
 
 	// overlay map of all avatars
 	overlay := make(map[string]common.AvatarReadOnly)
 
-	world.logger.Info(fmt.Sprintf("ViewPort set to %v, %v", screen.ViewWidth, screen.ViewHeight))
+	world.logger.Info(fmt.Sprintf("Screen Dimensions %+v", screen.Dimensions))
 
 	grid := world.grid
+	p := avatar.GetPos()
 
 	if viewType == ViewTypeMiniMap {
-		v = common.ViewableArea{0, 0, len(world.miniMap.grid[0]), len(world.miniMap.grid)}
+		v = common.Viewport{0, 0, len(world.miniMap.grid[0]), len(world.miniMap.grid)}
 		// mini map views the whole map
 		rowWidth = common.WorldWidth
 		// always display main character avatar on the minimap
@@ -150,8 +152,7 @@ func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRe
 		overlay[fmt.Sprintf("%03d%03d", mm.X, mm.Y)] = avatar
 		grid = world.miniMap.grid
 	} else {
-		v = common.GetViewableArea(avatar.GetPos())
-		p := avatar.GetPos()
+		v = common.GetViewport(p, screen.Dimensions)
 		overlay[fmt.Sprintf("%03d%03d", p.X, p.Y)] = avatar
 		// on the world map we draw the NPCs
 		for _, n := range npcs {
@@ -168,8 +169,8 @@ func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRe
 		overlay[fmt.Sprintf("%03d%03d", h.X, h.Y)] = entity
 	}
 
-	world.logger.Info(fmt.Sprintf("Viewable Area %v", v))
-	world.logger.Info(fmt.Sprintf("Player position %v", avatar.GetPos()))
+	world.logger.Info(fmt.Sprintf("Viewable Area %+v", v))
+	world.logger.Info(fmt.Sprintf("Player position %+v", p))
 	world.logger.Info(fmt.Sprintf("Painting world with %v viewable NPCs", len(npcs)))
 
 	for y := v.Top; y < v.Bottom; y++ {
@@ -180,9 +181,9 @@ func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRe
 			if ok {
 				row[x-v.Left] = item.Render()
 			} else {
-				world.logger.Debug(
-					fmt.Sprintf("row[%v] = grid[%v][%v] [row len(%v), gridX len(%v), gridY len(%v)]",
-						x-v.Left, x, y, len(row), len(grid), len(grid[0])))
+				//world.logger.Debug(
+				//	fmt.Sprintf("row[%v] = grid[%v][%v] [row len(%v), gridX len(%v), gridY len(%v)]",
+				//		x-v.Left, x, y, len(row), len(grid), len(grid[0])))
 				row[x-v.Left] = grid[x][y].Render()
 			}
 		}

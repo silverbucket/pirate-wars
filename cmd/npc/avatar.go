@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/screen"
 )
 
 type Avatar struct {
@@ -28,6 +29,13 @@ func (a *Avatar) SetBlink(b bool) {
 
 func (a *Avatar) SetBackgroundColor(c string) {
 	a.bgColor = c
+}
+
+func (a *Avatar) GetViewableRange() screen.ViewRange {
+	return screen.ViewRange{
+		Width:  20,
+		Height: 20,
+	}
 }
 
 func (a *Avatar) Render() string {

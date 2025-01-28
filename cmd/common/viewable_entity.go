@@ -1,5 +1,7 @@
 package common
 
+import "pirate-wars/cmd/screen"
+
 type ViewableEntities []ViewableEntity
 
 type ViewableEntity interface {
@@ -11,6 +13,7 @@ type ViewableEntity interface {
 	GetForegroundColor() string
 	Highlight()
 	Render() string
+	GetViewableRange() screen.ViewRange
 }
 
 type EmptyViewableEntity struct{}
@@ -35,6 +38,9 @@ func (e *EmptyViewableEntity) GetForegroundColor() string {
 }
 func (e *EmptyViewableEntity) Render() string { return "" }
 func (e *EmptyViewableEntity) Highlight()     {}
+func (e *EmptyViewableEntity) GetViewableRange() screen.ViewRange {
+	return screen.ViewRange{Width: 20, Height: 20}
+}
 
 func NewEmptyViewableEntity() *EmptyViewableEntity {
 	return &EmptyViewableEntity{}

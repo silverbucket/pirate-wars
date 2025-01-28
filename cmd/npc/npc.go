@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap"
 	"math/rand"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/screen"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/world"
 	"sort"
@@ -71,6 +72,10 @@ func (n *Npc) Render() string {
 
 func (n *Npc) GetBackgroundColor() string {
 	return n.avatar.bgColor
+}
+
+func (n *Npc) GetViewableRange() screen.ViewRange {
+	return screen.ViewRange{Width: 20, Height: 20}
 }
 
 func (n *Npc) Highlight() {
@@ -177,7 +182,7 @@ func (ns *Npcs) CalcMovements() {
 		npcpos := npc.GetPos()
 
 		if target.X == npcpos.X && target.Y == npcpos.Y {
-			ns.logger.Debug(fmt.Sprintf("[%v] NPC stuck at %v! Travelling to town at %v (cost %v)", npc.id, npcpos, targetTown.GetPos(), cost))
+			ns.logger.Debug(fmt.Sprintf("[%v] NPC stuck at %+v! Travelling to town at %v (cost %v)", npc.id, npcpos, targetTown.GetPos(), cost))
 		} else {
 			//t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (bg color: %v)", npc.id, npcpos, target, cost, npc.GetBackgroundColor()))
 			if !common.IsPositionAdjacent(npcpos, target) {
@@ -192,8 +197,8 @@ func (ns *Npcs) GetList() []Npc {
 	return ns.list
 }
 
-func (ns *Npcs) GetVisible(c common.Coordinates) Npcs {
-	v := common.GetViewableArea(c)
+func (ns *Npcs) GetVisible(c common.Coordinates, vr screen.ViewRange) Npcs {
+	v := common.GetViewport(c, vr)
 	viewable := map[int]Npc{}
 	keys := []int{}
 	for _, npc := range ns.list {
