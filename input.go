@@ -86,7 +86,7 @@ var sailingKeyMap = KeyMap{
 		cat:  KeyCatAction,
 		exec: func(m model) (tea.Model, tea.Cmd) {
 			m.action = user_action.UserActionIdExamine
-			npcs := m.npcs.GetVisible(m.player.GetPos())
+			npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
 			ExamineData = user_action.Examine()
 			npcs.ForEach(func(n npc.Npc) {
 				ExamineData.AddItem(&n)

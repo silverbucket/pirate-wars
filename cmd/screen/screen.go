@@ -5,13 +5,17 @@ import (
 	"os"
 )
 
-var ViewWidth int
-var ViewHeight int
+type ViewRange struct {
+	Width  int
+	Height int
+}
+
+var Dimensions ViewRange
+
 var MiniMapFactor int
 var InfoPaneSize int
 
 func SetWindowSize(width int, height int) {
-
 	const startingInfoPaneSize = 5
 	const infoPaneSizeIncrements = 1
 
@@ -28,14 +32,9 @@ func SetWindowSize(width int, height int) {
 	scale := (usefulWidth - 80) / 20
 	scale++
 	InfoPaneSize = startingInfoPaneSize + (infoPaneSizeIncrements * scale)
-	ViewWidth = (usefulWidth / 3) - InfoPaneSize
-	ViewHeight = height - scale
-	// fmt.Println(fmt.Sprintf("Screen:: %v %v (useful:%v)", width, height, usefulWidth))
-	// fmt.Println(fmt.Sprintf("Viewport: %v, %v", ViewWidth, ViewHeight))
-	//fmt.Println(fmt.Sprintf("Viewport: %v, %v  (subtracted info-pane: %v) (scale: %v)\n", ViewWidth, width, InfoPaneSize, scale))
+	Dimensions.Width = (usefulWidth / 3) - InfoPaneSize
+	Dimensions.Height = height - scale
 	CalcMiniMapFactor(scale)
-	//fmt.Println(fmt.Sprintf("(MiniMapFactor: %v\n)", MiniMapFactor))
-	// os.Exit(1)
 }
 
 func CalcMiniMapFactor(scale int) {

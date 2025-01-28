@@ -101,8 +101,8 @@ func (town *Town) generateHeatMap(world *world.MapView) bool {
 
 func (h *HeatMap) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOnly, highlight common.ViewableEntity) string {
 	// center viewport on avatar
-	v := common.GetViewableArea(avatar.GetPos())
-	rowWidth := screen.ViewWidth
+	v := common.GetViewport(avatar.GetPos(), screen.Dimensions)
+	rowWidth := screen.Dimensions.Width
 
 	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
 

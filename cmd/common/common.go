@@ -14,7 +14,7 @@ const (
 	TotalNpcs   = 100
 )
 
-type ViewableArea struct {
+type Viewport struct {
 	Top    int
 	Left   int
 	Bottom int
@@ -41,6 +41,7 @@ var Directions = []Coordinates{
 type AvatarReadOnly interface {
 	GetPos() Coordinates
 	Render() string
+	GetViewableRange() screen.ViewRange
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
@@ -64,7 +65,7 @@ func IsPositionAdjacent(p Coordinates, t Coordinates) bool {
 	return false
 }
 
-func IsPositionWithin(c Coordinates, v ViewableArea) bool {
+func IsPositionWithin(c Coordinates, v Viewport) bool {
 	if (v.Left <= c.X && c.X <= v.Right) && (v.Top <= c.Y && c.Y <= v.Bottom) {
 		return true
 	}
@@ -99,25 +100,42 @@ func diff(a, b int) int {
 	return a - b
 }
 
-func GetViewableArea(pos Coordinates) ViewableArea {
-	// center viewport on avatar
-	left := pos.X - (screen.ViewWidth / 2)
-	top := pos.Y - (screen.ViewHeight / 2)
+func GetViewport(pos Coordinates, vr screen.ViewRange) Viewport {
+	// center viewport on position
+	left := pos.X - (vr.Width / 2)
+	right := pos.X + (vr.Width / 2)
+
+	top := pos.Y - (vr.Height / 2)
+	bottom := pos.Y + (vr.Height / 2)
+
+	// take up screen
+	if right-left < vr.Width {
+		left = right - vr.Width
+	}
+	if bottom-top < vr.Height {
+		top = bottom - vr.Height
+	}
+
+	// don't slide the screen when you hit the edge
+	if bottom >= WorldHeight {
+		bottom = WorldHeight
+		top = WorldHeight - vr.Height
+	}
+	if right >= WorldWidth {
+		right = WorldWidth
+		left = WorldWidth - vr.Width
+	}
+
 	if left < 0 {
 		left = 0
+		right = vr.Width
 	}
 	if top < 0 {
 		top = 0
+		bottom = vr.Height
 	}
-	bottom := screen.ViewHeight + top - 1
-	if bottom > WorldHeight-1 {
-		bottom = WorldHeight - 1
-	}
-	right := screen.ViewWidth + left - 1
-	if right > WorldWidth-1 {
-		right = WorldWidth - 1
-	}
-	return ViewableArea{top, left, bottom, right}
+
+	return Viewport{top, left, bottom, right}
 }
 
 func GetMiniMapScale(c Coordinates) Coordinates {
