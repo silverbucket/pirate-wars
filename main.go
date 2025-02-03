@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"fyne.io/fyne/v2/app"
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fyne-io/terminal"
 	"go.uber.org/zap"
 	"os"
 	"pirate-wars/cmd/common"
@@ -166,6 +168,12 @@ func helpText(km KeyMap, cat int) string {
 func main() {
 	logger := createLogger()
 	logger.Info("Starting...")
+
+	ft := terminal.New()
+	a := app.New()
+	w := a.NewWindow("Pirate Wars!")
+	w.SetContent(ft)
+	w.ShowAndRun()
 
 	// ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 	if _, err := tea.NewProgram(model{
