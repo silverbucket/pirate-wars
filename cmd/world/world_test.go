@@ -3,6 +3,7 @@ package world
 import (
 	"go.uber.org/zap"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/screen"
 	"testing"
 )
 
@@ -22,13 +23,14 @@ type AvatarMock struct {
 func (av AvatarMock) Render() string {
 	return ""
 }
-func (av AvatarMock) GetPos() common.Coordinates { return av.pos }
-func (av AvatarMock) GetID() string              { return "" }
-func (av AvatarMock) Highlight()                 {}
-func (av AvatarMock) GetFlag() string            { return "" }
-func (av AvatarMock) GetType() string            { return "" }
-func (av AvatarMock) GetName() string            { return "" }
-func (av AvatarMock) GetForegroundColor() string { return "" }
+func (av AvatarMock) GetPos() common.Coordinates         { return av.pos }
+func (av AvatarMock) GetID() string                      { return "" }
+func (av AvatarMock) Highlight()                         {}
+func (av AvatarMock) GetFlag() string                    { return "" }
+func (av AvatarMock) GetType() string                    { return "" }
+func (av AvatarMock) GetName() string                    { return "" }
+func (av AvatarMock) GetForegroundColor() string         { return "" }
+func (av AvatarMock) GetViewableRange() screen.ViewRange { return screen.ViewRange{} }
 
 func TestWorldInit(t *testing.T) {
 	t.Cleanup(cleanup)
