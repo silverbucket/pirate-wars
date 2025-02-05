@@ -24,10 +24,8 @@ func SetWindowSize(width int, height int) {
 		os.Exit(1)
 	}
 
-	usefulWidth := width
-	if width%3 == 0 {
-		usefulWidth -= 1
-	}
+	// padding needed for consistent rendering among different terminals
+	usefulWidth := width - 4
 
 	scale := (usefulWidth - 80) / 20
 	scale++
