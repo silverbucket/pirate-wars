@@ -3,8 +3,8 @@ package world
 import (
 	"fmt"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/screen"
 	"pirate-wars/cmd/terrain"
+	"pirate-wars/cmd/window"
 )
 
 func (mm *MiniMapView) SetPositionType(c common.Coordinates, tt terrain.Type) {
@@ -13,8 +13,8 @@ func (mm *MiniMapView) SetPositionType(c common.Coordinates, tt terrain.Type) {
 
 func (world *MapView) GenerateMiniMap() {
 	// Calculate MiniMap dimensions
-	width := len(world.grid) / screen.MiniMapFactor
-	height := len(world.grid[0]) / screen.MiniMapFactor
+	width := len(world.grid) / window.MiniMapFactor
+	height := len(world.grid[0]) / window.MiniMapFactor
 	world.logger.Info(fmt.Sprintf("generating mini-map with dimensions %v,%v", width, height))
 
 	// Create new 2D slice
@@ -32,14 +32,14 @@ func (world *MapView) GenerateMiniMap() {
 		for j, val := range row {
 			// Calculate corresponding index in new slice
 			c := common.Coordinates{
-				X: i / screen.MiniMapFactor,
-				Y: j / screen.MiniMapFactor,
+				X: i / window.MiniMapFactor,
+				Y: j / window.MiniMapFactor,
 			}
 			// Assign original Type value
 			world.miniMap.SetPositionType(c, val)
 		}
 	}
 	for _, m := range world.mapItems {
-		world.miniMap.SetPositionType(common.GetMiniMapScale(m.GetPos()), m.GetTerrainType())
+		world.miniMap.SetPositionType(window.GetMiniMapScale(m.GetPos()), m.GetTerrainType())
 	}
 }

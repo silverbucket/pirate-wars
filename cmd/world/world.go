@@ -2,13 +2,14 @@ package world
 
 import (
 	"fmt"
-	"github.com/charmbracelet/lipgloss/table"
+	"fyne.io/fyne/v2"
 	"github.com/ojrac/opensimplex-go"
 	"go.uber.org/zap"
 	"math/rand"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/screen"
+	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/terrain"
+	"pirate-wars/cmd/window"
 )
 
 type ViewType int
@@ -129,39 +130,41 @@ func (world *MapView) RandomPositionDeepWater() common.Coordinates {
 	}
 }
 
-func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOnly, entity common.ViewableEntity, viewType ViewType) string {
-	v := common.Viewport{}
-	rowWidth := screen.Dimensions.Width
-
-	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
-
-	// overlay map of all avatars
-	overlay := make(map[string]common.AvatarReadOnly)
-
-	world.logger.Info(fmt.Sprintf("Screen Dimensions %+v", screen.Dimensions))
-
+func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, entity entities.ViewableEntity, viewType ViewType) *fyne.Container {
 	grid := world.grid
 	p := avatar.GetPos()
+	v := window.GetViewport(p)
+	h := entity.GetPos() // potential entity to highlight (selected)
+	c := window.GetCellList()
 
-	if viewType == ViewTypeMiniMap {
-		v = common.Viewport{0, 0, len(world.miniMap.grid[0]), len(world.miniMap.grid)}
-		// mini map views the whole map
-		rowWidth = common.WorldWidth
-		// always display main character avatar on the minimap
-		mm := common.GetMiniMapScale(avatar.GetPos())
-		overlay[fmt.Sprintf("%03d%03d", mm.X, mm.Y)] = avatar
-		grid = world.miniMap.grid
-	} else {
-		v = common.GetViewport(p, screen.Dimensions)
-		overlay[fmt.Sprintf("%03d%03d", p.X, p.Y)] = avatar
-		// on the world map we draw the NPCs
-		for _, n := range npcs {
-			c := n.GetPos()
-			overlay[fmt.Sprintf("%03d%03d", c.X, c.Y)] = n
-		}
+	world.logger.Info(fmt.Sprintf("Window Dimensions %+v", window.Window))
+	world.logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewableArea))
+	world.logger.Info(fmt.Sprintf("Player position %+v", p))
+	world.logger.Info(fmt.Sprintf("Painting world with %v viewable NPCs", len(npcs)))
+	world.logger.Info(fmt.Sprintf("Viewport %+v", v))
+
+	// overlay map of all avatars, player and npcs
+	// instead of terrain, in these overlay positions we generate the avatars
+	overlay := make(map[string]entities.AvatarReadOnly)
+	overlay[fmt.Sprintf("%03d%03d", p.X, p.Y)] = avatar
+
+	for _, n := range npcs {
+		c := n.GetPos()
+		overlay[fmt.Sprintf("%03d%03d", c.X, c.Y)] = n
 	}
 
-	h := entity.GetPos()
+	//if viewType == ViewTypeMiniMap {
+	//	v = window.Viewport{0, 0, len(world.miniMap.grid[0]), len(world.miniMap.grid)}
+	//	// mini map views the whole map
+	//
+	//	// always display main character avatar on the minimap
+	//	mm := window.GetMiniMapScale(avatar.GetPos())
+	//	overlay[fmt.Sprintf("%03d%03d", mm.X, mm.Y)] = avatar
+	//	grid = world.miniMap.grid
+	//} else {
+	//}
+
+	// if the entity to highlight has real coords, we add it to the overlay
 	if h.X >= 0 {
 		world.logger.Debug(fmt.Sprintf("[%v] highlighting", entity.GetID()))
 		// actual entity to examine, we should highlight it
@@ -169,28 +172,26 @@ func (world *MapView) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarRe
 		overlay[fmt.Sprintf("%03d%03d", h.X, h.Y)] = entity
 	}
 
-	world.logger.Info(fmt.Sprintf("Viewable Area %+v", v))
-	world.logger.Info(fmt.Sprintf("Player position %+v", p))
-	world.logger.Info(fmt.Sprintf("Painting world with %v viewable NPCs", len(npcs)))
-
+	var cIdx = 0
 	for y := v.Top; y < v.Bottom; y++ {
-		var row = make([]string, rowWidth)
 		for x := v.Left; x < v.Right; x++ {
-
 			item, ok := overlay[fmt.Sprintf("%03d%03d", x, y)]
 			if ok {
-				row[x-v.Left] = item.Render()
+				c[cIdx] = item.Render()
 			} else {
 				//world.logger.Debug(
 				//	fmt.Sprintf("row[%v] = grid[%v][%v] [row len(%v), gridX len(%v), gridY len(%v)]",
-				//		x-v.Left, x, y, len(row), len(grid), len(grid[0])))
-				row[x-v.Left] = grid[x][y].Render()
+				//		x-v.Left, x, y, rowWidth, len(grid), len(grid[0])))
+				c[cIdx] = grid[x][y].Render()
 			}
+			cIdx++
 		}
-		viewport.Row(row...).BorderColumn(false)
+		//world.logger.Debug(
+		//	fmt.Sprintf("Finished block grid[%v][%v] - finished when [%v => %v]",
+		//		v.Right, y, rowWidth, y, v.Bottom))
 	}
 
-	return fmt.Sprintln(viewport)
+	return window.CreateGridContainer(c)
 }
 
 func Init(logger *zap.SugaredLogger) *MapView {

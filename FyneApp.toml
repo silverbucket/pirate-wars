@@ -1,0 +1,8 @@
+Website = "https://example.com"
+
+[Details]
+  Icon = "pwicon.png"
+  Name = "Pirate Wars!"
+  ID = "com.example.app"
+  Version = "1.0.0"
+  Build = 2

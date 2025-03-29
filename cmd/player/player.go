@@ -1,11 +1,12 @@
 package player
 
 import (
-	"pirate-wars/cmd/npc"
+	"image/color"
+	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/world"
 )
 
-func Create(world *world.MapView) *npc.Avatar {
-	p := npc.CreateAvatar(world.RandomPositionDeepWater(), '⏏', npc.ColorScheme{"0", "#ffffff"})
+func Create(world *world.MapView) *entities.Avatar {
+	p := entities.CreateAvatar(world.RandomPositionDeepWater(), '⏏', entities.ColorScheme{color.Black, color.White})
 	return &p
 }

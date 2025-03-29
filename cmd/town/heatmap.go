@@ -2,10 +2,7 @@ package town
 
 import (
 	"fmt"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/screen"
 	"pirate-wars/cmd/terrain"
 	"pirate-wars/cmd/world"
 )
@@ -99,43 +96,42 @@ func (town *Town) generateHeatMap(world *world.MapView) bool {
 	}
 }
 
-func (h *HeatMap) Paint(avatar common.AvatarReadOnly, npcs []common.AvatarReadOnly, highlight common.ViewableEntity) string {
-	// center viewport on avatar
-	v := common.GetViewport(avatar.GetPos(), screen.Dimensions)
-	rowWidth := screen.Dimensions.Width
+//func (h *HeatMap) Paint(avatar npc.AvatarReadOnly, npcs []npc.AvatarReadOnly, highlight common.ViewableEntity) *fyne.Container {
+//	// center viewport on avatar
+//	v := window.GetViewport(avatar.GetPos(), window.ViewableArea)
+//
+//	viewport := container.NewGridWithColumns(64)
+//
+//	// overlay map of all avatars
+//	overlay := make(map[string]npc.AvatarReadOnly)
+//	c := avatar.GetPos()
+//	overlay[fmt.Sprintf("%03d%03d", c.X, c.Y)] = avatar
+//
+//	// on the world map we draw the NPCs
+//	for _, n := range npcs {
+//		p := n.GetPos()
+//		overlay[fmt.Sprintf("%03d%03d", p.X, p.Y)] = n
+//	}
+//
+//	for y := v.Top; y < v.Bottom; y++ {
+//		for x := v.Left; x < v.Right; x++ {
+//			item, ok := overlay[fmt.Sprintf("%03d%03d", x, y)]
+//			if ok {
+//				viewport.Add(item.Render())
+//			} else {
+//				viewport.Add(h.grid[x][y].Render())
+//			}
+//		}
+//	}
+//
+//	return viewport
+//}
 
-	viewport := table.New().BorderBottom(false).BorderTop(false).BorderLeft(false).BorderRight(false)
-
-	// overlay map of all avatars
-	overlay := make(map[string]common.AvatarReadOnly)
-	c := avatar.GetPos()
-	overlay[fmt.Sprintf("%03d%03d", c.X, c.Y)] = avatar
-
-	// on the world map we draw the NPCs
-	for _, n := range npcs {
-		p := n.GetPos()
-		overlay[fmt.Sprintf("%03d%03d", p.X, p.Y)] = n
-	}
-
-	for y := v.Top; y < v.Bottom; y++ {
-		var row = make([]string, rowWidth)
-		for x := v.Left; x < v.Right; x++ {
-			item, ok := overlay[fmt.Sprintf("%03d%03d", x, y)]
-			if ok {
-				row[x-v.Left] = item.Render()
-			} else {
-				row[x-v.Left] = h.grid[x][y].Render()
-			}
-		}
-		viewport.Row(row...).BorderColumn(false)
-	}
-
-	return fmt.Sprintln(viewport)
-}
-
-func (hc *HeatMapCost) Render() string {
-	return fmt.Sprintf(lipgloss.NewStyle().Background(lipgloss.Color("0")).PaddingLeft(1).PaddingRight(1).Margin(0).Render("%v"), *hc)
-}
+//func (hc *HeatMapCost) Render() *fyne.Container {
+//	r := canvas.NewRectangle(color.Black)
+//	t := canvas.NewText(fmt.Sprintf("%v", *hc), color.White)
+//	return container.NewStack(r, t)
+//}
 
 func DecideDirection(o []DirectionCost, dest common.Coordinates) DirectionCost {
 	lowestCost := MaxMovementCost

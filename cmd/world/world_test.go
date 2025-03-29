@@ -2,8 +2,8 @@ package world
 
 import (
 	"go.uber.org/zap"
+	"pirate-wars/cmd/avatar"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/screen"
 	"testing"
 )
 
@@ -30,7 +30,7 @@ func (av AvatarMock) GetFlag() string                    { return "" }
 func (av AvatarMock) GetType() string                    { return "" }
 func (av AvatarMock) GetName() string                    { return "" }
 func (av AvatarMock) GetForegroundColor() string         { return "" }
-func (av AvatarMock) GetViewableRange() screen.ViewRange { return screen.ViewRange{} }
+func (av AvatarMock) GetViewableRange() window.ViewRange { return window.ViewRange{} }
 
 func TestWorldInit(t *testing.T) {
 	t.Cleanup(cleanup)
@@ -49,5 +49,5 @@ func TestPaint(t *testing.T) {
 	avatar := AvatarMock{pos: common.Coordinates{X: 100, Y: 100}, char: '@'}
 	logger := initTestLogger()
 	world := Init(logger)
-	world.Paint(avatar, []common.AvatarReadOnly{}, avatar, 1)
+	world.Paint(avatar, []avatar.AvatarReadOnly{}, avatar, 1)
 }

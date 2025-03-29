@@ -3,3 +3,5 @@ main
 **/*.log
 pirate-wars
 .vscode
+.DS_Store
+Pirate Wars!.app/
