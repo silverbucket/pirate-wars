@@ -8,8 +8,8 @@ import (
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/layout"
 	"pirate-wars/cmd/town"
-	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
 	"sort"
 )
@@ -77,8 +77,8 @@ func (n *Npc) GetBackgroundColor() color.Color {
 	return n.avatar.GetBackgroundColor()
 }
 
-func (n *Npc) GetViewableRange() window.Dimensions {
-	return window.Dimensions{Width: 20, Height: 20}
+func (n *Npc) GetViewableRange() layout.Dimensions {
+	return layout.Dimensions{Width: 20, Height: 20}
 }
 
 func (n *Npc) Highlight() {
@@ -200,8 +200,8 @@ func (ns *Npcs) GetList() []Npc {
 	return ns.list
 }
 
-func (ns *Npcs) GetVisible(c common.Coordinates, vr window.Dimensions) Npcs {
-	v := window.GetViewport(c)
+func (ns *Npcs) GetVisible(c common.Coordinates, vr layout.Dimensions) Npcs {
+	v := layout.GetViewport(c)
 	viewable := map[int]Npc{}
 	keys := []int{}
 	for _, npc := range ns.list {

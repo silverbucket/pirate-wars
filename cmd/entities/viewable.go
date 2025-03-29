@@ -4,7 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"image/color"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/window"
+	"pirate-wars/cmd/layout"
 )
 
 type ViewableEntities []ViewableEntity
@@ -18,7 +18,7 @@ type ViewableEntity interface {
 	GetForegroundColor() color.Color
 	Highlight()
 	Render() *fyne.Container
-	GetViewableRange() window.Dimensions
+	GetViewableRange() layout.Dimensions
 }
 
 type EmptyViewableEntity struct{}
@@ -43,8 +43,8 @@ func (e *EmptyViewableEntity) GetForegroundColor() color.Color {
 }
 func (e *EmptyViewableEntity) Render() *fyne.Container { return fyne.NewContainer(nil) }
 func (e *EmptyViewableEntity) Highlight()              {}
-func (e *EmptyViewableEntity) GetViewableRange() window.Dimensions {
-	return window.Dimensions{Width: 20, Height: 20}
+func (e *EmptyViewableEntity) GetViewableRange() layout.Dimensions {
+	return layout.Dimensions{Width: 20, Height: 20}
 }
 
 func NewEmptyViewableEntity() *EmptyViewableEntity {

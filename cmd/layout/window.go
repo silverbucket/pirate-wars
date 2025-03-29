@@ -1,6 +1,7 @@
-package window
+package layout
 
 import (
+	"fmt"
 	"pirate-wars/cmd/common"
 )
 
@@ -17,8 +18,8 @@ type Viewport struct {
 }
 
 var Window Dimensions = Dimensions{
-	Width:  640,
-	Height: 480,
+	Width:  1024,
+	Height: 768,
 }
 
 var InfoPane Dimensions = Dimensions{
@@ -26,9 +27,14 @@ var InfoPane Dimensions = Dimensions{
 	Height: Window.Height,
 }
 
+var ActionMenu Dimensions = Dimensions{
+	Width:  Window.Width,
+	Height: 50,
+}
+
 var ViewableArea Dimensions = Dimensions{
 	Width:  Window.Width - InfoPane.Width,
-	Height: Window.Height,
+	Height: Window.Height - ActionMenu.Height,
 }
 
 //	func SetWindowSize(width int, height int) {
@@ -64,7 +70,8 @@ func GetMiniMapScale(c common.Coordinates) common.Coordinates {
 
 func GetViewport(pos common.Coordinates) Viewport {
 	// viewable range is based on columns in grid and ratio of ViewableArea
-	vr := getColgridDimensions()
+	vr := GetColGridDimensions()
+	fmt.Println("%+v", vr)
 
 	// center viewport on position
 	left := pos.X - (vr.Width / 2)

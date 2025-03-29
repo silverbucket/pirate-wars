@@ -8,8 +8,8 @@ import (
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/layout"
 	"pirate-wars/cmd/terrain"
-	"pirate-wars/cmd/window"
 )
 
 type ViewType int
@@ -133,12 +133,12 @@ func (world *MapView) RandomPositionDeepWater() common.Coordinates {
 func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, entity entities.ViewableEntity, viewType ViewType) *fyne.Container {
 	grid := world.grid
 	p := avatar.GetPos()
-	v := window.GetViewport(p)
+	v := layout.GetViewport(p)
 	h := entity.GetPos() // potential entity to highlight (selected)
-	c := window.GetCellList()
+	c := layout.GetCellList()
 
-	world.logger.Info(fmt.Sprintf("Window Dimensions %+v", window.Window))
-	world.logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewableArea))
+	world.logger.Info(fmt.Sprintf("Window Dimensions %+v", layout.Window))
+	world.logger.Info(fmt.Sprintf("Viewable Area %+v", layout.ViewableArea))
 	world.logger.Info(fmt.Sprintf("Player position %+v", p))
 	world.logger.Info(fmt.Sprintf("Painting world with %v viewable NPCs", len(npcs)))
 	world.logger.Info(fmt.Sprintf("Viewport %+v", v))
@@ -191,7 +191,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		//		v.Right, y, rowWidth, y, v.Bottom))
 	}
 
-	return window.CreateGridContainer(c)
+	return layout.CreateGridContainer(c)
 }
 
 func Init(logger *zap.SugaredLogger) *MapView {

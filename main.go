@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	fyneLayout "fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
 	"go.uber.org/zap"
 	"pirate-wars/cmd/dialog"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/layout"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/player"
 	"pirate-wars/cmd/town"
-	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
 )
 
@@ -168,7 +171,6 @@ func main() {
 
 	a := app.New()
 	w := a.NewWindow("Pirate Wars")
-	w.Resize(fyne.NewSize(float32(window.Window.Width), float32(window.Window.Height)))
 
 	m := model{}
 	m.logger = logger
@@ -186,7 +188,33 @@ func main() {
 		visible = append(visible, &n)
 	}
 
-	w.SetContent(m.world.Paint(m.player, visible, highlight, world.ViewTypeMainMap))
+	grid := m.world.Paint(m.player, visible, highlight, world.ViewTypeMainMap)
+	// Create the info panel (e.g., a simple label for now)
+	infoPanel := container.NewVBox(
+		widget.NewLabel("Info Panel"),
+		widget.NewLabel("This is the right panel."),
+		widget.NewLabel("Width: ~1/4 of window"),
+	)
+	infoPanelContainer := container.New(fyneLayout.NewVBoxLayout(), infoPanel)
+
+	// Combine grid and info panel in a horizontal split (90% grid, 10% info panel)
+	topPortion := container.NewHSplit(grid, infoPanelContainer)
+	topPortion.SetOffset(0.9) // 90% for grid, 10% for info panel
+
+	actionMenu := container.NewVBox(
+		widget.NewLabel("Action Menu"),
+	)
+	actionMenuContainer := container.New(fyneLayout.NewHBoxLayout(), actionMenu)
+
+	content := container.NewVBox(
+		topPortion,
+		actionMenuContainer,
+	)
+
+	w.SetContent(content)
+	w.Resize(fyne.NewSize(float32(layout.Window.Width), float32(layout.Window.Height)))
+	w.SetFixedSize(true) // don't allow resizing for now
+
 	fmt.Println("Bringing up display")
 	w.ShowAndRun()
 
