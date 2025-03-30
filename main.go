@@ -122,6 +122,41 @@ type model struct {
 //	}
 //}
 
+func initModel(logger *zap.SugaredLogger) model {
+	m := model{}
+	m.logger = logger
+	m.world = world.Init(m.logger)
+	m.towns = town.Init(m.world, m.logger)
+	m.npcs = npc.Init(m.towns, m.world, m.logger)
+	m.player = player.Create(m.world)
+	return m
+}
+
+func setLayout(grid *fyne.Container) *fyne.Container {
+	// Create the info panel
+	infoPanel := container.NewVBox(
+		widget.NewLabel("Info Panel"),
+		widget.NewLabel("This is the right panel."),
+		widget.NewLabel("Width: ~1/4 of window"),
+	)
+	infoPanelContainer := container.New(fyneLayout.NewVBoxLayout(), infoPanel)
+
+	// Combine grid and info panel in a horizontal split (90% grid, 10% info panel)
+	topPortion := container.NewHSplit(grid, infoPanelContainer)
+	topPortion.SetOffset(0.9) // 90% for grid, 10% for info panel
+
+	// action menu
+	actionMenu := container.NewVBox(
+		widget.NewLabel("Action Menu"),
+	)
+	actionMenuContainer := container.New(fyneLayout.NewHBoxLayout(), actionMenu)
+
+	return container.NewVBox(
+		topPortion,
+		actionMenuContainer,
+	)
+}
+
 func processTick(m model) {
 	m.npcs.CalcMovements()
 
@@ -187,62 +222,28 @@ func main() {
 	logger := createLogger()
 	logger.Info("Starting...")
 
-	a := app.New()
-	w := a.NewWindow("Pirate Wars")
-	m := model{}
+	w := app.New().NewWindow("Pirate Wars")
+	w.Resize(fyne.NewSize(float32(layout.Window.Width), float32(layout.Window.Height)))
+	w.SetFixedSize(true) // don't allow resizing for now
 
 	logger.Info(fmt.Sprintf("Window Dimensions %+v", layout.Window))
 	logger.Info(fmt.Sprintf("Viewable Area %+v", layout.ViewableArea))
 
-	m.logger = logger
-	m.world = world.Init(m.logger)
-	m.towns = town.Init(m.world, m.logger)
-	m.npcs = npc.Init(m.towns, m.world, m.logger)
-	m.player = player.Create(m.world)
-
 	// redrew minimap every time screen resizes
 	//m.world.GenerateMiniMap()
 
+	m := initModel(logger)
 	updateView(m)
 
-	// Create the info panel
-	infoPanel := container.NewVBox(
-		widget.NewLabel("Info Panel"),
-		widget.NewLabel("This is the right panel."),
-		widget.NewLabel("Width: ~1/4 of window"),
-	)
-	infoPanelContainer := container.New(fyneLayout.NewVBoxLayout(), infoPanel)
-
-	// Combine grid and info panel in a horizontal split (90% grid, 10% info panel)
-	topPortion := container.NewHSplit(m.world.GetFyneGrid(), infoPanelContainer)
-	topPortion.SetOffset(0.9) // 90% for grid, 10% for info panel
-
-	// action menu
-	actionMenu := container.NewVBox(
-		widget.NewLabel("Action Menu"),
-	)
-	actionMenuContainer := container.New(fyneLayout.NewHBoxLayout(), actionMenu)
-
-	content := container.NewVBox(
-		topPortion,
-		actionMenuContainer,
-	)
-
-	w.SetContent(content)
-	w.Resize(fyne.NewSize(float32(layout.Window.Width), float32(layout.Window.Height)))
-	w.SetFixedSize(true) // don't allow resizing for now
-
-	fmt.Println("Bringing up display")
+	w.SetContent(setLayout(m.world.GetFyneGrid()))
 
 	// Handle refresh signals from the goroutine in the main thread
 	go func() {
 		for {
-			time.Sleep(500 * time.Millisecond)
-			fmt.Println("Refreshing...")
+			time.Sleep(250 * time.Millisecond)
 			// This runs on the main thread because ShowAndRun() processes it
 			processTick(m)
 			time.AfterFunc(0, func() {
-				fmt.Println("refreshing grid")
 				updateView(m)
 			})
 		}
