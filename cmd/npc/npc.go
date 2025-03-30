@@ -150,6 +150,7 @@ func Init(towns *town.Towns, world *world.MapView, logger *zap.SugaredLogger) *N
 }
 
 func (ns *Npcs) CalcMovements() {
+	ns.logger.Infof("Calculating NPC movements: %d", len(ns.list))
 	for i := range ns.list {
 		if rand.Intn(100) > ChanceToMove {
 			continue
@@ -187,7 +188,7 @@ func (ns *Npcs) CalcMovements() {
 		if target.X == npcpos.X && target.Y == npcpos.Y {
 			ns.logger.Debug(fmt.Sprintf("[%v] NPC stuck at %+v! Travelling to town at %v (cost %v)", npc.id, npcpos, targetTown.GetPos(), cost))
 		} else {
-			//t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (bg color: %v)", npc.id, npcpos, target, cost, npc.GetBackgroundColor()))
+			ns.logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (bg color: %v)", npc.id, npcpos, target, cost, npc.GetBackgroundColor()))
 			if !common.IsPositionAdjacent(npcpos, target) {
 				ns.logger.Debug(fmt.Sprintf("[%v] NPC warp! from %v to %v", npc.id, npcpos, target))
 			}
@@ -201,7 +202,7 @@ func (ns *Npcs) GetList() []Npc {
 }
 
 func (ns *Npcs) GetVisible(c common.Coordinates, vr layout.Dimensions) Npcs {
-	v := layout.GetViewport(c)
+	v := layout.CalcViewport(c)
 	viewable := map[int]Npc{}
 	keys := []int{}
 	for _, npc := range ns.list {

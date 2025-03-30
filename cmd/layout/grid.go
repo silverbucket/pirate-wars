@@ -1,7 +1,6 @@
 package layout
 
 import (
-	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"math"
@@ -110,7 +109,6 @@ func GetCellList() []fyne.CanvasObject {
 }
 
 func GetColGridDimensions() Dimensions {
-	fmt.Println("%v / %v = %v", float32(ViewableArea.Height), float32(ViewableArea.Width), float32(ViewableArea.Height)/float32(ViewableArea.Width))
 	return Dimensions{
 		Width: viewableAreaGridCols,
 		//Height: int(float32(viewableAreaGridCols) * 0.75),

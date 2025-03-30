@@ -1,7 +1,6 @@
 package layout
 
 import (
-	"fmt"
 	"pirate-wars/cmd/common"
 )
 
@@ -10,7 +9,7 @@ type Dimensions struct {
 	Height int
 }
 
-type Viewport struct {
+type Region struct {
 	Top    int
 	Left   int
 	Bottom int
@@ -68,10 +67,9 @@ func GetMiniMapScale(c common.Coordinates) common.Coordinates {
 	return common.Coordinates{c.X / MiniMapFactor, c.Y / MiniMapFactor}
 }
 
-func GetViewport(pos common.Coordinates) Viewport {
+func CalcViewport(pos common.Coordinates) Region {
 	// viewable range is based on columns in grid and ratio of ViewableArea
 	vr := GetColGridDimensions()
-	fmt.Println("%+v", vr)
 
 	// center viewport on position
 	left := pos.X - (vr.Width / 2)
@@ -107,10 +105,10 @@ func GetViewport(pos common.Coordinates) Viewport {
 		bottom = vr.Height
 	}
 
-	return Viewport{top, left, bottom, right}
+	return Region{top, left, bottom, right}
 }
 
-func (v *Viewport) IsPositionWithin(c common.Coordinates) bool {
+func (v *Region) IsPositionWithin(c common.Coordinates) bool {
 	if (v.Left <= c.X && c.X <= v.Right) && (v.Top <= c.Y && c.Y <= v.Bottom) {
 		return true
 	}

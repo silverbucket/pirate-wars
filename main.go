@@ -15,6 +15,7 @@ import (
 	"pirate-wars/cmd/player"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/world"
+	"time"
 )
 
 const BASE_LOG_LEVEL = zap.DebugLevel
@@ -30,11 +31,6 @@ type model struct {
 	viewType    int
 	action      int
 }
-
-//func (m model) Init() tea.Cmd {
-//	// Just return `nil`, which means "no I/O right now, please."
-//	return nil
-//}
 
 //func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 //switch msg := msg.(type) {
@@ -70,14 +66,14 @@ type model struct {
 //}
 //}
 
-//func (m model) View() string {
+//func Update(m model) string {
 //	if !m.initialized {
 //		return "Loading..."
 //	}
 //
 //	highlight := ExamineData.GetFocusedEntity()
 //	npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
-//	visible := []common.AvatarReadOnly{}
+//	visible := []entities.AvatarReadOnly{}
 //	for _, n := range npcs.GetList() {
 //		visible = append(visible, &n)
 //	}
@@ -86,9 +82,9 @@ type model struct {
 //	sidePanel := ""
 //
 //	if m.viewType == world.ViewTypeMiniMap {
-//		paint := m.world.Paint(m.player, []common.AvatarReadOnly{}, highlight, world.ViewTypeMiniMap)
-//		paint += helpText(miniMapKeyMap, KeyCatAux)
-//		return paint
+//		//paint := m.world.Paint(m.player, []entities.AvatarReadOnly{}, highlight, world.ViewTypeMiniMap)
+//		//paint += helpText(miniMapKeyMap, KeyCatAux)
+//		//return paint
 //	} else {
 //		if m.action == user_action.UserActionIdNone {
 //			// user is not doing some meta-action, NPCs can move
@@ -99,14 +95,14 @@ type model struct {
 //		paint := m.world.Paint(m.player, visible, highlight, world.ViewTypeMainMap)
 //
 //		if m.action == user_action.UserActionIdExamine {
-//			bottomText += helpText(examineKeyMap, KeyCatAction)
-//			sidePanel = lipgloss.JoinVertical(lipgloss.Left,
-//				dialog.ListHeader(fmt.Sprintf("%v", highlight.GetName())),
-//				dialog.ListItem(fmt.Sprintf("Flag: %v", highlight.GetFlag())),
-//				dialog.ListItem(fmt.Sprintf("ID: %v", highlight.GetID())),
-//				dialog.ListItem(fmt.Sprintf("Type: %v", highlight.GetType())),
-//				dialog.ListItem(fmt.Sprintf("Color: %v", highlight.GetForegroundColor())),
-//			)
+//			//bottomText += helpText(examineKeyMap, KeyCatAction)
+//			//sidePanel = lipgloss.JoinVertical(lipgloss.Left,
+//			//	dialog.ListHeader(fmt.Sprintf("%v", highlight.GetName())),
+//			//	dialog.ListItem(fmt.Sprintf("Flag: %v", highlight.GetFlag())),
+//			//	dialog.ListItem(fmt.Sprintf("ID: %v", highlight.GetID())),
+//			//	dialog.ListItem(fmt.Sprintf("Type: %v", highlight.GetType())),
+//			//	dialog.ListItem(fmt.Sprintf("Color: %v", highlight.GetForegroundColor())),
+//			//)
 //		} else {
 //			bottomText += lipgloss.JoinHorizontal(
 //				lipgloss.Top,
@@ -125,6 +121,28 @@ type model struct {
 //		return m.screen.Render(content)
 //	}
 //}
+
+func processTick(m model) {
+	m.npcs.CalcMovements()
+
+	// convert to readonly type for display
+	visibleNpcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
+	visible := []entities.AvatarReadOnly{}
+	for _, n := range visibleNpcs.GetList() {
+		visible = append(visible, &n)
+	}
+}
+
+func updateView(m model) {
+	// get visible NPCs
+	highlight := ExamineData.GetFocusedEntity()
+	visible := []entities.AvatarReadOnly{}
+	for _, n := range m.npcs.GetList() {
+		visible = append(visible, &n)
+	}
+
+	m.world.Paint(m.player, visible, highlight, world.ViewTypeMainMap)
+}
 
 func helpText(km KeyMap, cat int) string {
 	r := ""
@@ -171,8 +189,11 @@ func main() {
 
 	a := app.New()
 	w := a.NewWindow("Pirate Wars")
-
 	m := model{}
+
+	logger.Info(fmt.Sprintf("Window Dimensions %+v", layout.Window))
+	logger.Info(fmt.Sprintf("Viewable Area %+v", layout.ViewableArea))
+
 	m.logger = logger
 	m.world = world.Init(m.logger)
 	m.towns = town.Init(m.world, m.logger)
@@ -182,14 +203,9 @@ func main() {
 	// redrew minimap every time screen resizes
 	//m.world.GenerateMiniMap()
 
-	highlight := ExamineData.GetFocusedEntity()
-	visible := []entities.AvatarReadOnly{}
-	for _, n := range m.npcs.GetList() {
-		visible = append(visible, &n)
-	}
+	updateView(m)
 
-	grid := m.world.Paint(m.player, visible, highlight, world.ViewTypeMainMap)
-	// Create the info panel (e.g., a simple label for now)
+	// Create the info panel
 	infoPanel := container.NewVBox(
 		widget.NewLabel("Info Panel"),
 		widget.NewLabel("This is the right panel."),
@@ -198,9 +214,10 @@ func main() {
 	infoPanelContainer := container.New(fyneLayout.NewVBoxLayout(), infoPanel)
 
 	// Combine grid and info panel in a horizontal split (90% grid, 10% info panel)
-	topPortion := container.NewHSplit(grid, infoPanelContainer)
+	topPortion := container.NewHSplit(m.world.GetFyneGrid(), infoPanelContainer)
 	topPortion.SetOffset(0.9) // 90% for grid, 10% for info panel
 
+	// action menu
 	actionMenu := container.NewVBox(
 		widget.NewLabel("Action Menu"),
 	)
@@ -216,6 +233,21 @@ func main() {
 	w.SetFixedSize(true) // don't allow resizing for now
 
 	fmt.Println("Bringing up display")
+
+	// Handle refresh signals from the goroutine in the main thread
+	go func() {
+		for {
+			time.Sleep(500 * time.Millisecond)
+			fmt.Println("Refreshing...")
+			// This runs on the main thread because ShowAndRun() processes it
+			processTick(m)
+			time.AfterFunc(0, func() {
+				fmt.Println("refreshing grid")
+				updateView(m)
+			})
+		}
+	}()
+
 	w.ShowAndRun()
 
 	//if _, err := tea.NewProgram(model{

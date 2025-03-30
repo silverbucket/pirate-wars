@@ -41,7 +41,8 @@ type MiniMapView struct {
 }
 
 type MapView struct {
-	grid     [][]terrain.Type
+	terrain  [][]terrain.Type
+	grid     *fyne.Container
 	logger   *zap.SugaredLogger
 	miniMap  MiniMapView
 	mapItems []MapItem
@@ -87,11 +88,11 @@ func (world *MapView) GetAdjacentCoords(c common.Coordinates) []common.Coordinat
 }
 
 func (world *MapView) GetWidth() int {
-	return len(world.grid[0])
+	return len(world.terrain[0])
 }
 
 func (world *MapView) GetHeight() int {
-	return len(world.grid)
+	return len(world.terrain)
 }
 
 func (world *MapView) IsPassableByBoat(c common.Coordinates) bool {
@@ -105,15 +106,15 @@ func (world *MapView) IsPassable(c common.Coordinates) bool {
 }
 
 func (world *MapView) GetPositionType(c common.Coordinates) terrain.Type {
-	return world.grid[c.X][c.Y]
+	return world.terrain[c.X][c.Y]
 }
 
 func (world *MapView) SetPositionType(c common.Coordinates, tt terrain.Type) {
-	world.grid[c.X][c.Y] = tt
+	world.terrain[c.X][c.Y] = tt
 }
 
 func (world *MapView) IsLand(c common.Coordinates) bool {
-	tt := world.grid[c.X][c.Y]
+	tt := world.terrain[c.X][c.Y]
 	if tt == terrain.TypeBeach || tt == terrain.TypeLowland || tt == terrain.TypeHighland || tt == terrain.TypePeak || tt == terrain.TypeRock {
 		return true
 	}
@@ -123,25 +124,25 @@ func (world *MapView) IsLand(c common.Coordinates) bool {
 func (world *MapView) RandomPositionDeepWater() common.Coordinates {
 	for {
 		c := common.Coordinates{X: rand.Intn(common.WorldWidth-2) + 1, Y: rand.Intn(common.WorldHeight-2) + 1}
-		//t.Logger.Info(fmt.Sprintf("Random position deep water at: %v, %v", c, t.World.GetPositionType(c)))
+		//terrain.Logger.Info(fmt.Sprintf("Random position deep water at: %v, %v", c, terrain.World.GetPositionType(c)))
 		if world.GetPositionType(c) == terrain.TypeDeepWater {
 			return c
 		}
 	}
 }
 
-func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, entity entities.ViewableEntity, viewType ViewType) *fyne.Container {
-	grid := world.grid
-	p := avatar.GetPos()
-	v := layout.GetViewport(p)
-	h := entity.GetPos() // potential entity to highlight (selected)
-	c := layout.GetCellList()
+func (world *MapView) GetFyneGrid() *fyne.Container {
+	return world.grid
+}
 
-	world.logger.Info(fmt.Sprintf("Window Dimensions %+v", layout.Window))
-	world.logger.Info(fmt.Sprintf("Viewable Area %+v", layout.ViewableArea))
+func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, entity entities.ViewableEntity, viewType ViewType) {
+	p := avatar.GetPos()
+	h := entity.GetPos() // potential entity to highlight (selected)
+	v := layout.CalcViewport(p)
+
 	world.logger.Info(fmt.Sprintf("Player position %+v", p))
 	world.logger.Info(fmt.Sprintf("Painting world with %v viewable NPCs", len(npcs)))
-	world.logger.Info(fmt.Sprintf("Viewport %+v", v))
+	world.logger.Info(fmt.Sprintf("Region %+v", v))
 
 	// overlay map of all avatars, player and npcs
 	// instead of terrain, in these overlay positions we generate the avatars
@@ -154,13 +155,13 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 	}
 
 	//if viewType == ViewTypeMiniMap {
-	//	v = window.Viewport{0, 0, len(world.miniMap.grid[0]), len(world.miniMap.grid)}
+	//	v = window.Region{0, 0, len(world.miniMap.terrain[0]), len(world.miniMap.terrain)}
 	//	// mini map views the whole map
 	//
 	//	// always display main character avatar on the minimap
 	//	mm := window.GetMiniMapScale(avatar.GetPos())
 	//	overlay[fmt.Sprintf("%03d%03d", mm.X, mm.Y)] = avatar
-	//	grid = world.miniMap.grid
+	//	terrain = world.miniMap.terrain
 	//} else {
 	//}
 
@@ -177,31 +178,33 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		for x := v.Left; x < v.Right; x++ {
 			item, ok := overlay[fmt.Sprintf("%03d%03d", x, y)]
 			if ok {
-				c[cIdx] = item.Render()
+				world.logger.Debug(fmt.Sprintf("[%03d%03d] setting NPC at %v", x, y, item.GetPos()))
+				world.grid.Objects[cIdx] = item.Render()
 			} else {
 				//world.logger.Debug(
-				//	fmt.Sprintf("row[%v] = grid[%v][%v] [row len(%v), gridX len(%v), gridY len(%v)]",
-				//		x-v.Left, x, y, rowWidth, len(grid), len(grid[0])))
-				c[cIdx] = grid[x][y].Render()
+				//	fmt.Sprintf("row[%v] = terrain[%v][%v] [row len(%v), gridX len(%v), gridY len(%v)]",
+				//		x-v.Left, x, y, rowWidth, len(terrain), len(terrain[0])))
+				world.grid.Objects[cIdx] = world.terrain[x][y].Render()
 			}
+			world.grid.Objects[cIdx].Refresh()
 			cIdx++
 		}
 		//world.logger.Debug(
-		//	fmt.Sprintf("Finished block grid[%v][%v] - finished when [%v => %v]",
+		//	fmt.Sprintf("Finished block terrain[%v][%v] - finished when [%v => %v]",
 		//		v.Right, y, rowWidth, y, v.Bottom))
 	}
-
-	return layout.CreateGridContainer(c)
+	world.grid.Refresh()
 }
 
 func Init(logger *zap.SugaredLogger) *MapView {
-	worldGrid := make([][]terrain.Type, WorldProps.width)
-	for i := range worldGrid {
-		worldGrid[i] = make([]terrain.Type, WorldProps.height)
+	t := make([][]terrain.Type, WorldProps.width)
+	for i := range t {
+		t[i] = make([]terrain.Type, WorldProps.height)
 	}
 	world := MapView{
 		logger:   logger,
-		grid:     worldGrid,
+		terrain:  t,
+		grid:     layout.CreateGridContainer(layout.GetCellList()),
 		mapItems: []MapItem{},
 	}
 	world.logger.Info("Initializing world...")

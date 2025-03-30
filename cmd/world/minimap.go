@@ -13,8 +13,8 @@ func (mm *MiniMapView) SetPositionType(c common.Coordinates, tt terrain.Type) {
 
 func (world *MapView) GenerateMiniMap() {
 	// Calculate MiniMap dimensions
-	width := len(world.grid) / layout.MiniMapFactor
-	height := len(world.grid[0]) / layout.MiniMapFactor
+	width := len(world.terrain) / layout.MiniMapFactor
+	height := len(world.terrain[0]) / layout.MiniMapFactor
 	world.logger.Info(fmt.Sprintf("generating mini-map with dimensions %v,%v", width, height))
 
 	// Create new 2D slice
@@ -28,7 +28,7 @@ func (world *MapView) GenerateMiniMap() {
 	}
 
 	// Down-sample
-	for i, row := range world.grid {
+	for i, row := range world.terrain {
 		for j, val := range row {
 			// Calculate corresponding index in new slice
 			c := common.Coordinates{
