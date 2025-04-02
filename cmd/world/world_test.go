@@ -1,9 +1,12 @@
 package world
 
 import (
+	"fyne.io/fyne/v2"
 	"go.uber.org/zap"
-	"pirate-wars/cmd/avatar"
+	"image/color"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/layout"
 	"testing"
 )
 
@@ -20,17 +23,17 @@ type AvatarMock struct {
 	char rune
 }
 
-func (av AvatarMock) Render() string {
-	return ""
+func (av AvatarMock) Render() *fyne.Container {
+	return fyne.NewContainer()
 }
-func (av AvatarMock) GetPos() common.Coordinates         { return av.pos }
-func (av AvatarMock) GetID() string                      { return "" }
-func (av AvatarMock) Highlight()                         {}
-func (av AvatarMock) GetFlag() string                    { return "" }
-func (av AvatarMock) GetType() string                    { return "" }
-func (av AvatarMock) GetName() string                    { return "" }
-func (av AvatarMock) GetForegroundColor() string         { return "" }
-func (av AvatarMock) GetViewableRange() window.ViewRange { return window.ViewRange{} }
+func (av AvatarMock) GetPos() common.Coordinates          { return av.pos }
+func (av AvatarMock) GetID() string                       { return "" }
+func (av AvatarMock) Highlight()                          {}
+func (av AvatarMock) GetFlag() string                     { return "" }
+func (av AvatarMock) GetType() string                     { return "" }
+func (av AvatarMock) GetName() string                     { return "" }
+func (av AvatarMock) GetForegroundColor() color.Color     { return color.White }
+func (av AvatarMock) GetViewableRange() layout.Dimensions { return layout.Dimensions{} }
 
 func TestWorldInit(t *testing.T) {
 	t.Cleanup(cleanup)
@@ -49,5 +52,5 @@ func TestPaint(t *testing.T) {
 	avatar := AvatarMock{pos: common.Coordinates{X: 100, Y: 100}, char: '@'}
 	logger := initTestLogger()
 	world := Init(logger)
-	world.Paint(avatar, []avatar.AvatarReadOnly{}, avatar, 1)
+	world.Paint(avatar, []entities.AvatarReadOnly{}, avatar)
 }

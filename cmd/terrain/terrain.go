@@ -30,25 +30,29 @@ type Type int
 
 type TypeQualities struct {
 	symbol       rune
-	style        *canvas.Rectangle
+	color        color.RGBA
 	Passable     bool
 	RequiresBoat bool
 }
 
 var TypeLookup = map[Type]TypeQualities{
-	TypeDeepWater:    {symbol: '⏖', style: canvas.NewRectangle(color.RGBA{2, 0, 121, 255}), Passable: true, RequiresBoat: true},
-	TypeOpenWater:    {symbol: '⏝', style: canvas.NewRectangle(color.RGBA{0, 19, 222, 255}), Passable: true, RequiresBoat: true},
-	TypeShallowWater: {symbol: '⏑', style: canvas.NewRectangle(color.RGBA{0, 33, 243, 255}), Passable: true, RequiresBoat: true},
-	TypeBeach:        {symbol: '~', style: canvas.NewRectangle(color.RGBA{205, 170, 109, 125}), Passable: true, RequiresBoat: false},
-	TypeLowland:      {symbol: ':', style: canvas.NewRectangle(color.RGBA{65, 152, 10, 255}), Passable: true, RequiresBoat: false},
-	TypeHighland:     {symbol: ':', style: canvas.NewRectangle(color.RGBA{192, 155, 40, 255}), Passable: true, RequiresBoat: false},
-	TypeRock:         {symbol: '%', style: canvas.NewRectangle(color.RGBA{150, 150, 150, 255}), Passable: true, RequiresBoat: false},
-	TypePeak:         {symbol: '^', style: canvas.NewRectangle(color.RGBA{229, 229, 229, 255}), Passable: false, RequiresBoat: false},
-	TypeTown:         {symbol: '⩎', style: canvas.NewRectangle(color.RGBA{246, 104, 94, 255}), Passable: true, RequiresBoat: false},
-	TypeGhostTown:    {symbol: '⩎', style: canvas.NewRectangle(color.RGBA{147, 62, 56, 255}), Passable: true, RequiresBoat: false},
+	TypeDeepWater:    {symbol: ' ', color: color.RGBA{2, 0, 121, 255}, Passable: true, RequiresBoat: true},
+	TypeOpenWater:    {symbol: ' ', color: color.RGBA{0, 19, 222, 255}, Passable: true, RequiresBoat: true},
+	TypeShallowWater: {symbol: ' ', color: color.RGBA{0, 33, 243, 255}, Passable: true, RequiresBoat: true},
+	TypeBeach:        {symbol: ' ', color: color.RGBA{205, 170, 109, 125}, Passable: true, RequiresBoat: false},
+	TypeLowland:      {symbol: ' ', color: color.RGBA{65, 152, 10, 255}, Passable: true, RequiresBoat: false},
+	TypeHighland:     {symbol: ' ', color: color.RGBA{192, 155, 40, 255}, Passable: true, RequiresBoat: false},
+	TypeRock:         {symbol: ' ', color: color.RGBA{150, 150, 150, 255}, Passable: true, RequiresBoat: false},
+	TypePeak:         {symbol: ' ', color: color.RGBA{229, 229, 229, 255}, Passable: false, RequiresBoat: false},
+	TypeTown:         {symbol: '⩎', color: color.RGBA{246, 104, 94, 255}, Passable: true, RequiresBoat: false},
+	TypeGhostTown:    {symbol: '⩎', color: color.RGBA{147, 62, 56, 255}, Passable: true, RequiresBoat: false},
+}
+
+func (tt *Type) GetColor() color.RGBA {
+	return TypeLookup[*tt].color
 }
 
 func (tt *Type) Render() *fyne.Container {
 	t := canvas.NewText(fmt.Sprintf("%c", TypeLookup[*tt].symbol), color.White)
-	return common.RenderContainer(TypeLookup[*tt].style, t)
+	return common.RenderContainer(canvas.NewRectangle(TypeLookup[*tt].color), t)
 }

@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	LogFile         = "pirate-wars.log"
-	WorldWidth  int = 800 // Y
-	WorldHeight int = 800 // X
-	TotalTowns      = 20
-	TotalNpcs       = 100
+	LogFile        = "pirate-wars.log"
+	WorldCols  int = 800 // Y
+	WorldRows  int = 800 // X
+	TotalTowns     = 20
+	TotalNpcs      = 100
 )
 
 type Coordinates struct {
@@ -41,7 +41,7 @@ func GenID(pos Coordinates) string {
 }
 
 func Inbounds(c Coordinates) bool {
-	return c.X >= 0 && c.X < WorldHeight && c.Y >= 0 && c.Y < WorldWidth
+	return c.X >= 0 && c.X < WorldRows && c.Y >= 0 && c.Y < WorldCols
 }
 
 func IsPositionAdjacent(p Coordinates, t Coordinates) bool {
@@ -55,7 +55,7 @@ func IsPositionAdjacent(p Coordinates, t Coordinates) bool {
 }
 
 func RandomPosition() Coordinates {
-	return Coordinates{X: rand.Intn(WorldWidth - 1), Y: rand.Intn(WorldHeight - 1)}
+	return Coordinates{X: rand.Intn(WorldCols - 1), Y: rand.Intn(WorldRows - 1)}
 }
 
 func AddDirection(p Coordinates, d Coordinates) Coordinates {

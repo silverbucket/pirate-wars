@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"math"
 	"pirate-wars/cmd/common"
 )
 
@@ -36,40 +37,35 @@ var ViewableArea Dimensions = Dimensions{
 	Height: Window.Height - ActionMenu.Height,
 }
 
-//	func SetWindowSize(width int, height int) {
-//		const startingInfoPaneSize = 5
-//		const infoPaneSizeIncrements = 1
-//
-//		if width < 80 || height < 24 {
-//			fmt.Println("Window size too small. Minimum 80x24")
-//			os.Exit(1)
-//		}
-//
-//		// padding needed for consistent rendering among different terminals
-//		usefulWidth := width - 4
-//
-//		scale := (usefulWidth - 80) / 20
-//		scale++
-//		InfoPaneSize = startingInfoPaneSize + (infoPaneSizeIncrements * scale)
-//		Dimensions.Width = (usefulWidth / 3) - InfoPaneSize
-//		Dimensions.Height = height - scale
-//		CalcMiniMapFactor(scale)
-//	}
-var MiniMapFactor int
-
-func CalcMiniMapFactor(scale int) {
-	MiniMapFactor = 24
-	for i := 1; i < scale; i++ {
-		MiniMapFactor = MiniMapFactor - 2
-	}
+var MiniMapArea Dimensions = Dimensions{
+	Width:  700,
+	Height: 700,
 }
+
+var WorldViewport Region = Region{
+	Top:    0,
+	Left:   0,
+	Bottom: common.WorldRows - 1,
+	Right:  common.WorldCols - 1,
+}
+
+type MapIncrementFactor struct {
+	X int
+	Y int
+}
+
+var MiniMapIncrementFactor = MapIncrementFactor{
+	int(math.Ceil(float64(common.WorldCols/viewableAreaGridCols))) + 2,
+	int(math.Ceil(float64(common.WorldRows/viewableAreaGridCols))) + 5,
+}
+
 func GetMiniMapScale(c common.Coordinates) common.Coordinates {
-	return common.Coordinates{c.X / MiniMapFactor, c.Y / MiniMapFactor}
+	return common.Coordinates{c.X / MiniMapIncrementFactor.X, c.Y / MiniMapIncrementFactor.Y}
 }
 
 func CalcViewport(pos common.Coordinates) Region {
 	// viewable range is based on columns in grid and ratio of ViewableArea
-	vr := GetColGridDimensions()
+	vr := getColGridDimensions(viewableAreaGridCols)
 
 	// center viewport on position
 	left := pos.X - (vr.Width / 2)
@@ -87,13 +83,13 @@ func CalcViewport(pos common.Coordinates) Region {
 	}
 
 	// don't slide the screen when you hit the edge
-	if bottom >= common.WorldHeight {
-		bottom = common.WorldHeight
-		top = common.WorldHeight - vr.Height
+	if bottom >= common.WorldRows {
+		bottom = common.WorldRows
+		top = common.WorldRows - vr.Height
 	}
-	if right >= common.WorldWidth {
-		right = common.WorldWidth
-		left = common.WorldWidth - vr.Width
+	if right >= common.WorldCols {
+		right = common.WorldCols
+		left = common.WorldCols - vr.Width
 	}
 
 	if left < 0 {

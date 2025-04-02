@@ -1,9 +1,13 @@
 package layout
 
 import (
+	"fmt"
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"image/color"
 	"math"
+	"pirate-wars/cmd/common"
 )
 
 var viewableAreaGridCols = 66
@@ -48,6 +52,8 @@ func (g *gridLayoutNoPadding) Layout(cells []fyne.CanvasObject, size fyne.Size) 
 	cellHeight := size.Height / float32(rows)
 	cellSize := float32(math.Min(float64(cellWidth), float64(cellHeight)))
 
+	fmt.Println(fmt.Sprintf("cell width:%v height:%v %+v", cellWidth, cellHeight, g.cols))
+
 	// Position each square cell without padding
 	i := 0
 	for row := 0; row < rows && i < visibleCount; row++ {
@@ -60,7 +66,6 @@ func (g *gridLayoutNoPadding) Layout(cells []fyne.CanvasObject, size fyne.Size) 
 			x := float32(col) * cellSize
 			y := float32(row) * cellSize
 			cells[i].Move(fyne.NewPos(x, y))
-			//cells[i].Resize(fyne.NewSize(cellSize, cellSize))
 			cells[i].Resize(fyne.NewSize(cellSize+overlap, cellSize+overlap))
 			i++
 		}
@@ -96,22 +101,54 @@ func (g *gridLayoutNoPadding) MinSize(cells []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(maxCellSize*float32(g.cols), maxCellSize*float32(rows))
 }
 
-func CreateGridContainer(cells []fyne.CanvasObject) *fyne.Container {
+func CreateGridContainer(cells []fyne.CanvasObject, isMiniMap bool) *fyne.Container {
+	cols := viewableAreaGridCols
+	if isMiniMap {
+		cols = ViewableArea.Width
+	}
+	fmt.Println(fmt.Sprintf("init with cols:%v", cols))
 	return container.New(
-		newGridLayoutNoPadding(viewableAreaGridCols),
+		newGridLayoutNoPadding(cols),
 		cells...,
 	)
 }
 
-func GetCellList() []fyne.CanvasObject {
-	cg := GetColGridDimensions()
+func GetCellList(isMiniMap bool) []fyne.CanvasObject {
+	cg := Dimensions{
+		Width:  common.WorldCols,
+		Height: common.WorldRows,
+	}
+	if !isMiniMap {
+		cg = getColGridDimensions(viewableAreaGridCols)
+	}
 	return make([]fyne.CanvasObject, cg.Width*cg.Height)
 }
 
-func GetColGridDimensions() Dimensions {
+func getColGridDimensions(cols int) Dimensions {
 	return Dimensions{
-		Width: viewableAreaGridCols,
-		//Height: int(float32(viewableAreaGridCols) * 0.75),
-		Height: int(float32(viewableAreaGridCols) * (float32(ViewableArea.Height) / float32(ViewableArea.Width))),
+		Width:  cols,
+		Height: int(float32(cols) * (float32(ViewableArea.Height) / float32(ViewableArea.Width))),
 	}
+}
+
+func CreateGridSimple(cols, rows int, width, height float32) *fyne.Container {
+	grid := container.NewWithoutLayout()
+	cellWidth := width / float32(cols)
+	cellHeight := height / float32(rows)
+	fmt.Println(fmt.Sprintf("create grid w:%v h:%v", width, height))
+	for r := 0; r < rows; r++ {
+		for c := 0; c < cols; c++ {
+			var cellColor color.Color
+			if (r+c)%2 == 0 {
+				cellColor = color.Black
+			} else {
+				cellColor = color.White
+			}
+			rect := canvas.NewRectangle(cellColor)
+			rect.Resize(fyne.NewSize(cellWidth, cellHeight))
+			rect.Move(fyne.NewPos(float32(c)*cellWidth, float32(r)*cellHeight))
+			grid.Add(rect)
+		}
+	}
+	return grid
 }

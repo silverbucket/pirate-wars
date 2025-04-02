@@ -60,10 +60,10 @@ func (t *Town) MakeGhostTown(world *world.MapView) {
 }
 
 func (ts *Towns) CreateTown(c common.Coordinates, world *world.MapView) Town {
-	var heatMap = make([][]HeatMapCost, common.WorldHeight)
+	var heatMap = make([][]HeatMapCost, common.WorldRows)
 
 	for i := range heatMap {
-		heatMap[i] = make([]HeatMapCost, common.WorldWidth)
+		heatMap[i] = make([]HeatMapCost, common.WorldCols)
 		for j := range heatMap[i] {
 			heatMap[i][j] = -1
 		}
@@ -101,7 +101,7 @@ func (ts *Towns) initializeTowns(fn func() common.Coordinates, world *world.MapV
 		for {
 			c := fn()
 			if c.X > 1 && c.Y > 1 &&
-				c.X < common.WorldWidth-1 && c.Y < common.WorldHeight &&
+				c.X < common.WorldCols-1 && c.Y < common.WorldRows &&
 				world.GetPositionType(c) == terrain.TypeBeach {
 
 				if world.IsAdjacentToWater(c) {
