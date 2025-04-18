@@ -1,8 +1,9 @@
 package dialog
 
 import (
+	"pirate-wars/cmd/window"
+
 	"github.com/charmbracelet/lipgloss"
-	"pirate-wars/cmd/layout"
 )
 
 var BorderStyle = lipgloss.Border{
@@ -25,7 +26,7 @@ func SetScreenStyle(width int, height int) lipgloss.Style {
 }
 
 func GetSidebarStyle() lipgloss.Style {
-	var SidebarWidth = layout.InfoPane.Width
+	var SidebarWidth = window.SidePanel.Width
 	if SidebarWidth > 25 {
 		SidebarWidth += 1
 	} else if SidebarWidth > 18 {

@@ -1,10 +1,12 @@
 package entities
 
 import (
-	"fyne.io/fyne/v2"
 	"image/color"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/layout"
+	"pirate-wars/cmd/window"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 )
 
 type ViewableEntities []ViewableEntity
@@ -18,13 +20,13 @@ type ViewableEntity interface {
 	GetForegroundColor() color.Color
 	Highlight()
 	Render() *fyne.Container
-	GetViewableRange() layout.Dimensions
+	GetViewableRange() window.Dimensions
 }
 
 type EmptyViewableEntity struct{}
 
 func (e *EmptyViewableEntity) GetPos() common.Coordinates {
-	return common.Coordinates{-1, -1}
+	return common.Coordinates{X: -1, Y: -1}
 }
 func (e *EmptyViewableEntity) GetID() string {
 	return ""
@@ -41,10 +43,12 @@ func (e *EmptyViewableEntity) GetType() string {
 func (e *EmptyViewableEntity) GetForegroundColor() color.Color {
 	return color.White
 }
-func (e *EmptyViewableEntity) Render() *fyne.Container { return fyne.NewContainer(nil) }
-func (e *EmptyViewableEntity) Highlight()              {}
-func (e *EmptyViewableEntity) GetViewableRange() layout.Dimensions {
-	return layout.Dimensions{Width: 20, Height: 20}
+func (e *EmptyViewableEntity) Render() *fyne.Container {
+	return container.NewWithoutLayout()
+}
+func (e *EmptyViewableEntity) Highlight() {}
+func (e *EmptyViewableEntity) GetViewableRange() window.Dimensions {
+	return window.Dimensions{Width: 20, Height: 20}
 }
 
 func NewEmptyViewableEntity() *EmptyViewableEntity {

@@ -2,20 +2,21 @@ package world
 
 import (
 	"fmt"
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
-	"github.com/ojrac/opensimplex-go"
-	"go.uber.org/zap"
 	"image"
 	"image/color"
 	"image/draw"
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
-	"pirate-wars/cmd/layout"
 	"pirate-wars/cmd/terrain"
+	"pirate-wars/cmd/window"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
+	"github.com/ojrac/opensimplex-go"
+	"go.uber.org/zap"
 )
 
 type ViewType int
@@ -26,18 +27,22 @@ const ViewTypeMiniMap = 2
 
 var minimapPopup *widget.PopUp
 
+const TileSizePx = 512
+const TileSizeCells = TileSizePx / 12
+
 type Props struct {
-	width       int
-	height      int
 	scale       float64
 	lacunarity  float64
 	persistence float64
 	octaves     int
 }
 
+type Tile struct {
+	image *canvas.Image
+	X, Y  int
+}
+
 var WorldProps = Props{
-	width:       common.WorldCols,
-	height:      common.WorldRows,
 	scale:       60,
 	lacunarity:  2.0,
 	persistence: 0.5,
@@ -46,19 +51,18 @@ var WorldProps = Props{
 
 type MapView struct {
 	logger       *zap.SugaredLogger
-	terrain      [][]terrain.Type
-	grid         *fyne.Container
-	minimapImage *image.RGBA
-	mapItems     []MapItem
+	terrain      *terrain.Terrain
+	minimap      *image.RGBA
+	overlayItems []OverlayItems
 }
 
-type MapItem interface {
+type OverlayItems interface {
 	GetPos() common.Coordinates
 	GetTerrainType() terrain.Type
 }
 
-func (world *MapView) SetMapItem(m MapItem) {
-	world.mapItems = append(world.mapItems, m)
+func (world *MapView) SetMapItem(m OverlayItems) {
+	world.overlayItems = append(world.overlayItems, m)
 }
 
 func (world *MapView) IsAdjacentToWater(c common.Coordinates) bool {
@@ -92,11 +96,11 @@ func (world *MapView) GetAdjacentCoords(c common.Coordinates) []common.Coordinat
 }
 
 func (world *MapView) GetWidth() int {
-	return len(world.terrain[0])
+	return len(world.terrain.Cells[0])
 }
 
 func (world *MapView) GetHeight() int {
-	return len(world.terrain)
+	return len(world.terrain.Cells)
 }
 
 func (world *MapView) IsPassableByBoat(c common.Coordinates) bool {
@@ -110,15 +114,15 @@ func (world *MapView) IsPassable(c common.Coordinates) bool {
 }
 
 func (world *MapView) GetPositionType(c common.Coordinates) terrain.Type {
-	return world.terrain[c.X][c.Y]
+	return world.terrain.Cells[c.X][c.Y]
 }
 
 func (world *MapView) SetPositionType(c common.Coordinates, tt terrain.Type) {
-	world.terrain[c.X][c.Y] = tt
+	world.terrain.Cells[c.X][c.Y] = tt
 }
 
 func (world *MapView) IsLand(c common.Coordinates) bool {
-	tt := world.terrain[c.X][c.Y]
+	tt := world.terrain.Cells[c.X][c.Y]
 	if tt == terrain.TypeBeach || tt == terrain.TypeLowland || tt == terrain.TypeHighland || tt == terrain.TypePeak || tt == terrain.TypeRock {
 		return true
 	}
@@ -135,26 +139,53 @@ func (world *MapView) RandomPositionDeepWater() common.Coordinates {
 	}
 }
 
-func (world *MapView) GetWorldGrid() *fyne.Container {
-	return world.grid
+func (world *MapView) renderTile(tx, ty int) *Tile {
+	img := image.NewRGBA(image.Rect(0, 0, TileSizePx, TileSizePx))
+	for y := ty; y < ty+TileSizeCells && y < 800; y++ {
+		for x := tx; x < tx+TileSizeCells && x < 800; x++ {
+			for py := 0; py < 12; py++ {
+				for px := 0; px < 12; px++ {
+					img.Set((x-tx)*12+px, (y-ty)*12+py, world.terrain.Cells[y][x].GetColor())
+				}
+			}
+		}
+	}
+	fyneImg := canvas.NewImageFromImage(img)
+	fyneImg.FillMode = canvas.ImageFillStretch
+	fyneImg.Resize(fyne.NewSize(TileSizePx, TileSizePx))
+	return &Tile{image: fyneImg, X: tx, Y: ty}
 }
 
-func (world *MapView) createBaseMinimapImage() *image.RGBA {
+func (world *MapView) generateBaseMinimapImage() {
+	world.logger.Info(fmt.Sprintf("Generating minimap"))
 	cols := common.WorldCols
 	rows := common.WorldRows
-	img := image.NewRGBA(image.Rect(0, 0, layout.MiniMapArea.Width, layout.MiniMapArea.Height))
-	cellWidth := float32(layout.MiniMapArea.Width) / float32(cols)
-	cellHeight := float32(layout.MiniMapArea.Height) / float32(rows)
+	cellWidth := float32(window.MiniMapArea.Width) / float32(cols)
+	cellHeight := float32(window.MiniMapArea.Height) / float32(rows)
+
+	world.minimap = world.createRawMapImage(cellWidth, cellHeight, cols, rows, window.MiniMapArea.Width, window.MiniMapArea.Height)
+}
+
+func (world *MapView) createRawMapImage(cellWidth, cellHeight float32, cols, rows int, imageWidth, imageHeight int) *image.RGBA {
+	img := image.NewRGBA(image.Rect(0, 0, imageWidth, imageHeight))
+
+	fmt.Print(".")
+	count := 0
 
 	for r := 0; r < rows; r++ {
 		for c := 0; c < cols; c++ {
 			for y := int(float32(r) * cellHeight); y < int(float32(r+1)*cellHeight); y++ {
 				for x := int(float32(c) * cellWidth); x < int(float32(c+1)*cellWidth); x++ {
-					img.Set(x, y, world.terrain[c][r].GetColor())
+					img.Set(x, y, world.terrain.Cells[c][r].GetColor())
+					count++
+					if count%2000 == 0 {
+						fmt.Print(".")
+					}
 				}
 			}
 		}
 	}
+	fmt.Println("done")
 	return img
 }
 
@@ -163,12 +194,12 @@ func (world *MapView) getMinimapWithDot(pos common.Coordinates) *image.RGBA {
 	rows := common.WorldRows
 
 	// Create a copy of the base image
-	img := image.NewRGBA(world.minimapImage.Rect)
-	draw.Draw(img, img.Bounds(), world.minimapImage, image.Point{}, draw.Src)
+	img := image.NewRGBA(world.minimap.Rect)
+	draw.Draw(img, img.Bounds(), world.minimap, image.Point{}, draw.Src)
 
 	// Calculate pixel position of player on minimap
-	cellWidth := float32(layout.MiniMapArea.Width) / float32(cols)
-	cellHeight := float32(layout.MiniMapArea.Height) / float32(rows)
+	cellWidth := float32(window.MiniMapArea.Width) / float32(cols)
+	cellHeight := float32(window.MiniMapArea.Height) / float32(rows)
 
 	x := int(float32(pos.X) * cellWidth)
 	y := int(float32(pos.Y) * cellHeight)
@@ -179,7 +210,7 @@ func (world *MapView) getMinimapWithDot(pos common.Coordinates) *image.RGBA {
 		for dx := -dotSize / 2; dx <= dotSize/2; dx++ {
 			px := x + dx
 			py := y + dy
-			if px >= 0 && px < layout.MiniMapArea.Width && py >= 0 && py < layout.MiniMapArea.Height {
+			if px >= 0 && px < window.MiniMapArea.Width && py >= 0 && py < window.MiniMapArea.Height {
 				img.Set(px, py, color.White)
 			}
 		}
@@ -192,8 +223,8 @@ func (world *MapView) ShowMinimapPopup(pos common.Coordinates, w fyne.Window) {
 	minimapImage := canvas.NewImageFromImage(world.getMinimapWithDot(pos))
 	minimapContainer := container.NewStack(minimapImage)
 	minimapPopup = widget.NewPopUp(minimapContainer, w.Canvas())
-	minimapPopup.Resize(fyne.NewSize(float32(layout.MiniMapArea.Width), float32(layout.MiniMapArea.Height)))
-	minimapPopup.Move(fyne.NewPos(float32(layout.Window.Width-layout.MiniMapArea.Width)/2, float32(layout.Window.Height-layout.MiniMapArea.Height)/2))
+	minimapPopup.Resize(fyne.NewSize(float32(window.MiniMapArea.Width), float32(window.MiniMapArea.Height)))
+	minimapPopup.Move(fyne.NewPos(float32(window.Window.Width-window.MiniMapArea.Width)/2, float32(window.Window.Height-window.MiniMapArea.Height)/2))
 	minimapPopup.Show()
 }
 
@@ -201,15 +232,11 @@ func (world *MapView) HideMinimapPopup() {
 	minimapPopup.Hide()
 }
 
-func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, entity entities.ViewableEntity) {
+func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, entity entities.ViewableEntity) fyne.CanvasObject {
 	p := avatar.GetPos()
 	h := entity.GetPos() // potential entity to highlight (selected)
-	v := layout.CalcViewport(p)
-	inc := layout.MapIncrementFactor{
-		1,
-		1,
-	}
-	g := world.grid
+	vpr := window.GetViewportRegion(p)
+	vpc := container.NewWithoutLayout()
 
 	// overlay map of all avatars, player and npcs
 	// instead of terrain, in these overlay positions we generate the avatars
@@ -226,66 +253,69 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		world.logger.Debug(fmt.Sprintf("[%v] highlighting", entity.GetID()))
 		// actual entity to examine, we should highlight it
 		entity.Highlight()
-		overlay[fmt.Sprintf("%03d%03d", h.X, h.Y)] = entity
+		// Don't add entity to overlay as it doesn't implement AvatarReadOnly
+		// overlay[fmt.Sprintf("%03d%03d", h.X, h.Y)] = entity
 	}
 
-	world.logger.Info(fmt.Sprintf("--"))
-	world.logger.Info(fmt.Sprintf("Player position %+v", p))
-	world.logger.Info(fmt.Sprintf("Painting world with %v viewable NPCs", len(npcs)))
-	world.logger.Info(fmt.Sprintf("Viewport Region %+v", v))
-	world.logger.Info(fmt.Sprintf("Increment amount %+v", inc))
-	world.logger.Info(fmt.Sprintf("Grid length %v", len(g.Objects)))
+	// world.logger.Info("--")
+	// world.logger.Info("Player position %+v", p)
+	// world.logger.Info("Painting world with %v viewable NPCs", len(npcs))
+	// world.logger.Info("Viewport Region %+v", v)
+	// world.logger.Info("Increment amount %+v", inc)
+	// world.logger.Info("Grid length %v", len(g.Objects))
 
-	var cIdx = 0
-	for y := v.Top; y < v.Bottom; y = y + inc.Y {
-		for x := v.Left; x < v.Right; x = x + inc.X {
-			item, ok := overlay[fmt.Sprintf("%03d%03d", x, y)]
-			if ok {
-				//world.logger.Debug(fmt.Sprintf("[%03d%03d] setting NPC at %v", x, y, item.GetPos()))
-				g.Objects[cIdx] = item.Render()
-			} else {
-				//world.logger.Debug(
-				//	fmt.Sprintf("grid[%v] [grid len(%v)] = terrain[%v][%v] [terrain len(%v), gridY len(%v)]",
-				//		cIdx, len(g.Objects), x, y, len(world.terrain), len(world.terrain[0])))
-				g.Objects[cIdx] = world.terrain[x][y].Render()
+	for x := 0; x < vpr.Width; x++ {
+		for y := 0; y < vpr.Height; y++ {
+			// Calculate map coordinates
+			mapX := vpr.X + x
+			mapY := vpr.Y + y
+
+			// Skip if outside map bounds
+			if mapX < 0 || mapX >= common.WorldCols || mapY < 0 || mapY >= common.WorldRows {
+				continue
 			}
-			cIdx++
+
+			var cell fyne.CanvasObject
+			item, ok := overlay[fmt.Sprintf("%03d%03d", mapX, mapY)]
+			if ok {
+				cell = item.Render()
+			} else {
+				cell = world.terrain.Cells[mapX][mapY].Render()
+			}
+			cell.Resize(fyne.NewSize(float32(window.CellSize), float32(window.CellSize)))
+			cell.Move(fyne.NewPos(float32(x*window.CellSize), float32(y*window.CellSize)))
+			vpc.Add(cell)
+
 		}
-		//world.logger.Debug(
-		//	fmt.Sprintf("Finished block terrain[%v][%v] - finished when [%v => %v] len(g.Objects):%v",
-		//		v.Right, y, y, v.Bottom, len(g.Objects)))
 	}
-	g.Refresh()
+
+	return vpc
 }
 
 func Init(logger *zap.SugaredLogger) *MapView {
-	t := make([][]terrain.Type, WorldProps.width)
-	for i := range t {
-		t[i] = make([]terrain.Type, WorldProps.height)
-	}
+	t := &terrain.Terrain{}
 	world := MapView{
-		logger:   logger,
-		terrain:  t,
-		grid:     layout.CreateGridContainer(layout.GetCellList(false), false),
-		mapItems: []MapItem{},
+		logger:       logger,
+		terrain:      t,
+		overlayItems: []OverlayItems{},
 	}
 
 	world.logger.Info("Initializing world...")
 	noise := opensimplex.New(rand.Int63())
 
-	for x := 0; x < WorldProps.width; x++ {
-		for y := 0; y < WorldProps.height; y++ {
-			//sample x and y and apply scale
+	for x := 0; x < common.WorldCols; x++ {
+		for y := 0; y < common.WorldRows; y++ {
+			// sample x and y and apply scale
 			xFloat := float64(x) / WorldProps.scale
 			yFloat := float64(y) / WorldProps.scale
 
-			//init values for octave calculation
+			// init values for octave calculation
 			frequency := 1.0
 			amplitude := 1.0
 			normalizeOctaves := 0.0
 			total := 0.0
 
-			//octave calculation
+			// octave calculation
 			for i := 0; i < WorldProps.octaves; i++ {
 				total += noise.Eval2(xFloat*frequency, yFloat*frequency) * amplitude
 				normalizeOctaves += amplitude
@@ -297,7 +327,7 @@ func Init(logger *zap.SugaredLogger) *MapView {
 				X: x,
 				Y: y,
 			}
-			//normalize to -1 to 1, and then from 0 to 1 (this is for the ability to use grayscale, if using colors could keep from -1 to 1)
+			// normalize to -1 to 1, and then from 0 to 1 (this is for the ability to use grayscale, if using colors could keep from -1 to 1)
 			var s = (total/normalizeOctaves + 1) / 2
 			if s > 0.59 {
 				world.SetPositionType(c, terrain.TypeDeepWater)
@@ -318,6 +348,7 @@ func Init(logger *zap.SugaredLogger) *MapView {
 			}
 		}
 	}
-	world.minimapImage = world.createBaseMinimapImage()
+
+	world.generateBaseMinimapImage()
 	return &world
 }

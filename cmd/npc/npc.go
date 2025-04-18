@@ -2,16 +2,17 @@ package npc
 
 import (
 	"fmt"
-	"fyne.io/fyne/v2"
-	"go.uber.org/zap"
 	"image/color"
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
-	"pirate-wars/cmd/layout"
 	"pirate-wars/cmd/town"
+	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
 	"sort"
+
+	"fyne.io/fyne/v2"
+	"go.uber.org/zap"
 )
 
 // ChanceToMove Percentage chance an NPC will calculate movement per tick
@@ -77,8 +78,8 @@ func (n *Npc) GetBackgroundColor() color.Color {
 	return n.avatar.GetBackgroundColor()
 }
 
-func (n *Npc) GetViewableRange() layout.Dimensions {
-	return layout.Dimensions{Width: 20, Height: 20}
+func (n *Npc) GetViewableRange() window.Dimensions {
+	return window.Dimensions{Width: 20, Height: 20}
 }
 
 func (n *Npc) Highlight() {
@@ -201,13 +202,13 @@ func (ns *Npcs) GetList() []Npc {
 	return ns.list
 }
 
-func (ns *Npcs) GetVisible(c common.Coordinates, vr layout.Dimensions) Npcs {
-	v := layout.CalcViewport(c)
+func (ns *Npcs) GetVisible(c common.Coordinates, vr window.Dimensions) Npcs {
+	vp := window.GetViewportRegion(c)
 	viewable := map[int]Npc{}
 	keys := []int{}
 	for _, npc := range ns.list {
 		p := npc.GetPos()
-		if v.IsPositionWithin(p) {
+		if vp.IsPositionWithin(p) {
 			keys = append(keys, p.X)
 			viewable[p.X] = npc
 		}

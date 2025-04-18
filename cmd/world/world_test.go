@@ -1,13 +1,14 @@
 package world
 
 import (
-	"fyne.io/fyne/v2"
-	"go.uber.org/zap"
 	"image/color"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
-	"pirate-wars/cmd/layout"
+	"pirate-wars/cmd/window"
 	"testing"
+
+	"fyne.io/fyne/v2"
+	"go.uber.org/zap"
 )
 
 func initTestLogger() *zap.SugaredLogger {
@@ -33,7 +34,7 @@ func (av AvatarMock) GetFlag() string                     { return "" }
 func (av AvatarMock) GetType() string                     { return "" }
 func (av AvatarMock) GetName() string                     { return "" }
 func (av AvatarMock) GetForegroundColor() color.Color     { return color.White }
-func (av AvatarMock) GetViewableRange() layout.Dimensions { return layout.Dimensions{} }
+func (av AvatarMock) GetViewableRange() window.Dimensions { return window.Dimensions{} }
 
 func TestWorldInit(t *testing.T) {
 	t.Cleanup(cleanup)

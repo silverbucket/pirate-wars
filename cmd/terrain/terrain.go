@@ -2,10 +2,11 @@ package terrain
 
 import (
 	"fmt"
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"image/color"
 	"pirate-wars/cmd/common"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 )
 
 // Icon ideas
@@ -25,6 +26,10 @@ const (
 	TypeTown         = 8
 	TypeGhostTown    = 9
 )
+
+type Terrain struct {
+	Cells [common.WorldCols][common.WorldRows]Type
+}
 
 type Type int
 

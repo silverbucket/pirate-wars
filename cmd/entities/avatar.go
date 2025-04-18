@@ -2,11 +2,12 @@ package entities
 
 import (
 	"fmt"
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"image/color"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/layout"
+	"pirate-wars/cmd/window"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 )
 
 type Avatar struct {
@@ -20,7 +21,7 @@ type Avatar struct {
 type AvatarReadOnly interface {
 	GetPos() common.Coordinates
 	Render() *fyne.Container
-	GetViewableRange() layout.Dimensions
+	GetViewableRange() window.Dimensions
 }
 
 type ColorScheme struct {
@@ -56,8 +57,8 @@ func (a *Avatar) GetForegroundColor() color.Color {
 	return a.fgColor
 }
 
-func (a *Avatar) GetViewableRange() layout.Dimensions {
-	return layout.Dimensions{
+func (a *Avatar) GetViewableRange() window.Dimensions {
+	return window.Dimensions{
 		Width:  20,
 		Height: 20,
 	}

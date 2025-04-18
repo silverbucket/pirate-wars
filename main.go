@@ -2,20 +2,23 @@ package main
 
 import (
 	"fmt"
+	"image/color"
+	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/npc"
+	"pirate-wars/cmd/player"
+	"pirate-wars/cmd/town"
+	"pirate-wars/cmd/window"
+	"pirate-wars/cmd/world"
+	"time"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"go.uber.org/zap"
-	"image/color"
-	"pirate-wars/cmd/entities"
-	"pirate-wars/cmd/layout"
-	"pirate-wars/cmd/npc"
-	"pirate-wars/cmd/player"
-	"pirate-wars/cmd/town"
-	"pirate-wars/cmd/world"
-	"time"
 )
 
 const BASE_LOG_LEVEL = zap.DebugLevel
@@ -23,7 +26,7 @@ const DEV_MODE = true
 
 var ViewType = world.ViewTypeMainMap
 
-type model struct {
+type GameState struct {
 	logger *zap.SugaredLogger
 	world  *world.MapView
 	player *entities.Avatar
@@ -90,47 +93,87 @@ type model struct {
 //	}
 //}
 
-func initModel(logger *zap.SugaredLogger) *model {
-	m := model{}
-	m.logger = logger
-	m.world = world.Init(m.logger)
-	m.towns = town.Init(m.world, m.logger)
-	m.npcs = npc.Init(m.towns, m.world, m.logger)
-	m.player = player.Create(m.world)
-	return &m
+func initGameState(logger *zap.SugaredLogger) *GameState {
+	gs := GameState{}
+	gs.logger = logger
+	gs.world = world.Init(gs.logger)
+	gs.towns = town.Init(gs.world, gs.logger)
+	gs.npcs = npc.Init(gs.towns, gs.world, gs.logger)
+	gs.player = player.Create(gs.world)
+	return &gs
 }
 
-func createSidebar() *fyne.Container {
+func createSidePanel(pos common.Coordinates) *fyne.Container {
 	// Create the sidebar
-	sidebar := container.NewVBox(
-		widget.NewLabel("Info Panel"),
-		widget.NewLabel("This is the right panel."),
-		widget.NewLabel("Width: ~1/4 of window"),
+	createSidePanel := container.NewVBox(
+		widget.NewLabel("Ship Status"),
+		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
+		widget.NewLabel(fmt.Sprintf("Postion (x: %d, y: %d)", pos.X, pos.Y)),
+		widget.NewLabel(fmt.Sprintf("Health: %d", 100)),
+		widget.NewLabel(fmt.Sprintf("Speed: %d", 5)),
+		widget.NewLabel(fmt.Sprintf("Cargo: %d", 250)),
+		layout.NewSpacer(),
+		widget.NewLabel("Map Info"),
+		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
+		widget.NewLabel(fmt.Sprintf("Map: %dx%d", common.WorldCols, common.WorldRows)),
+		widget.NewLabel(fmt.Sprintf("Viewport: %dx%d", window.ViewPort.Width/window.CellSize, window.ViewPort.Height/window.CellSize)),
+		layout.NewSpacer(),
+		widget.NewLabel("Window"),
+		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
+		widget.NewLabel(fmt.Sprintf("Window: %dx%dpx", window.Window.Width, window.Window.Height)),
+		widget.NewLabel(fmt.Sprintf("Viewport: %dx%dpx", window.ViewPort.Width, window.ViewPort.Height)),
+		widget.NewLabel(fmt.Sprintf("Side Panel: %dx%dpx", window.SidePanel.Width, window.SidePanel.Height)),
+		widget.NewLabel(fmt.Sprintf("Action Menu: %dx%dpx", window.ActionMenu.Width, window.ActionMenu.Height)),
 	)
-	sidebar.Resize(fyne.NewSize(float32(layout.InfoPane.Width), float32(layout.InfoPane.Height)))
-	return sidebar
+	//createSidePanel.Resize(fyne.NewSize(float32(layout.InfoPane.Width), float32(layout.InfoPane.Height)))
+	//return sidebar
+
+	// Create rectSide with MinSize width 100px
+	rectSide := canvas.NewRectangle(color.Transparent)
+	rectSide.SetMinSize(fyne.NewSize(100, 0))
+	// Create fixedSidePanel
+	return container.NewStack(rectSide, createSidePanel)
 }
 
 func createActionMenu() *fyne.Container {
 	// action menu
-	actionMenu := container.NewVBox(
+	actionMenu := container.NewHBox(
 		widget.NewLabel("Action Menu"),
+		widget.NewButton("Right", func() {
+		}),
+		widget.NewButton("Left", func() {
+		}),
+		widget.NewButton("Up", func() {
+		}),
+		widget.NewButton("Down", func() {
+		}),
+		widget.NewButton("Settings", func() {
+			// Add settings logic
+		}),
+		canvas.NewRectangle(color.RGBA{R: 180, G: 180, B: 180, A: 255}),
 	)
-	actionMenu.Resize(fyne.NewSize(float32(layout.ActionMenu.Width), float32(layout.ActionMenu.Height)))
-	return actionMenu
+	//actionMenu.Resize(fyne.NewSize(float32(layout.ActionMenu.Width), float32(layout.ActionMenu.Height)))
+	//return actionMenu
+
+	// Create rectAction with MinSize height 50px
+	rectAction := canvas.NewRectangle(color.Transparent)
+	rectAction.SetMinSize(fyne.NewSize(0, 50))
+	// Create fixedActionMenu
+	return container.NewStack(rectAction, actionMenu)
 }
 
-func (m *model) processTick() {
+func (m *GameState) processTick() {
 	m.npcs.CalcMovements()
-	// convert to readonly type for display
-	visibleNpcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
-	visible := []entities.AvatarReadOnly{}
-	for _, n := range visibleNpcs.GetList() {
-		visible = append(visible, &n)
-	}
+	m.updateWorld()
+	// // convert to readonly type for display
+	// visibleNpcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
+	// visible := []entities.AvatarReadOnly{}
+	// for _, n := range visibleNpcs.GetList() {
+	// 	visible = append(visible, &n)
+	// }
 }
 
-func (m *model) updateWorld() {
+func (m *GameState) updateWorld() fyne.CanvasObject {
 	// get visible NPCs
 	highlight := ExamineData.GetFocusedEntity()
 	visible := []entities.AvatarReadOnly{}
@@ -138,7 +181,7 @@ func (m *model) updateWorld() {
 		visible = append(visible, &n)
 	}
 
-	m.world.Paint(m.player, visible, highlight)
+	return m.world.Paint(m.player, visible, highlight)
 }
 
 // ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
@@ -147,68 +190,81 @@ func main() {
 	logger.Info("Starting...")
 
 	w := app.New().NewWindow("Pirate Wars")
-	w.Resize(fyne.NewSize(float32(layout.Window.Width), float32(layout.Window.Height)))
-	w.SetFixedSize(true) // don't allow resizing for now
 
-	logger.Info(fmt.Sprintf("Window Dimensions %+v", layout.Window))
-	logger.Info(fmt.Sprintf("Viewable Area %+v", layout.ViewableArea))
+	logger.Info(fmt.Sprintf("Window Dimensions %+v", window.Window))
+	logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewPort))
 
-	m := initModel(logger)
+	gameState := initGameState(logger)
+
 	// redrew minimap every time screen resizes
-	//m.world.GenerateMiniMap()
-	m.updateWorld()
+	mainContent := gameState.updateWorld()
 
-	sidebar := createSidebar()
+	sidePanel := createSidePanel(gameState.player.GetPos())
 	actionMenu := createActionMenu()
 
 	// Separators
-	vertLine := canvas.NewRectangle(color.Gray{Y: 128})
-	vertLine.Resize(fyne.NewSize(2, 718))
-	horizLine := canvas.NewRectangle(color.Gray{Y: 128})
-	horizLine.Resize(fyne.NewSize(924, 2))
+	//vertLine := canvas.NewRectangle(color.Gray{Y: 128})
+	//vertLine.Resize(fyne.NewSize(2, 718))
+	//horizLine := canvas.NewRectangle(color.Gray{Y: 128})
+	//horizLine.Resize(fyne.NewSize(924, 2))
 
 	// Main layout
-	content := container.NewBorder(
-		nil,
-		container.NewVBox(horizLine, actionMenu),
-		nil,
-		container.NewHBox(sidebar, vertLine),
-		m.world.GetWorldGrid(),
+	//content := container.NewBorder(
+	//	nil,
+	//	container.NewVBox(horizLine, actionMenu),
+	//	nil,
+	//	container.NewHBox(sidebar, vertLine),
+	//	g,
+	//)
+	//content := container.NewBorder(
+	//	nil,
+	//	actionMenu,
+	//	nil,
+	//	sidebar,
+	//	g,
+	//)
+
+	// Create main content
+	//mainContent := container.NewVBox(
+	//	widget.NewLabel("Main Content"),
+	//	canvas.NewRectangle(color.RGBA{R: 220, G: 220, B: 220, A: 255}),
+	//)
+
+	w.SetContent(
+		container.NewBorder(
+			nil,         // top
+			actionMenu,  // bottom
+			nil,         // left
+			sidePanel,   // right
+			mainContent, // center
+		),
 	)
 
-	w.SetContent(content)
+	w.Resize(fyne.NewSize(float32(window.Window.Width), float32(window.Window.Height)))
+	w.SetFixedSize(true) // don't allow resizing for now
 
 	// Handle refresh signals from the goroutine in the main thread
-	go func() {
-		for {
-			time.Sleep(500 * time.Millisecond)
-			// This runs on the main thread because ShowAndRun() processes it
-			if ViewType == world.ViewTypeMainMap {
-				m.processTick()
-				time.AfterFunc(0, func() {
-					m.updateWorld()
-				})
-			}
-		}
-	}()
+	go gameState.gameLoop()
 
 	w.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
-		time.AfterFunc(0, func() {
-
-			if ViewType == world.ViewTypeMainMap {
-				m.processInput(key, sailingKeyMap)
-			} else if ViewType == world.ViewTypeMiniMap {
-				m.processInput(key, miniMapKeyMap)
-			}
-
-			if ViewType == world.ViewTypeMiniMap {
-				m.world.ShowMinimapPopup(m.player.GetPos(), w)
-			} else {
-				m.world.HideMinimapPopup()
-			}
-		})
+		gameState.handleKeyPress(key, w)
 	})
 
 	w.ShowAndRun()
+
 	logger.Info("Exiting...")
+}
+
+func (m *GameState) gameLoop() {
+	for {
+		time.Sleep(500 * time.Millisecond)
+		// This runs on the main thread because ShowAndRun() processes it
+		if ViewType == world.ViewTypeMainMap {
+			m.processTick()
+			// Use fyne.Do to ensure UI updates happen on the main thread
+			fyne.Do(func() {
+				m.updateWorld()
+			})
+		}
+	}
 }
