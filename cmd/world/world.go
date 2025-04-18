@@ -264,8 +264,8 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 	// world.logger.Info("Increment amount %+v", inc)
 	// world.logger.Info("Grid length %v", len(g.Objects))
 
-	for x := 0; x < vpr.Width; x++ {
-		for y := 0; y < vpr.Height; y++ {
+	for x := 0; x < vpr.Cols; x++ {
+		for y := 0; y < vpr.Rows; y++ {
 			// Calculate map coordinates
 			mapX := vpr.X + x
 			mapY := vpr.Y + y
@@ -289,6 +289,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		}
 	}
 
+	vpc.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
 	return vpc
 }
 

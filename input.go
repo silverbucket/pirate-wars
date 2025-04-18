@@ -36,11 +36,11 @@ func (m *GameState) handleKeyPress(key *fyne.KeyEvent, w fyne.Window) {
 		m.processInput(key, miniMapKeyMap)
 	}
 
-	if ViewType == world.ViewTypeMiniMap {
-		m.world.ShowMinimapPopup(m.player.GetPos(), w)
-	} else {
-		m.world.HideMinimapPopup()
-	}
+	// if ViewType == world.ViewTypeMiniMap {
+	// 	m.world.ShowMinimapPopup(m.player.GetPos(), w)
+	// } else {
+	// 	m.world.HideMinimapPopup()
+	// }
 }
 
 func (m *GameState) processInput(key *fyne.KeyEvent, km KeyMap) {
@@ -89,9 +89,9 @@ var sailingKeyMap = KeyMap{
 		help: "minimap",
 		cat:  KeyCatAux,
 		exec: func(m GameState) {
-			fmt.Println("minimap called %v", ViewType)
+			fmt.Printf("minimap called %v\n", ViewType)
 			ViewType = world.ViewTypeMiniMap
-			fmt.Println("minimap set %v", ViewType)
+			fmt.Printf("minimap set %v\n", ViewType)
 		},
 	},
 	{

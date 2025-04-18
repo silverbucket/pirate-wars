@@ -105,7 +105,7 @@ func initGameState(logger *zap.SugaredLogger) *GameState {
 
 func createSidePanel(pos common.Coordinates) *fyne.Container {
 	// Create the sidebar
-	createSidePanel := container.NewVBox(
+	sidePanel := container.NewVBox(
 		widget.NewLabel("Ship Status"),
 		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
 		widget.NewLabel(fmt.Sprintf("Postion (x: %d, y: %d)", pos.X, pos.Y)),
@@ -116,23 +116,21 @@ func createSidePanel(pos common.Coordinates) *fyne.Container {
 		widget.NewLabel("Map Info"),
 		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
 		widget.NewLabel(fmt.Sprintf("Map: %dx%d", common.WorldCols, common.WorldRows)),
-		widget.NewLabel(fmt.Sprintf("Viewport: %dx%d", window.ViewPort.Width/window.CellSize, window.ViewPort.Height/window.CellSize)),
+		widget.NewLabel(fmt.Sprintf("Viewport: %dx%d", window.ViewPort.Region.Cols, window.ViewPort.Region.Rows)),
 		layout.NewSpacer(),
 		widget.NewLabel("Window"),
 		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
 		widget.NewLabel(fmt.Sprintf("Window: %dx%dpx", window.Window.Width, window.Window.Height)),
-		widget.NewLabel(fmt.Sprintf("Viewport: %dx%dpx", window.ViewPort.Width, window.ViewPort.Height)),
+		widget.NewLabel(fmt.Sprintf("Viewport: %dx%dpx", window.ViewPort.Dimensions.Width, window.ViewPort.Dimensions.Height)),
 		widget.NewLabel(fmt.Sprintf("Side Panel: %dx%dpx", window.SidePanel.Width, window.SidePanel.Height)),
 		widget.NewLabel(fmt.Sprintf("Action Menu: %dx%dpx", window.ActionMenu.Width, window.ActionMenu.Height)),
 	)
-	//createSidePanel.Resize(fyne.NewSize(float32(layout.InfoPane.Width), float32(layout.InfoPane.Height)))
-	//return sidebar
 
-	// Create rectSide with MinSize width 100px
 	rectSide := canvas.NewRectangle(color.Transparent)
-	rectSide.SetMinSize(fyne.NewSize(100, 0))
-	// Create fixedSidePanel
-	return container.NewStack(rectSide, createSidePanel)
+	rectSide.SetMinSize(fyne.NewSize(float32(window.SidePanel.Width), 0))
+
+	sidePanel.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
+	return container.NewStack(rectSide, sidePanel)
 }
 
 func createActionMenu() *fyne.Container {
@@ -152,13 +150,11 @@ func createActionMenu() *fyne.Container {
 		}),
 		canvas.NewRectangle(color.RGBA{R: 180, G: 180, B: 180, A: 255}),
 	)
-	//actionMenu.Resize(fyne.NewSize(float32(layout.ActionMenu.Width), float32(layout.ActionMenu.Height)))
-	//return actionMenu
 
-	// Create rectAction with MinSize height 50px
 	rectAction := canvas.NewRectangle(color.Transparent)
-	rectAction.SetMinSize(fyne.NewSize(0, 50))
-	// Create fixedActionMenu
+	rectAction.SetMinSize(fyne.NewSize(0, float32(window.ActionMenu.Height)))
+
+	actionMenu.Resize(fyne.NewSize(float32(window.ActionMenu.Width), float32(window.ActionMenu.Height)))
 	return container.NewStack(rectAction, actionMenu)
 }
 
@@ -196,33 +192,38 @@ func main() {
 
 	gameState := initGameState(logger)
 
-	// redrew minimap every time screen resizes
 	mainContent := gameState.updateWorld()
 
 	sidePanel := createSidePanel(gameState.player.GetPos())
 	actionMenu := createActionMenu()
 
 	// Separators
-	//vertLine := canvas.NewRectangle(color.Gray{Y: 128})
-	//vertLine.Resize(fyne.NewSize(2, 718))
-	//horizLine := canvas.NewRectangle(color.Gray{Y: 128})
-	//horizLine.Resize(fyne.NewSize(924, 2))
+	vertLine := canvas.NewRectangle(color.Gray{Y: 128})
+	vertLine.Resize(fyne.NewSize(2, 718))
+	horizLine := canvas.NewRectangle(color.Gray{Y: 128})
+	horizLine.Resize(fyne.NewSize(924, 2))
 
 	// Main layout
-	//content := container.NewBorder(
-	//	nil,
-	//	container.NewVBox(horizLine, actionMenu),
-	//	nil,
-	//	container.NewHBox(sidebar, vertLine),
-	//	g,
-	//)
-	//content := container.NewBorder(
-	//	nil,
-	//	actionMenu,
-	//	nil,
-	//	sidebar,
-	//	g,
-	//)
+	content := container.NewBorder(
+		nil,
+		container.NewVBox(horizLine, actionMenu),
+		nil,
+		container.NewHBox(sidePanel, vertLine),
+		container.NewMax(
+			container.NewPadded(
+				container.NewWithoutLayout(mainContent),
+			),
+		),
+	)
+	w.SetContent(content)
+
+	// content := container.NewBorder(
+	// 	nil,
+	// 	actionMenu,
+	// 	nil,
+	// 	sidebar,
+	// 	g,
+	// )
 
 	// Create main content
 	//mainContent := container.NewVBox(
@@ -230,15 +231,15 @@ func main() {
 	//	canvas.NewRectangle(color.RGBA{R: 220, G: 220, B: 220, A: 255}),
 	//)
 
-	w.SetContent(
-		container.NewBorder(
-			nil,         // top
-			actionMenu,  // bottom
-			nil,         // left
-			sidePanel,   // right
-			mainContent, // center
-		),
-	)
+	// w.SetContent(
+	// 	container.NewBorder(
+	// 		nil,         // top
+	// 		actionMenu,  // bottom
+	// 		nil,         // left
+	// 		sidePanel,   // right
+	// 		mainContent, // center
+	// 	),
+	// )
 
 	w.Resize(fyne.NewSize(float32(window.Window.Width), float32(window.Window.Height)))
 	w.SetFixedSize(true) // don't allow resizing for now
@@ -247,6 +248,7 @@ func main() {
 	go gameState.gameLoop()
 
 	w.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
+		fmt.Printf("Key pressed: %v\n", key)
 		gameState.handleKeyPress(key, w)
 	})
 
