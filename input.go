@@ -1,15 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/dialog"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/user_action"
 	"pirate-wars/cmd/world"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 )
 
 var ExamineData = user_action.Examine()
@@ -34,6 +34,8 @@ func (m *GameState) handleKeyPress(key *fyne.KeyEvent) {
 		m.processInput(key, sailingKeyMap)
 	} else if ViewType == world.ViewTypeMiniMap {
 		m.processInput(key, miniMapKeyMap)
+	} else if ViewType == world.ViewTypeExamine {
+		m.processInput(key, examineKeyMap)
 	}
 }
 
@@ -55,15 +57,14 @@ var miniMapKeyMap = KeyMap{
 	{
 		key:  []string{"ctrl+q"},
 		cat:  KeyCatAdmin,
-		help: "quit",
+		help: "(Ctrl+Q) quit",
 		exec: keyQuit,
 	},
 	{
 		key:  []string{"M", "Enter"},
 		cat:  KeyCatAux,
-		help: "exit minimap",
+		help: "(M) exit minimap",
 		exec: func(m GameState) {
-			fmt.Println("-- minimap exit set")
 			ViewType = world.ViewTypeMainMap
 		},
 	},
@@ -73,32 +74,33 @@ var sailingKeyMap = KeyMap{
 	{
 		key:  []string{"?"},
 		cat:  KeyCatAdmin,
-		help: "help",
+		help: "(?) Help",
 		exec: func(m GameState) {
 			Action = user_action.UserActionIdHelp
 		},
 	},
 	{
 		key:  []string{"M"},
-		help: "minimap",
+		help: "(M) minimap",
 		cat:  KeyCatAux,
 		exec: func(m GameState) {
-			fmt.Printf("minimap called %v\n", ViewType)
 			ViewType = world.ViewTypeMiniMap
-			fmt.Printf("minimap set %v\n", ViewType)
 		},
 	},
 	{
 		key:  []string{"X"},
-		help: "examine",
+		help: "(X) examine",
 		cat:  KeyCatAction,
 		exec: func(m GameState) {
 			Action = user_action.UserActionIdExamine
 			npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
 			ExamineData = user_action.Examine()
-			npcs.ForEach(func(n npc.Npc) {
-				ExamineData.AddItem(&n)
-			})
+			if len(npcs.GetList()) > 0 {
+				ViewType = world.ViewTypeExamine
+				npcs.ForEach(func(n npc.Npc) {
+					ExamineData.AddItem(&n)
+				})
+			}
 		},
 	},
 	{
@@ -239,86 +241,69 @@ var sailingKeyMap = KeyMap{
 	},
 	{
 		key:  []string{"ctrl+q"},
-		help: "quit",
+		help: "(Ctrl+Q) quit",
 		cat:  KeyCatAdmin,
 		exec: keyQuit,
 	},
 }
 
-//case "p":
-//	if ViewType == world.ViewTypeHeatMap {
-//		ViewType = world.ViewTypeMainMap
-//	} else {
-//		ViewType = world.ViewTypeHeatMap
-//	}
-
 var examineKeyMap = KeyMap{
 	{
-		key:  []string{"ctrl+q"},
-		help: "quit",
-		cat:  KeyCatAdmin,
-		exec: keyQuit,
-	},
-	{
 		key:  []string{"X", "Enter"},
-		help: "exit examine mode",
-		cat:  KeyCatAux,
+		help: "(X) exit examine mode",
+		cat:  KeyCatAction,
 		exec: func(m GameState) {
 			Action = user_action.UserActionIdNone
+			ViewType = world.ViewTypeMainMap
 			ExamineData = user_action.Examine()
 		},
 	},
 	{
 		key:  []string{"Left", "H", "A"},
-		help: "examine item left",
-		cat:  KeyCatNav,
+		help: "(←) examine left",
+		cat:  KeyCatAux,
 		exec: func(m GameState) {
 			ExamineData.FocusLeft()
 		},
 	},
 	{
 		key:  []string{"Right", "L", "D"},
-		help: "examine item right",
-		cat:  KeyCatNav,
+		help: "(→) examine right",
+		cat:  KeyCatAux,
 		exec: func(m GameState) {
 			ExamineData.FocusRight()
 		},
 	},
+	{
+		key:  []string{"ctrl+q"},
+		help: "(Ctrl+Q) quit",
+		cat:  KeyCatAdmin,
+		exec: keyQuit,
+	},
 }
 
-func helpText(km KeyMap, cat int) string {
-	r := ""
-	f := true
-	for _, k := range km {
-		if k.cat != cat {
-			continue
-		}
-		s := ""
-		t := true
-		for _, i := range k.key {
-			if t {
-				t = false
-			} else {
-				s += "/"
-			}
-			if i == "up" {
-				i = "↑"
-			} else if i == "down" {
-				i = "↓"
-			} else if i == "left" {
-				i = "←"
-			} else if i == "right" {
-				i = "→"
-			}
-			s += fmt.Sprintf("%v", i)
-		}
+func (gs *GameState) ActionItems() *fyne.Container {
+	elements := []fyne.CanvasObject{}
 
-		if f {
-			f = false
-		} else {
-			r += " • "
-		}
-		r += fmt.Sprintf("%v: %v", s, k.help)
+	var keyMap KeyMap
+	if ViewType == world.ViewTypeExamine {
+		elements = append(elements, widget.NewLabel("Examine"))
+		keyMap = examineKeyMap
+	} else if ViewType == world.ViewTypeMiniMap {
+		elements = append(elements, widget.NewLabel("MiniMap"))
+		keyMap = miniMapKeyMap
+	} else if ViewType == world.ViewTypeMainMap {
+		elements = append(elements, widget.NewLabel("Sailing"))
+		keyMap = sailingKeyMap
 	}
-	return dialog.HelpStyle(r)
+
+	for _, k := range keyMap {
+		if k.cat != KeyCatAdmin && k.cat != KeyCatNav {
+			elements = append(elements, widget.NewButton(k.help, func() {
+				k.exec(*gs)
+			}))
+		}
+	}
+
+	return container.NewHBox(elements...)
 }

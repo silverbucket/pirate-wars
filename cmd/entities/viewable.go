@@ -13,17 +13,20 @@ type ViewableEntity interface {
 	GetType() string
 	GetName() string
 	GetPos() common.Coordinates
+	GetPreviousPos() common.Coordinates
 	GetID() string
 	GetForegroundColor() color.Color
 	GetCharacter() string
 	Highlight()
-	// Render() *fyne.Container
 	GetViewableRange() window.Dimensions
 }
 
 type EmptyViewableEntity struct{}
 
 func (e *EmptyViewableEntity) GetPos() common.Coordinates {
+	return common.Coordinates{X: -1, Y: -1}
+}
+func (e *EmptyViewableEntity) GetPreviousPos() common.Coordinates {
 	return common.Coordinates{X: -1, Y: -1}
 }
 func (e *EmptyViewableEntity) GetID() string {

@@ -25,16 +25,16 @@ var Window Dimensions = Dimensions{
 }
 
 var SidePanel Dimensions = Dimensions{
-	Width:  120,
+	Width:  170,
 	Height: Window.Height,
 }
 
 var ActionMenu Dimensions = Dimensions{
-	Width:  Window.Width,
+	Width:  Window.Width - SidePanel.Width,
 	Height: 68,
 }
 
-var viewPortWidth = Window.Width - SidePanel.Width - 60
+var viewPortWidth = Window.Width - SidePanel.Width
 var viewPortHeight = Window.Height - ActionMenu.Height + 28
 var ViewPort DimensionsAndRegion = DimensionsAndRegion{
 	Dimensions: Dimensions{

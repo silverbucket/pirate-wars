@@ -24,6 +24,7 @@ type ViewType int
 const ViewTypeMainMap = 0
 const ViewTypeHeatMap = 1
 const ViewTypeMiniMap = 2
+const ViewTypeExamine = 3
 
 var minimapPopup *widget.PopUp
 
@@ -233,14 +234,14 @@ func (world *MapView) generateViewPort() {
 	}
 }
 
-func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, entity entities.ViewableEntity) {
+func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, highlight entities.ViewableEntity) {
 	p := avatar.GetPos()
-	h := entity.GetPos() // potential entity to highlight (selected)
+	h := highlight.GetPos() // potential entity to highlight (selected)
 	vpr := window.GetViewportRegion(p)
 
 	// overlay map of all avatars, player and npcs
 	// instead of terrain, in these overlay positions we generate the avatars
-	overlay := make(map[int]entities.AvatarReadOnly, len(npcs)+1)
+	overlay := make(map[int]entities.AvatarReadOnly, len(npcs)+2)
 	overlay[common.CoordToKey(p)] = avatar
 
 	for _, n := range npcs {
@@ -249,11 +250,10 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 
 	// if the entity to highlight has real coords, we add it to the overlay
 	if h.X >= 0 {
-		world.logger.Debug("[%v] highlighting", entity.GetID())
+		world.logger.Debug("[%v] highlighting", highlight.GetID())
 		// actual entity to examine, we should highlight it
-		entity.Highlight()
-		// Don't add entity to overlay as it doesn't implement AvatarReadOnly
-		// overlay[fmt.Sprintf("%03d%03d", h.X, h.Y)] = entity
+		highlight.Highlight()
+		overlay[common.CoordToKey(h)] = highlight
 	}
 
 	// world.logger.Info("--")
@@ -289,12 +289,11 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 			if item, ok := overlay[common.CoordToKey(common.Coordinates{X: mapX, Y: mapY})]; ok {
 				newText = item.GetCharacter()
 				newFgColor = item.GetForegroundColor()
-				newBgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
 			} else {
 				newText = world.terrain.Cells[mapX][mapY].GetCharacter()
 				newFgColor = color.White
-				newBgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
 			}
+			newBgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
 
 			// Only update if content changed
 			if text.Text != newText ||

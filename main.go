@@ -26,6 +26,8 @@ const BASE_LOG_LEVEL = zap.DebugLevel
 const DEV_MODE = true
 
 var ViewType = world.ViewTypeMainMap
+var SidePanel *fyne.Container
+var ActionMenu *fyne.Container
 
 type GameState struct {
 	logger *zap.SugaredLogger
@@ -104,76 +106,91 @@ func initGameState(logger *zap.SugaredLogger) *GameState {
 	return &gs
 }
 
-func createSidePanel(pos common.Coordinates) *fyne.Container {
-	// Create the sidebar
-	sidePanel := container.NewVBox(
-		widget.NewLabel("Ship Status"),
+func (gs *GameState) sidePanelContent(examine entities.ViewableEntity) *fyne.Container {
+	shipStatusContent := widget.NewLabel(
+		fmt.Sprintf("Galeon\nPostion %+v\nHealth: %d\nSpeed: %d\nCargo: %d\n", gs.player.GetPos(), 100, 5, 250),
+	)
+	shipStatusContent.Wrapping = fyne.TextWrapWord
+	examineContent := widget.NewLabel(
+		fmt.Sprintf("Captain: %s\nType: %s\nFlag: %s\nPosition: %+v\n",
+			examine.GetName(), examine.GetType(), examine.GetFlag(), examine.GetPos()),
+	)
+	examineContent.Wrapping = fyne.TextWrapWord
+
+	windowContent := widget.NewLabel(fmt.Sprintf("Window: %dx%dpx\nViewport: %dx%dpx\nSide Panel: %dx%dpx\nAction Menu: %dx%dpx\n",
+		window.Window.Width, window.Window.Height,
+		window.ViewPort.Dimensions.Width, window.ViewPort.Dimensions.Height,
+		window.SidePanel.Width, window.SidePanel.Height,
+		window.ActionMenu.Width, window.ActionMenu.Height),
+	)
+	windowContent.Wrapping = fyne.TextWrapWord
+
+	mapContent := widget.NewLabel(
+		fmt.Sprintf("Map: %dx%d\nViewport: %dx%d\n",
+			common.WorldCols, common.WorldRows, window.ViewPort.Region.Cols, window.ViewPort.Region.Rows),
+	)
+	mapContent.Wrapping = fyne.TextWrapWord
+
+	content := container.NewVBox(
+		widget.NewLabel("Ship Status                        "),
 		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
-		widget.NewLabel(fmt.Sprintf("Postion (x: %d, y: %d)", pos.X, pos.Y)),
-		widget.NewLabel(fmt.Sprintf("Health: %d", 100)),
-		widget.NewLabel(fmt.Sprintf("Speed: %d", 5)),
-		widget.NewLabel(fmt.Sprintf("Cargo: %d", 250)),
+		shipStatusContent,
+		layout.NewSpacer(),
+		widget.NewLabel("Examine"),
+		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
+		examineContent,
 		layout.NewSpacer(),
 		widget.NewLabel("Map Info"),
 		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
-		widget.NewLabel(fmt.Sprintf("Map: %dx%d", common.WorldCols, common.WorldRows)),
-		widget.NewLabel(fmt.Sprintf("Viewport: %dx%d", window.ViewPort.Region.Cols, window.ViewPort.Region.Rows)),
+		mapContent,
 		layout.NewSpacer(),
 		widget.NewLabel("Window"),
 		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
-		widget.NewLabel(fmt.Sprintf("Window: %dx%dpx", window.Window.Width, window.Window.Height)),
-		widget.NewLabel(fmt.Sprintf("Viewport: %dx%dpx", window.ViewPort.Dimensions.Width, window.ViewPort.Dimensions.Height)),
-		widget.NewLabel(fmt.Sprintf("Side Panel: %dx%dpx", window.SidePanel.Width, window.SidePanel.Height)),
-		widget.NewLabel(fmt.Sprintf("Action Menu: %dx%dpx", window.ActionMenu.Width, window.ActionMenu.Height)),
+		windowContent,
 	)
-
-	viewportBg := canvas.NewRectangle(color.Black)
-	viewportBg.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
-
-	sidePanel.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
-	return container.NewStack(viewportBg, sidePanel)
+	content.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
+	return content
 }
 
-func createActionMenu() *fyne.Container {
-	// action menu
-	actionMenu := container.NewHBox(
-		widget.NewLabel("Action Menu"),
-		widget.NewButton("Right", func() {
-		}),
-		widget.NewButton("Left", func() {
-		}),
-		widget.NewButton("Up", func() {
-		}),
-		widget.NewButton("Down", func() {
-		}),
-		widget.NewButton("Settings", func() {
-			// Add settings logic
-		}),
-		canvas.NewRectangle(color.RGBA{R: 180, G: 180, B: 180, A: 255}),
+func (gs *GameState) updatePanels(examine entities.ViewableEntity) {
+	SidePanel.Objects[1] = gs.sidePanelContent(examine)
+	ActionMenu.Objects[1] = gs.ActionItems()
+	fyne.Do(func() {
+		ActionMenu.Refresh()
+		SidePanel.Refresh()
+	})
+}
+
+func (gs *GameState) createSidePanel() *fyne.Container {
+	// Create the sidebar content
+	content := gs.sidePanelContent(entities.NewEmptyViewableEntity())
+	viewportBg := canvas.NewRectangle(color.Black)
+
+	// Create a fixed width container using layout.NewPadded
+	sidePanel := container.NewStack(
+		viewportBg,
+		content,
 	)
 
-	// rectAction := canvas.NewRectangle(color.Transparent)
-	// rectAction.SetMinSize(fyne.NewSize(0, float32(window.ActionMenu.Height)))
+	// Set minimum size to enforce width
+	sidePanel.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
+	return sidePanel
+}
 
+func (gs *GameState) createActionMenu() *fyne.Container {
+	// action menu
+	actionMenu := gs.ActionItems()
 	viewportBg := canvas.NewRectangle(color.Black)
-	viewportBg.Resize(fyne.NewSize(float32(window.ActionMenu.Width), float32(window.ActionMenu.Height)))
 
 	actionMenu.Resize(fyne.NewSize(float32(window.ActionMenu.Width), float32(window.ActionMenu.Height)))
 	return container.NewStack(viewportBg, actionMenu)
 }
 
 func (m *GameState) processTick() {
-	m.npcs.CalcMovements()
+	if ViewType == world.ViewTypeMainMap {
+		m.npcs.CalcMovements()
+	}
 
-	// // convert to readonly type for display
-	// visibleNpcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
-	// visible := []entities.AvatarReadOnly{}
-	// for _, n := range visibleNpcs.GetList() {
-	// 	visible = append(visible, &n)
-	// }
-}
-
-func (m *GameState) updateWorld() {
 	// get visible NPCs
 	highlight := ExamineData.GetFocusedEntity()
 	visible := []entities.AvatarReadOnly{}
@@ -181,7 +198,11 @@ func (m *GameState) updateWorld() {
 		visible = append(visible, &n)
 	}
 
-	m.world.Paint(m.player, visible, highlight)
+	m.updatePanels(highlight)
+
+	if ViewType == world.ViewTypeMainMap {
+		m.world.Paint(m.player, visible, highlight)
+	}
 }
 
 // ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
@@ -190,18 +211,16 @@ func main() {
 	logger.Info("Starting...")
 
 	app := app.New()
-	app.Settings().SetTheme(theme.DarkTheme())
+	app.Settings().SetTheme(&customDarkTheme{})
 	w := app.NewWindow("Pirate Wars")
 
 	logger.Info(fmt.Sprintf("Window Dimensions %+v", window.Window))
 	logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewPort))
 
 	gameState := initGameState(logger)
-	gameState.updateWorld()
 	mainContent := gameState.world.GetViewPort()
-
-	sidePanel := createSidePanel(gameState.player.GetPos())
-	actionMenu := createActionMenu()
+	SidePanel = gameState.createSidePanel()
+	ActionMenu = gameState.createActionMenu()
 
 	// Main layout
 	viewportBg := canvas.NewRectangle(color.Transparent)
@@ -209,23 +228,19 @@ func main() {
 
 	content := container.NewBorder(
 		nil,
-		actionMenu,
+		ActionMenu,
 		nil,
-		sidePanel,
+		SidePanel,
 		container.NewStack(viewportBg, mainContent),
 	)
 	w.SetContent(content)
 	w.Resize(fyne.NewSize(float32(window.Window.Width), float32(window.Window.Height)))
-	// w.SetFixedSize(true) // don't allow resizing for now
+	w.SetFixedSize(true) // don't allow resizing for now
 
 	go gameState.gameLoop()
 
 	w.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
-		// fmt.Printf("Key pressed: %v\n", key)
-		// fmt.Printf("Window content area size: %dx%d\n", int(w.Canvas().Size().Width), int(w.Canvas().Size().Height))
-
 		gameState.handleKeyPress(key)
-
 		if ViewType == world.ViewTypeMiniMap {
 			gameState.world.ShowMinimapPopup(gameState.player.GetPos(), w)
 		} else {
@@ -241,13 +256,28 @@ func main() {
 func (m *GameState) gameLoop() {
 	for {
 		time.Sleep(500 * time.Millisecond)
-		// This runs on the main thread because ShowAndRun() processes it
-		if ViewType == world.ViewTypeMainMap {
+		// Use fyne.Do to ensure UI updates happen on the main thread
+		fyne.Do(func() {
 			m.processTick()
-			// Use fyne.Do to ensure UI updates happen on the main thread
-			fyne.Do(func() {
-				m.updateWorld()
-			})
-		}
+		})
 	}
+}
+
+// Custom dark theme implementation
+type customDarkTheme struct{}
+
+func (t *customDarkTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	return theme.DefaultTheme().Color(name, theme.VariantDark)
+}
+
+func (t *customDarkTheme) Font(style fyne.TextStyle) fyne.Resource {
+	return theme.DefaultTheme().Font(style)
+}
+
+func (t *customDarkTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
+	return theme.DefaultTheme().Icon(name)
+}
+
+func (t *customDarkTheme) Size(name fyne.ThemeSizeName) float32 {
+	return theme.DefaultTheme().Size(name)
 }
