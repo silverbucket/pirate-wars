@@ -126,11 +126,11 @@ func createSidePanel(pos common.Coordinates) *fyne.Container {
 		widget.NewLabel(fmt.Sprintf("Action Menu: %dx%dpx", window.ActionMenu.Width, window.ActionMenu.Height)),
 	)
 
-	rectSide := canvas.NewRectangle(color.Transparent)
-	rectSide.SetMinSize(fyne.NewSize(float32(window.SidePanel.Width), 0))
+	viewportBg := canvas.NewRectangle(color.Black)
+	viewportBg.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
 
 	sidePanel.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
-	return container.NewStack(rectSide, sidePanel)
+	return container.NewStack(viewportBg, sidePanel)
 }
 
 func createActionMenu() *fyne.Container {
@@ -151,16 +151,19 @@ func createActionMenu() *fyne.Container {
 		canvas.NewRectangle(color.RGBA{R: 180, G: 180, B: 180, A: 255}),
 	)
 
-	rectAction := canvas.NewRectangle(color.Transparent)
-	rectAction.SetMinSize(fyne.NewSize(0, float32(window.ActionMenu.Height)))
+	// rectAction := canvas.NewRectangle(color.Transparent)
+	// rectAction.SetMinSize(fyne.NewSize(0, float32(window.ActionMenu.Height)))
+
+	viewportBg := canvas.NewRectangle(color.Black)
+	viewportBg.Resize(fyne.NewSize(float32(window.ActionMenu.Width), float32(window.ActionMenu.Height)))
 
 	actionMenu.Resize(fyne.NewSize(float32(window.ActionMenu.Width), float32(window.ActionMenu.Height)))
-	return container.NewStack(rectAction, actionMenu)
+	return container.NewStack(viewportBg, actionMenu)
 }
 
 func (m *GameState) processTick() {
 	m.npcs.CalcMovements()
-	m.updateWorld()
+
 	// // convert to readonly type for display
 	// visibleNpcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
 	// visible := []entities.AvatarReadOnly{}
@@ -169,7 +172,7 @@ func (m *GameState) processTick() {
 	// }
 }
 
-func (m *GameState) updateWorld() fyne.CanvasObject {
+func (m *GameState) updateWorld() {
 	// get visible NPCs
 	highlight := ExamineData.GetFocusedEntity()
 	visible := []entities.AvatarReadOnly{}
@@ -177,7 +180,7 @@ func (m *GameState) updateWorld() fyne.CanvasObject {
 		visible = append(visible, &n)
 	}
 
-	return m.world.Paint(m.player, visible, highlight)
+	m.world.Paint(m.player, visible, highlight)
 }
 
 // ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
@@ -191,65 +194,40 @@ func main() {
 	logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewPort))
 
 	gameState := initGameState(logger)
-
-	mainContent := gameState.updateWorld()
+	gameState.updateWorld()
+	mainContent := gameState.world.GetViewPort()
 
 	sidePanel := createSidePanel(gameState.player.GetPos())
 	actionMenu := createActionMenu()
 
-	// Separators
-	vertLine := canvas.NewRectangle(color.Gray{Y: 128})
-	vertLine.Resize(fyne.NewSize(2, 718))
-	horizLine := canvas.NewRectangle(color.Gray{Y: 128})
-	horizLine.Resize(fyne.NewSize(924, 2))
-
 	// Main layout
+	viewportBg := canvas.NewRectangle(color.Transparent)
+	viewportBg.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
+
 	content := container.NewBorder(
 		nil,
-		container.NewVBox(horizLine, actionMenu),
+		actionMenu,
 		nil,
-		container.NewHBox(sidePanel, vertLine),
-		container.NewMax(
-			container.NewPadded(
-				container.NewWithoutLayout(mainContent),
-			),
-		),
+		sidePanel,
+		container.NewStack(viewportBg, mainContent),
 	)
 	w.SetContent(content)
-
-	// content := container.NewBorder(
-	// 	nil,
-	// 	actionMenu,
-	// 	nil,
-	// 	sidebar,
-	// 	g,
-	// )
-
-	// Create main content
-	//mainContent := container.NewVBox(
-	//	widget.NewLabel("Main Content"),
-	//	canvas.NewRectangle(color.RGBA{R: 220, G: 220, B: 220, A: 255}),
-	//)
-
-	// w.SetContent(
-	// 	container.NewBorder(
-	// 		nil,         // top
-	// 		actionMenu,  // bottom
-	// 		nil,         // left
-	// 		sidePanel,   // right
-	// 		mainContent, // center
-	// 	),
-	// )
-
 	w.Resize(fyne.NewSize(float32(window.Window.Width), float32(window.Window.Height)))
-	w.SetFixedSize(true) // don't allow resizing for now
+	// w.SetFixedSize(true) // don't allow resizing for now
 
-	// Handle refresh signals from the goroutine in the main thread
 	go gameState.gameLoop()
 
 	w.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
-		fmt.Printf("Key pressed: %v\n", key)
-		gameState.handleKeyPress(key, w)
+		// fmt.Printf("Key pressed: %v\n", key)
+		// fmt.Printf("Window content area size: %dx%d\n", int(w.Canvas().Size().Width), int(w.Canvas().Size().Height))
+
+		gameState.handleKeyPress(key)
+
+		if ViewType == world.ViewTypeMiniMap {
+			gameState.world.ShowMinimapPopup(gameState.player.GetPos(), w)
+		} else {
+			gameState.world.HideMinimapPopup()
+		}
 	})
 
 	w.ShowAndRun()

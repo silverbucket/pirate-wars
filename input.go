@@ -29,18 +29,12 @@ type keyItem struct {
 
 type KeyMap []keyItem
 
-func (m *GameState) handleKeyPress(key *fyne.KeyEvent, w fyne.Window) {
+func (m *GameState) handleKeyPress(key *fyne.KeyEvent) {
 	if ViewType == world.ViewTypeMainMap {
 		m.processInput(key, sailingKeyMap)
 	} else if ViewType == world.ViewTypeMiniMap {
 		m.processInput(key, miniMapKeyMap)
 	}
-
-	// if ViewType == world.ViewTypeMiniMap {
-	// 	m.world.ShowMinimapPopup(m.player.GetPos(), w)
-	// } else {
-	// 	m.world.HideMinimapPopup()
-	// }
 }
 
 func (m *GameState) processInput(key *fyne.KeyEvent, km KeyMap) {

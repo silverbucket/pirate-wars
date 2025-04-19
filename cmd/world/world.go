@@ -52,6 +52,7 @@ var WorldProps = Props{
 type MapView struct {
 	logger       *zap.SugaredLogger
 	terrain      *terrain.Terrain
+	viewPort     *fyne.Container
 	minimap      *image.RGBA
 	overlayItems []OverlayItems
 }
@@ -220,8 +221,11 @@ func (world *MapView) getMinimapWithDot(pos common.Coordinates) *image.RGBA {
 }
 
 func (world *MapView) ShowMinimapPopup(pos common.Coordinates, w fyne.Window) {
+	overlay := canvas.NewRectangle(color.NRGBA{0, 0, 0, 128}) // 50% opacity
+	overlay.Resize(fyne.NewSize(float32(window.Window.Width), float32(window.Window.Height)))
+
 	minimapImage := canvas.NewImageFromImage(world.getMinimapWithDot(pos))
-	minimapContainer := container.NewStack(minimapImage)
+	minimapContainer := container.NewStack(overlay, minimapImage)
 	minimapPopup = widget.NewPopUp(minimapContainer, w.Canvas())
 	minimapPopup.Resize(fyne.NewSize(float32(window.MiniMapArea.Width), float32(window.MiniMapArea.Height)))
 	minimapPopup.Move(fyne.NewPos(float32(window.Window.Width-window.MiniMapArea.Width)/2, float32(window.Window.Height-window.MiniMapArea.Height)/2))
@@ -229,14 +233,19 @@ func (world *MapView) ShowMinimapPopup(pos common.Coordinates, w fyne.Window) {
 }
 
 func (world *MapView) HideMinimapPopup() {
-	minimapPopup.Hide()
+	if minimapPopup != nil {
+		minimapPopup.Hide()
+	}
 }
 
-func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, entity entities.ViewableEntity) fyne.CanvasObject {
+func (world *MapView) GetViewPort() *fyne.Container {
+	return world.viewPort
+}
+
+func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, entity entities.ViewableEntity) {
 	p := avatar.GetPos()
 	h := entity.GetPos() // potential entity to highlight (selected)
 	vpr := window.GetViewportRegion(p)
-	vpc := container.NewWithoutLayout()
 
 	// overlay map of all avatars, player and npcs
 	// instead of terrain, in these overlay positions we generate the avatars
@@ -250,7 +259,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 
 	// if the entity to highlight has real coords, we add it to the overlay
 	if h.X >= 0 {
-		world.logger.Debug(fmt.Sprintf("[%v] highlighting", entity.GetID()))
+		world.logger.Debug("[%v] highlighting", entity.GetID())
 		// actual entity to examine, we should highlight it
 		entity.Highlight()
 		// Don't add entity to overlay as it doesn't implement AvatarReadOnly
@@ -264,6 +273,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 	// world.logger.Info("Increment amount %+v", inc)
 	// world.logger.Info("Grid length %v", len(g.Objects))
 
+	vpIdx := 0
 	for x := 0; x < vpr.Cols; x++ {
 		for y := 0; y < vpr.Rows; y++ {
 			// Calculate map coordinates
@@ -282,15 +292,18 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 			} else {
 				cell = world.terrain.Cells[mapX][mapY].Render()
 			}
+
 			cell.Resize(fyne.NewSize(float32(window.CellSize), float32(window.CellSize)))
 			cell.Move(fyne.NewPos(float32(x*window.CellSize), float32(y*window.CellSize)))
-			vpc.Add(cell)
-
+			world.viewPort.Objects[vpIdx] = cell
+			vpIdx++
 		}
 	}
 
-	vpc.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
-	return vpc
+	world.viewPort.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
+	fyne.Do(func() {
+		world.viewPort.Refresh()
+	})
 }
 
 func Init(logger *zap.SugaredLogger) *MapView {
@@ -298,6 +311,7 @@ func Init(logger *zap.SugaredLogger) *MapView {
 	world := MapView{
 		logger:       logger,
 		terrain:      t,
+		viewPort:     container.NewWithoutLayout(),
 		overlayItems: []OverlayItems{},
 	}
 
@@ -347,6 +361,13 @@ func Init(logger *zap.SugaredLogger) *MapView {
 			} else {
 				world.SetPositionType(c, terrain.TypePeak)
 			}
+		}
+	}
+
+	// initialize viewport cells
+	for range window.ViewPort.Region.Cols {
+		for range window.ViewPort.Region.Rows {
+			world.viewPort.Add(canvas.NewRectangle(color.Black))
 		}
 	}
 
