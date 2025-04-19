@@ -11,7 +11,6 @@ import (
 	"pirate-wars/cmd/world"
 	"sort"
 
-	"fyne.io/fyne/v2"
 	"go.uber.org/zap"
 )
 
@@ -70,8 +69,8 @@ func (n *Npc) GetForegroundColor() color.Color {
 	return n.avatar.GetForegroundColor()
 }
 
-func (n *Npc) Render() *fyne.Container {
-	return n.avatar.Render()
+func (n *Npc) GetCharacter() string {
+	return n.avatar.GetCharacter()
 }
 
 func (n *Npc) GetBackgroundColor() color.Color {
@@ -178,7 +177,7 @@ func (ns *Npcs) CalcMovements() {
 			}
 			//t.Logger.Debug(fmt.Sprintf("New heatmap coordinates check [%v][%v]", newX, newY))
 			//t.Logger.Debug(fmt.Sprintf("Npc at %v, %v - checking square %v, %v cost:%v [lowest cost: %v]", newPosition.X, newPosition.Y, newX, newY, town.HeatMap[newX][newY], lowestCost)
-			opts = append(opts, town.DirectionCost{n, targetTown.HeatMap.GetCost(n)})
+			opts = append(opts, town.DirectionCost{Pos: n, Cost: targetTown.HeatMap.GetCost(n)})
 		}
 
 		pick := town.DecideDirection(opts, targetTown.GetPos())

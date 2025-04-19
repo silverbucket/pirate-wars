@@ -73,7 +73,7 @@ func (town *Town) generateHeatMap(world *world.MapView) bool {
 
 		// Explore neighbors
 		for _, dir := range common.Directions {
-			n := common.Coordinates{c.X + dir.X, c.Y + dir.Y}
+			n := common.Coordinates{X: c.X + dir.X, Y: c.Y + dir.Y}
 
 			// Check if the new point is within bounds of the map and not visited
 			if common.Inbounds(n) && town.HeatMap.GetCost(n) == HeatmapUnprocessed {
@@ -125,12 +125,6 @@ func (town *Town) generateHeatMap(world *world.MapView) bool {
 //	}
 //
 //	return viewport
-//}
-
-//func (hc *HeatMapCost) Render() *fyne.Container {
-//	r := canvas.NewRectangle(color.Black)
-//	t := canvas.NewText(fmt.Sprintf("%v", *hc), color.White)
-//	return container.NewStack(r, t)
 //}
 
 func DecideDirection(o []DirectionCost, dest common.Coordinates) DirectionCost {

@@ -27,19 +27,11 @@ const ViewTypeMiniMap = 2
 
 var minimapPopup *widget.PopUp
 
-const TileSizePx = 512
-const TileSizeCells = TileSizePx / 12
-
 type Props struct {
 	scale       float64
 	lacunarity  float64
 	persistence float64
 	octaves     int
-}
-
-type Tile struct {
-	image *canvas.Image
-	X, Y  int
 }
 
 var WorldProps = Props{
@@ -140,23 +132,6 @@ func (world *MapView) RandomPositionDeepWater() common.Coordinates {
 	}
 }
 
-func (world *MapView) renderTile(tx, ty int) *Tile {
-	img := image.NewRGBA(image.Rect(0, 0, TileSizePx, TileSizePx))
-	for y := ty; y < ty+TileSizeCells && y < 800; y++ {
-		for x := tx; x < tx+TileSizeCells && x < 800; x++ {
-			for py := 0; py < 12; py++ {
-				for px := 0; px < 12; px++ {
-					img.Set((x-tx)*12+px, (y-ty)*12+py, world.terrain.Cells[y][x].GetColor())
-				}
-			}
-		}
-	}
-	fyneImg := canvas.NewImageFromImage(img)
-	fyneImg.FillMode = canvas.ImageFillStretch
-	fyneImg.Resize(fyne.NewSize(TileSizePx, TileSizePx))
-	return &Tile{image: fyneImg, X: tx, Y: ty}
-}
-
 func (world *MapView) generateBaseMinimapImage() {
 	world.logger.Info(fmt.Sprintf("Generating minimap"))
 	cols := common.WorldCols
@@ -177,7 +152,7 @@ func (world *MapView) createRawMapImage(cellWidth, cellHeight float32, cols, row
 		for c := 0; c < cols; c++ {
 			for y := int(float32(r) * cellHeight); y < int(float32(r+1)*cellHeight); y++ {
 				for x := int(float32(c) * cellWidth); x < int(float32(c+1)*cellWidth); x++ {
-					img.Set(x, y, world.terrain.Cells[c][r].GetColor())
+					img.Set(x, y, world.terrain.Cells[c][r].GetBackgroundColor())
 					count++
 					if count%2000 == 0 {
 						fmt.Print(".")
@@ -245,6 +220,18 @@ func (world *MapView) GetViewPort() *fyne.Container {
 	return world.viewPort
 }
 
+func (world *MapView) generateViewPort() {
+	// initialize viewport cells
+	for x := 0; x < window.ViewPort.Region.Cols; x++ {
+		for y := 0; y < window.ViewPort.Region.Rows; y++ {
+			cell := common.RenderContainer(canvas.NewRectangle(color.Black), canvas.NewText("", color.White))
+			cell.Resize(fyne.NewSize(float32(window.CellSize), float32(window.CellSize)))
+			cell.Move(fyne.NewPos(float32(x*window.CellSize), float32(y*window.CellSize)))
+			world.viewPort.Add(cell)
+		}
+	}
+}
+
 func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, entity entities.ViewableEntity) {
 	p := avatar.GetPos()
 	h := entity.GetPos() // potential entity to highlight (selected)
@@ -276,7 +263,8 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 	// world.logger.Info("Increment amount %+v", inc)
 	// world.logger.Info("Grid length %v", len(g.Objects))
 
-	vpIdx := 0
+	updates := make([]fyne.CanvasObject, 0, window.ViewPort.Region.Cols*window.ViewPort.Region.Rows)
+
 	for x := 0; x < vpr.Cols; x++ {
 		for y := 0; y < vpr.Rows; y++ {
 			// Calculate map coordinates
@@ -288,25 +276,53 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 				continue
 			}
 
-			var cell fyne.CanvasObject
-			item, ok := overlay[fmt.Sprintf("%03d%03d", mapX, mapY)]
-			if ok {
-				cell = item.Render()
+			// cell := world.viewPort.Objects[vpIdx].(*fyne.Container)
+			// rect := cell.Objects[0].(*canvas.Rectangle)
+			// text := cell.Objects[1].(*canvas.Text)
+
+			// item, ok := overlay[fmt.Sprintf("%03d%03d", mapX, mapY)]
+			// if ok {
+			// 	text.Color = item.GetForegroundColor()
+			// 	text.Text = item.GetCharacter()
+			// } else {
+			// 	// cell = world.terrain.Cells[mapX][mapY].Render()
+			// 	text.Text = world.terrain.Cells[mapX][mapY].GetCharacter()
+			// }
+			// rect.FillColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
+
+			// world.viewPort.Objects[vpIdx] = cell
+			// vpIdx++
+
+			var text string
+			var fgColor color.Color
+			var bgColor color.Color
+
+			if item, ok := overlay[fmt.Sprintf("%03d%03d", mapX, mapY)]; ok {
+				text = item.GetCharacter()
+				fgColor = item.GetForegroundColor()
+				bgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
 			} else {
-				cell = world.terrain.Cells[mapX][mapY].Render()
+				text = world.terrain.Cells[mapX][mapY].GetCharacter()
+				fgColor = color.White
+				bgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
 			}
 
+			cell := common.RenderContainer(
+				canvas.NewRectangle(bgColor),
+				canvas.NewText(text, fgColor),
+			)
 			cell.Resize(fyne.NewSize(float32(window.CellSize), float32(window.CellSize)))
 			cell.Move(fyne.NewPos(float32(x*window.CellSize), float32(y*window.CellSize)))
-			world.viewPort.Objects[vpIdx] = cell
-			vpIdx++
+			updates = append(updates, cell)
 		}
 	}
 
-	world.viewPort.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
-	fyne.Do(func() {
-		world.viewPort.Refresh()
-	})
+	// world.viewPort.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
+	// fyne.Do(func() {
+	// 	world.viewPort.Refresh()
+	// })
+	world.viewPort.Objects = updates
+	world.viewPort.Refresh()
 }
 
 func Init(logger *zap.SugaredLogger) *MapView {
@@ -367,13 +383,7 @@ func Init(logger *zap.SugaredLogger) *MapView {
 		}
 	}
 
-	// initialize viewport cells
-	for range window.ViewPort.Region.Cols {
-		for range window.ViewPort.Region.Rows {
-			world.viewPort.Add(canvas.NewRectangle(color.Black))
-		}
-	}
-
+	world.generateViewPort()
 	world.generateBaseMinimapImage()
 	return &world
 }

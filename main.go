@@ -17,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"go.uber.org/zap"
 )
@@ -188,7 +189,9 @@ func main() {
 	logger := createLogger()
 	logger.Info("Starting...")
 
-	w := app.New().NewWindow("Pirate Wars")
+	app := app.New()
+	app.Settings().SetTheme(theme.DarkTheme())
+	w := app.NewWindow("Pirate Wars")
 
 	logger.Info(fmt.Sprintf("Window Dimensions %+v", window.Window))
 	logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewPort))

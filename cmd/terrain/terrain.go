@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"pirate-wars/cmd/common"
-
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 )
 
 // Icon ideas
@@ -53,11 +50,10 @@ var TypeLookup = map[Type]TypeQualities{
 	TypeGhostTown:    {symbol: '⩎', color: color.RGBA{147, 62, 56, 255}, Passable: true, RequiresBoat: false},
 }
 
-func (tt *Type) GetColor() color.RGBA {
+func (tt *Type) GetBackgroundColor() color.RGBA {
 	return TypeLookup[*tt].color
 }
 
-func (tt *Type) Render() *fyne.Container {
-	t := canvas.NewText(fmt.Sprintf("%c", TypeLookup[*tt].symbol), color.White)
-	return common.RenderContainer(canvas.NewRectangle(TypeLookup[*tt].color), t)
+func (tt *Type) GetCharacter() string {
+	return fmt.Sprintf("%c", TypeLookup[*tt].symbol)
 }

@@ -5,9 +5,6 @@ import (
 	"image/color"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/window"
-
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 )
 
 type Avatar struct {
@@ -20,7 +17,8 @@ type Avatar struct {
 
 type AvatarReadOnly interface {
 	GetPos() common.Coordinates
-	Render() *fyne.Container
+	GetForegroundColor() color.Color
+	GetCharacter() string
 	GetViewableRange() window.Dimensions
 }
 
@@ -64,11 +62,15 @@ func (a *Avatar) GetViewableRange() window.Dimensions {
 	}
 }
 
-func (a *Avatar) Render() *fyne.Container {
-	return common.RenderContainer(
-		canvas.NewRectangle(a.bgColor),
-		canvas.NewText(fmt.Sprintf("%c", a.char), a.fgColor))
+func (a *Avatar) GetCharacter() string {
+	return fmt.Sprintf("%c", a.char)
 }
+
+// func (a *Avatar) Render() *fyne.Container {
+// 	return common.RenderContainer(
+// 		canvas.NewRectangle(a.bgColor),
+// 		canvas.NewText(fmt.Sprintf("%c", a.char), a.fgColor))
+// }
 
 func CreateAvatar(coordinates common.Coordinates, c rune, color ColorScheme) Avatar {
 	return Avatar{pos: coordinates, char: c, fgColor: color.Foreground, bgColor: color.Background}
