@@ -52,7 +52,7 @@ var MiniMapArea Dimensions = Dimensions{
 	Height: 700,
 }
 
-var CellSize = 15
+var CellSize = 20
 
 func GetViewportRegion(pos common.Coordinates) Region {
 	// viewable range is based on columns in grid and ratio of ViewableArea

@@ -101,7 +101,15 @@ func CoordToKey(c Coordinates) int {
 }
 
 // compare colors
+// Optimize color comparison for RGBA colors
 func ColorEqual(c1, c2 color.Color) bool {
+	// Fast path for RGBA colors
+	if rgba1, ok1 := c1.(color.RGBA); ok1 {
+		if rgba2, ok2 := c2.(color.RGBA); ok2 {
+			return rgba1 == rgba2
+		}
+	}
+	// Fallback to standard comparison
 	r1, g1, b1, a1 := c1.RGBA()
 	r2, g2, b2, a2 := c2.RGBA()
 	return r1 == r2 && g1 == g2 && b1 == b2 && a1 == a2

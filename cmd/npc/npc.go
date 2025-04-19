@@ -53,6 +53,10 @@ func (n *Npc) GetPos() common.Coordinates {
 	return n.avatar.GetPos()
 }
 
+func (n *Npc) GetPreviousPos() common.Coordinates {
+	return n.avatar.GetPreviousPos()
+}
+
 func (n *Npc) SetPos(p common.Coordinates) {
 	n.avatar.SetPos(p)
 }

@@ -9,6 +9,7 @@ import (
 
 type Avatar struct {
 	pos     common.Coordinates
+	prevPos common.Coordinates
 	char    rune
 	fgColor color.Color
 	bgColor color.Color
@@ -17,6 +18,7 @@ type Avatar struct {
 
 type AvatarReadOnly interface {
 	GetPos() common.Coordinates
+	GetPreviousPos() common.Coordinates
 	GetForegroundColor() color.Color
 	GetCharacter() string
 	GetViewableRange() window.Dimensions
@@ -28,11 +30,18 @@ type ColorScheme struct {
 }
 
 func (a *Avatar) SetPos(c common.Coordinates) {
-	a.pos = c
+	if !common.CoordsMatch(a.pos, c) {
+		a.prevPos = a.pos
+		a.pos = c
+	}
 }
 
 func (a *Avatar) GetPos() common.Coordinates {
 	return a.pos
+}
+
+func (a *Avatar) GetPreviousPos() common.Coordinates {
+	return a.prevPos
 }
 
 func (a *Avatar) SetBlink(b bool) {

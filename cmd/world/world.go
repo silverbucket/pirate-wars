@@ -42,11 +42,12 @@ var WorldProps = Props{
 }
 
 type MapView struct {
-	logger       *zap.SugaredLogger
-	terrain      *terrain.Terrain
-	viewPort     *fyne.Container
-	minimap      *image.RGBA
-	overlayItems []OverlayItems
+	logger            *zap.SugaredLogger
+	terrain           *terrain.Terrain
+	viewPort          *fyne.Container
+	viewPortAnimation *fyne.Animation
+	minimap           *image.RGBA
+	overlayItems      []OverlayItems
 }
 
 type OverlayItems interface {
@@ -133,7 +134,7 @@ func (world *MapView) RandomPositionDeepWater() common.Coordinates {
 }
 
 func (world *MapView) generateBaseMinimapImage() {
-	world.logger.Info(fmt.Sprintf("Generating minimap"))
+	world.logger.Info("Generating minimap")
 	cols := common.WorldCols
 	rows := common.WorldRows
 	cellWidth := float32(window.MiniMapArea.Width) / float32(cols)
@@ -263,6 +264,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 	// world.logger.Info("Grid length %v", len(g.Objects))
 
 	vpIdx := 0
+	needsRefresh := false
 	for x := 0; x < vpr.Cols; x++ {
 		for y := 0; y < vpr.Rows; y++ {
 			// Calculate map coordinates
@@ -302,10 +304,14 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 				text.Text = newText
 				text.Color = newFgColor
 				rect.FillColor = newBgColor
-				cell.Refresh()
+				needsRefresh = true
 			}
 			vpIdx++
 		}
+	}
+
+	if needsRefresh {
+		world.viewPort.Refresh()
 	}
 }
 
