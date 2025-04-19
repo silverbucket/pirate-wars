@@ -16,6 +16,7 @@ type ViewableEntity interface {
 	GetPreviousPos() common.Coordinates
 	GetID() string
 	GetForegroundColor() color.Color
+	GetBackgroundColor() color.Color
 	GetCharacter() string
 	Highlight()
 	GetViewableRange() window.Dimensions
@@ -43,6 +44,9 @@ func (e *EmptyViewableEntity) GetType() string {
 }
 func (e *EmptyViewableEntity) GetForegroundColor() color.Color {
 	return color.White
+}
+func (e *EmptyViewableEntity) GetBackgroundColor() color.Color {
+	return color.Black
 }
 func (e *EmptyViewableEntity) GetCharacter() string {
 	return ""

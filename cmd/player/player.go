@@ -7,6 +7,6 @@ import (
 )
 
 func Create(world *world.MapView) *entities.Avatar {
-	p := entities.CreateAvatar(world.RandomPositionDeepWater(), '⏏', entities.ColorScheme{color.Black, color.White})
+	p := entities.CreateAvatar(world.RandomPositionDeepWater(), '⏏', entities.ColorScheme{Foreground: color.Black, Background: color.RGBA{255, 125, 125, 105}})
 	return &p
 }

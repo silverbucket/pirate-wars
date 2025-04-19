@@ -200,9 +200,7 @@ func (m *GameState) processTick() {
 
 	m.updatePanels(highlight)
 
-	if ViewType == world.ViewTypeMainMap {
-		m.world.Paint(m.player, visible, highlight)
-	}
+	m.world.Paint(m.player, visible, highlight)
 }
 
 // ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏

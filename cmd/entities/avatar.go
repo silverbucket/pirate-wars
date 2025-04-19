@@ -8,18 +8,20 @@ import (
 )
 
 type Avatar struct {
-	pos     common.Coordinates
-	prevPos common.Coordinates
-	char    rune
-	fgColor color.Color
-	bgColor color.Color
-	blink   bool
+	pos       common.Coordinates
+	prevPos   common.Coordinates
+	char      rune
+	fgColor   color.Color
+	bgColor   color.Color
+	blink     bool
+	alternate bool
 }
 
 type AvatarReadOnly interface {
 	GetPos() common.Coordinates
 	GetPreviousPos() common.Coordinates
 	GetForegroundColor() color.Color
+	GetBackgroundColor() color.Color
 	GetCharacter() string
 	GetViewableRange() window.Dimensions
 }
@@ -46,6 +48,9 @@ func (a *Avatar) GetPreviousPos() common.Coordinates {
 
 func (a *Avatar) SetBlink(b bool) {
 	a.blink = b
+	if !b {
+		a.alternate = false
+	}
 }
 
 func (a *Avatar) SetBackgroundColor(c color.Color) {
@@ -57,6 +62,16 @@ func (a *Avatar) SetForegroundColor(c color.Color) {
 }
 
 func (a *Avatar) GetBackgroundColor() color.Color {
+	if a.blink {
+		if a.alternate {
+			a.alternate = false
+			return color.RGBA{0, 0, 0, 255}
+		} else {
+			a.alternate = true
+			return color.RGBA{255, 255, 255, 255}
+		}
+	}
+	a.alternate = false
 	return a.bgColor
 }
 
@@ -74,12 +89,6 @@ func (a *Avatar) GetViewableRange() window.Dimensions {
 func (a *Avatar) GetCharacter() string {
 	return fmt.Sprintf("%c", a.char)
 }
-
-// func (a *Avatar) Render() *fyne.Container {
-// 	return common.RenderContainer(
-// 		canvas.NewRectangle(a.bgColor),
-// 		canvas.NewText(fmt.Sprintf("%c", a.char), a.fgColor))
-// }
 
 func CreateAvatar(coordinates common.Coordinates, c rune, color ColorScheme) Avatar {
 	return Avatar{pos: coordinates, char: c, fgColor: color.Foreground, bgColor: color.Background}

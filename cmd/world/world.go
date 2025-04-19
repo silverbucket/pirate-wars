@@ -289,11 +289,12 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 			if item, ok := overlay[common.CoordToKey(common.Coordinates{X: mapX, Y: mapY})]; ok {
 				newText = item.GetCharacter()
 				newFgColor = item.GetForegroundColor()
+				newBgColor = item.GetBackgroundColor()
 			} else {
 				newText = world.terrain.Cells[mapX][mapY].GetCharacter()
 				newFgColor = color.White
+				newBgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
 			}
-			newBgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
 
 			// Only update if content changed
 			if text.Text != newText ||
