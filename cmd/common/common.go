@@ -15,8 +15,8 @@ const (
 	LogFile        = "pirate-wars.log"
 	WorldCols  int = 800 // Y
 	WorldRows  int = 800 // X
-	TotalTowns     = 20
-	TotalNpcs      = 100
+	TotalTowns     = 30
+	TotalNpcs      = 150
 )
 
 type Coordinates struct {

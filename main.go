@@ -37,65 +37,6 @@ type GameState struct {
 	towns  *town.Towns
 }
 
-//if ViewType == world.ViewTypeMiniMap {
-//	return m.getInput(msg, miniMapKeyMap)
-//} else if m.action == user_action.UserActionIdExamine {
-//	return m.getInput(msg, examineKeyMap)
-//} else {
-//	return m.getInput(msg, sailingKeyMap)
-//}
-
-//	highlight := ExamineData.GetFocusedEntity()
-//	npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
-//	visible := []entities.AvatarReadOnly{}
-//	for _, n := range npcs.GetList() {
-//		visible = append(visible, &n)
-//	}
-//
-//	bottomText := ""
-//	sidePanel := ""
-//
-//	if ViewType == world.ViewTypeMiniMap {
-//		//paint := m.world.Paint(m.player, []entities.AvatarReadOnly{}, highlight, world.ViewTypeMiniMap)
-//		//paint += helpText(miniMapKeyMap, KeyCatAux)
-//		//return paint
-//	} else {
-//		if m.action == user_action.UserActionIdNone {
-//			// user is not doing some meta-action, NPCs can move
-//			m.npcs.CalcMovements()
-//		}
-//
-//		// display main map
-//		paint := m.world.Paint(m.player, visible, highlight, world.ViewTypeMainMap)
-//
-//		if m.action == user_action.UserActionIdExamine {
-//			//bottomText += helpText(examineKeyMap, KeyCatAction)
-//			//sidePanel = lipgloss.JoinVertical(lipgloss.Left,
-//			//	dialog.ListHeader(fmt.Sprintf("%v", highlight.GetName())),
-//			//	dialog.ListItem(fmt.Sprintf("Flag: %v", highlight.GetFlag())),
-//			//	dialog.ListItem(fmt.Sprintf("ID: %v", highlight.GetID())),
-//			//	dialog.ListItem(fmt.Sprintf("Type: %v", highlight.GetType())),
-//			//	dialog.ListItem(fmt.Sprintf("Color: %v", highlight.GetForegroundColor())),
-//			//)
-//		} else {
-//			bottomText += lipgloss.JoinHorizontal(
-//				lipgloss.Top,
-//				helpText(sailingKeyMap, KeyCatAction),
-//				helpText(sailingKeyMap, KeyCatAux),
-//				helpText(sailingKeyMap, KeyCatAdmin),
-//			)
-//		}
-//		s := dialog.GetSidebarStyle()
-//		content := lipgloss.JoinHorizontal(
-//			lipgloss.Top,
-//			paint,
-//			s.Background(lipgloss.Color("0")).Render(sidePanel),
-//		)
-//		content += "\n" + bottomText
-//		return m.screen.Render(content)
-//	}
-//}
-
 func initGameState(logger *zap.SugaredLogger) *GameState {
 	gs := GameState{}
 	gs.logger = logger
