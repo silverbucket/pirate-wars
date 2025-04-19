@@ -262,8 +262,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 	// world.logger.Info("Increment amount %+v", inc)
 	// world.logger.Info("Grid length %v", len(g.Objects))
 
-	updates := make([]fyne.CanvasObject, 0, window.ViewPort.Region.Cols*window.ViewPort.Region.Rows)
-
+	vpIdx := 0
 	for x := 0; x < vpr.Cols; x++ {
 		for y := 0; y < vpr.Rows; y++ {
 			// Calculate map coordinates
@@ -275,53 +274,39 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 				continue
 			}
 
-			// cell := world.viewPort.Objects[vpIdx].(*fyne.Container)
-			// rect := cell.Objects[0].(*canvas.Rectangle)
-			// text := cell.Objects[1].(*canvas.Text)
+			// Get existing cell from viewport
+			cell := world.viewPort.Objects[vpIdx].(*fyne.Container)
+			rect := cell.Objects[0].(*canvas.Rectangle)
+			text := cell.Objects[1].(*canvas.Text)
 
-			// item, ok := overlay[fmt.Sprintf("%03d%03d", mapX, mapY)]
-			// if ok {
-			// 	text.Color = item.GetForegroundColor()
-			// 	text.Text = item.GetCharacter()
-			// } else {
-			// 	// cell = world.terrain.Cells[mapX][mapY].Render()
-			// 	text.Text = world.terrain.Cells[mapX][mapY].GetCharacter()
-			// }
-			// rect.FillColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
-
-			// world.viewPort.Objects[vpIdx] = cell
-			// vpIdx++
-
-			var text string
-			var fgColor color.Color
-			var bgColor color.Color
+			// Determine new content
+			var newText string
+			var newFgColor color.Color
+			var newBgColor color.Color
 
 			if item, ok := overlay[common.CoordToKey(common.Coordinates{X: mapX, Y: mapY})]; ok {
-				text = item.GetCharacter()
-				fgColor = item.GetForegroundColor()
-				bgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
+				newText = item.GetCharacter()
+				newFgColor = item.GetForegroundColor()
+				newBgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
 			} else {
-				text = world.terrain.Cells[mapX][mapY].GetCharacter()
-				fgColor = color.White
-				bgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
+				newText = world.terrain.Cells[mapX][mapY].GetCharacter()
+				newFgColor = color.White
+				newBgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
 			}
 
-			cell := common.RenderContainer(
-				canvas.NewRectangle(bgColor),
-				canvas.NewText(text, fgColor),
-			)
-			cell.Resize(fyne.NewSize(float32(window.CellSize), float32(window.CellSize)))
-			cell.Move(fyne.NewPos(float32(x*window.CellSize), float32(y*window.CellSize)))
-			updates = append(updates, cell)
+			// Only update if content changed
+			if text.Text != newText ||
+				!common.ColorEqual(text.Color, newFgColor) ||
+				!common.ColorEqual(rect.FillColor, newBgColor) {
+
+				text.Text = newText
+				text.Color = newFgColor
+				rect.FillColor = newBgColor
+				cell.Refresh()
+			}
+			vpIdx++
 		}
 	}
-
-	// world.viewPort.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
-	// fyne.Do(func() {
-	// 	world.viewPort.Refresh()
-	// })
-	world.viewPort.Objects = updates
-	world.viewPort.Refresh()
 }
 
 func Init(logger *zap.SugaredLogger) *MapView {

@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"image/color"
 	"math/rand"
 
 	"fyne.io/fyne/v2"
@@ -97,4 +98,11 @@ func RenderContainer(r *canvas.Rectangle, t *canvas.Text) *fyne.Container {
 
 func CoordToKey(c Coordinates) int {
 	return c.X*WorldCols + c.Y
+}
+
+// compare colors
+func ColorEqual(c1, c2 color.Color) bool {
+	r1, g1, b1, a1 := c1.RGBA()
+	r2, g2, b2, a2 := c2.RGBA()
+	return r1 == r2 && g1 == g2 && b1 == b2 && a1 == a2
 }
