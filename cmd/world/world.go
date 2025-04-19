@@ -221,14 +221,17 @@ func (world *MapView) getMinimapWithDot(pos common.Coordinates) *image.RGBA {
 }
 
 func (world *MapView) ShowMinimapPopup(pos common.Coordinates, w fyne.Window) {
-	overlay := canvas.NewRectangle(color.NRGBA{0, 0, 0, 128}) // 50% opacity
-	overlay.Resize(fyne.NewSize(float32(window.Window.Width), float32(window.Window.Height)))
-
-	minimapImage := canvas.NewImageFromImage(world.getMinimapWithDot(pos))
-	minimapContainer := container.NewStack(overlay, minimapImage)
-	minimapPopup = widget.NewPopUp(minimapContainer, w.Canvas())
+	minimapPopup = widget.NewModalPopUp(
+		container.NewStack(
+			canvas.NewImageFromImage(world.getMinimapWithDot(pos)),
+		),
+		w.Canvas(),
+	)
 	minimapPopup.Resize(fyne.NewSize(float32(window.MiniMapArea.Width), float32(window.MiniMapArea.Height)))
-	minimapPopup.Move(fyne.NewPos(float32(window.Window.Width-window.MiniMapArea.Width)/2, float32(window.Window.Height-window.MiniMapArea.Height)/2))
+	minimapPopup.Move(
+		fyne.NewPos(float32(window.Window.Width-window.MiniMapArea.Width)/2,
+			float32(window.Window.Height-window.MiniMapArea.Height)/2),
+	)
 	minimapPopup.Show()
 }
 
