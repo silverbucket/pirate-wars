@@ -2,10 +2,11 @@ package common
 
 import (
 	"fmt"
+	"math/rand"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"math/rand"
 )
 
 const (
@@ -92,4 +93,8 @@ func CoordsMatch(c Coordinates, p Coordinates) bool {
 func RenderContainer(r *canvas.Rectangle, t *canvas.Text) *fyne.Container {
 	t.Alignment = fyne.TextAlignCenter
 	return container.NewStack(r, t)
+}
+
+func CoordToKey(c Coordinates) int {
+	return c.X*WorldCols + c.Y
 }

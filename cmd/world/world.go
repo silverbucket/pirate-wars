@@ -239,12 +239,11 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 
 	// overlay map of all avatars, player and npcs
 	// instead of terrain, in these overlay positions we generate the avatars
-	overlay := make(map[string]entities.AvatarReadOnly)
-	overlay[fmt.Sprintf("%03d%03d", p.X, p.Y)] = avatar
+	overlay := make(map[int]entities.AvatarReadOnly, len(npcs)+1)
+	overlay[common.CoordToKey(p)] = avatar
 
 	for _, n := range npcs {
-		c := n.GetPos()
-		overlay[fmt.Sprintf("%03d%03d", c.X, c.Y)] = n
+		overlay[common.CoordToKey(n.GetPos())] = n
 	}
 
 	// if the entity to highlight has real coords, we add it to the overlay
@@ -297,7 +296,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 			var fgColor color.Color
 			var bgColor color.Color
 
-			if item, ok := overlay[fmt.Sprintf("%03d%03d", mapX, mapY)]; ok {
+			if item, ok := overlay[common.CoordToKey(common.Coordinates{X: mapX, Y: mapY})]; ok {
 				text = item.GetCharacter()
 				fgColor = item.GetForegroundColor()
 				bgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
