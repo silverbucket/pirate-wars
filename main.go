@@ -181,7 +181,12 @@ func main() {
 	w.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
 		gameState.handleKeyPress(key)
 		if ViewType == world.ViewTypeMiniMap {
-			gameState.world.ShowMinimapPopup(gameState.player.GetPos(), w)
+			towns := gameState.towns.GetTowns()
+			var entities entities.ViewableEntities
+			for _, t := range towns {
+				entities = append(entities, &t)
+			}
+			gameState.world.ShowMinimapPopup(gameState.player.GetPos(), entities, w)
 		} else {
 			gameState.world.HideMinimapPopup()
 		}

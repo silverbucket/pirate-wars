@@ -43,12 +43,17 @@ var WorldProps = Props{
 }
 
 type MapView struct {
-	logger            *zap.SugaredLogger
-	terrain           *terrain.Terrain
-	viewPort          *fyne.Container
-	viewPortAnimation *fyne.Animation
-	minimap           *image.RGBA
-	overlayItems      []OverlayItems
+	logger       *zap.SugaredLogger
+	terrain      *terrain.Terrain
+	viewPort     *fyne.Container
+	minimap      *image.RGBA
+	overlayItems []OverlayItems
+}
+
+type MinimapOverlay struct {
+	pos         common.Coordinates
+	terrainType terrain.Type
+	color       color.Color
 }
 
 type OverlayItems interface {
@@ -134,7 +139,7 @@ func (world *MapView) RandomPositionDeepWater() common.Coordinates {
 	}
 }
 
-func (world *MapView) generateBaseMinimapImage() {
+func (world *MapView) generateMinimapImage() {
 	world.logger.Info("Generating minimap")
 	cols := common.WorldCols
 	rows := common.WorldRows
@@ -167,7 +172,7 @@ func (world *MapView) createRawMapImage(cellWidth, cellHeight float32, cols, row
 	return img
 }
 
-func (world *MapView) getMinimapWithDot(pos common.Coordinates) *image.RGBA {
+func (world *MapView) getMinimapWithOverlays(pos common.Coordinates, entities entities.ViewableEntities) *image.RGBA {
 	cols := common.WorldCols
 	rows := common.WorldRows
 
@@ -179,17 +184,24 @@ func (world *MapView) getMinimapWithDot(pos common.Coordinates) *image.RGBA {
 	cellWidth := float32(window.MiniMapArea.Width) / float32(cols)
 	cellHeight := float32(window.MiniMapArea.Height) / float32(rows)
 
-	x := int(float32(pos.X) * cellWidth)
-	y := int(float32(pos.Y) * cellHeight)
+	overlays := []MinimapOverlay{}
+	overlays = append(overlays, MinimapOverlay{pos: pos, color: color.White})
 
-	// Draw a small white dot (e.g., 5x5 pixels)
+	for _, e := range entities {
+		overlays = append(overlays, MinimapOverlay{pos: e.GetPos(), color: e.GetBackgroundColor()})
+	}
+
 	dotSize := 5
-	for dy := -dotSize / 2; dy <= dotSize/2; dy++ {
-		for dx := -dotSize / 2; dx <= dotSize/2; dx++ {
-			px := x + dx
-			py := y + dy
-			if px >= 0 && px < window.MiniMapArea.Width && py >= 0 && py < window.MiniMapArea.Height {
-				img.Set(px, py, color.White)
+	for _, item := range overlays {
+		x := int(float32(item.pos.X) * cellWidth)
+		y := int(float32(item.pos.Y) * cellHeight)
+		for dy := -dotSize / 2; dy <= dotSize/2; dy++ {
+			for dx := -dotSize / 2; dx <= dotSize/2; dx++ {
+				px := x + dx
+				py := y + dy
+				if px >= 0 && px < window.MiniMapArea.Width && py >= 0 && py < window.MiniMapArea.Height {
+					img.Set(px, py, item.color)
+				}
 			}
 		}
 	}
@@ -197,10 +209,10 @@ func (world *MapView) getMinimapWithDot(pos common.Coordinates) *image.RGBA {
 	return img
 }
 
-func (world *MapView) ShowMinimapPopup(pos common.Coordinates, w fyne.Window) {
+func (world *MapView) ShowMinimapPopup(pos common.Coordinates, entities entities.ViewableEntities, w fyne.Window) {
 	minimapPopup = widget.NewModalPopUp(
 		container.NewStack(
-			canvas.NewImageFromImage(world.getMinimapWithDot(pos)),
+			canvas.NewImageFromImage(world.getMinimapWithOverlays(pos, entities)),
 		),
 		w.Canvas(),
 	)
@@ -374,6 +386,6 @@ func Init(logger *zap.SugaredLogger) *MapView {
 	}
 
 	world.generateViewPort()
-	world.generateBaseMinimapImage()
+	world.generateMinimapImage()
 	return &world
 }

@@ -3,11 +3,14 @@ package town
 import (
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
+	"image/color"
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/terrain"
+	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
+
+	"go.uber.org/zap"
 )
 
 type Towns struct {
@@ -21,6 +24,8 @@ type Town struct {
 	terrainType terrain.Type
 	logger      *zap.SugaredLogger
 	HeatMap     HeatMap
+	blink       bool
+	alternate   bool
 }
 
 var townList []Town
@@ -33,12 +38,65 @@ func (t *Town) GetPos() common.Coordinates {
 	return t.pos[0]
 }
 
+func (t *Town) GetPreviousPos() common.Coordinates {
+	return t.pos[0]
+}
+
 func (t *Town) GetTerrainType() terrain.Type {
 	return t.terrainType
 }
 
+func (t *Town) GetType() string {
+	return "Town"
+}
+
+func (t *Town) GetViewableRange() window.Dimensions {
+	return window.Dimensions{Width: 20, Height: 20}
+}
+
+func (t *Town) Highlight() {
+	t.SetBlink(true)
+}
+
+func (a *Town) SetBlink(b bool) {
+	a.blink = b
+	if !b {
+		a.alternate = false
+	}
+}
+
 func (t *Town) SetTerrainType(tt terrain.Type) {
 	t.terrainType = tt
+}
+
+func (t *Town) GetName() string {
+	return t.id
+}
+
+func (t *Town) GetForegroundColor() color.Color {
+	return color.White
+}
+
+func (t *Town) GetBackgroundColor() color.Color {
+	if t.blink {
+		if t.alternate {
+			t.alternate = false
+			return color.RGBA{0, 0, 0, 255}
+		} else {
+			t.alternate = true
+			return color.RGBA{255, 255, 255, 255}
+		}
+	}
+	t.alternate = false
+	return t.terrainType.GetBackgroundColor()
+}
+
+func (t *Town) GetFlag() string {
+	return "NA"
+}
+
+func (t *Town) GetCharacter() string {
+	return t.terrainType.GetCharacter()
 }
 
 func (t *Town) AccessibleFrom(c common.Coordinates) bool {
@@ -135,4 +193,8 @@ func (ts *Towns) GetRandomTown() (Town, error) {
 		return Town{}, errors.New("no towns found")
 	}
 	return ts.list[rand.Intn(len(ts.list))], nil
+}
+
+func (ts *Towns) GetTowns() []Town {
+	return ts.list
 }
