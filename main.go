@@ -156,34 +156,12 @@ func (m *GameState) processTick() {
 // ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 func main() {
 	app := app.New()
-
 	app.Settings().SetTheme(&customDarkTheme{})
 
 	logger := createLogger()
 	logger.Info("Starting...")
 
 	w := app.NewWindow("Pirate Wars")
-
-	logger.Info(fmt.Sprintf("Window Dimensions %+v", window.Window))
-	logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewPort))
-
-	gameState := initGameState(logger)
-	mainContent := gameState.world.GetViewPort()
-	SidePanel = gameState.createSidePanel()
-	ActionMenu = gameState.createActionMenu()
-
-	// Main layout
-	viewportBg := canvas.NewRectangle(color.Transparent)
-	viewportBg.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
-
-	content := container.NewBorder(
-		nil,
-		ActionMenu,
-		nil,
-		SidePanel,
-		container.NewStack(viewportBg, mainContent),
-	)
-	w.SetContent(content)
 	w.Resize(fyne.NewSize(float32(window.Window.Width), float32(window.Window.Height)))
 	w.SetFixedSize(true) // don't allow resizing for now
 
@@ -192,37 +170,77 @@ func main() {
 	splash.Resize(fyne.NewSize(1024, 768))
 	splash.FillMode = canvas.ImageFillOriginal
 
-	// Create overlay container
-	overlay := container.NewStack(content, splash)
-	w.SetContent(overlay)
+	// Show splash screen immediately
+	w.SetContent(splash)
+	w.Show()
 
-	// Hide splash after delay
+	// Initialize game state in background
 	go func() {
-		time.Sleep(time.Second * 3)
+		// Create a channel to signal when initialization is complete
+		initComplete := make(chan struct{})
+		var gameState *GameState
+		var gameContent fyne.CanvasObject
+
+		// Start initialization in a separate goroutine
+		go func() {
+			logger.Info(fmt.Sprintf("Window Dimensions %+v", window.Window))
+			logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewPort))
+
+			gameState = initGameState(logger)
+			mainContent := gameState.world.GetViewPort()
+			SidePanel = gameState.createSidePanel()
+			ActionMenu = gameState.createActionMenu()
+
+			// Main layout
+			viewportBg := canvas.NewRectangle(color.Transparent)
+			viewportBg.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
+
+			gameContent = container.NewBorder(
+				nil,
+				ActionMenu,
+				nil,
+				SidePanel,
+				container.NewStack(viewportBg, mainContent),
+			)
+
+			// Signal that initialization is complete
+			close(initComplete)
+
+			go gameState.gameLoop()
+
+			w.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
+				gameState.handleKeyPress(key)
+				if ViewType == world.ViewTypeMiniMap {
+					towns := gameState.towns.GetTowns()
+					var entities entities.ViewableEntities
+					for _, t := range towns {
+						entities = append(entities, &t)
+					}
+					gameState.world.ShowMinimapPopup(gameState.player.GetPos(), entities, w)
+				} else {
+					gameState.world.HideMinimapPopup()
+				}
+			})
+		}()
+
+		// Wait for both initialization and minimum splash screen time
+		select {
+		case <-initComplete:
+			// Initialization complete, but still need to wait for minimum splash time
+			time.Sleep(2 * time.Second)
+		case <-time.After(2 * time.Second):
+			// Minimum splash time reached, but initialization might still be in progress
+			<-initComplete // Wait for initialization to complete
+		}
+
+		// Now switch to game content and unpause
 		fyne.Do(func() {
-			w.SetContent(content)
+			w.SetContent(gameContent)
 			gameState.paused = false
 		})
 	}()
 
-	go gameState.gameLoop()
-
-	w.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
-		gameState.handleKeyPress(key)
-		if ViewType == world.ViewTypeMiniMap {
-			towns := gameState.towns.GetTowns()
-			var entities entities.ViewableEntities
-			for _, t := range towns {
-				entities = append(entities, &t)
-			}
-			gameState.world.ShowMinimapPopup(gameState.player.GetPos(), entities, w)
-		} else {
-			gameState.world.HideMinimapPopup()
-		}
-	})
-
 	w.ShowAndRun()
-
 	logger.Info("Exiting...")
 }
 
