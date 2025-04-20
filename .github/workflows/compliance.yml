@@ -20,9 +20,7 @@ jobs:
         include:
           - os: ubuntu-latest
             runner: xvfb-run
-            tags: ci,migrated_fynedo
           - os: macos-latest
-            tags: no_glfw,ci,migrated_fynedo
 
     steps:
     - uses: actions/checkout@v4
