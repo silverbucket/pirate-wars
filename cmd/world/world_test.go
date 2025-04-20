@@ -1,18 +1,32 @@
 package world
 
 import (
-	"go.uber.org/zap"
+	"image/color"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/screen"
+	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/window"
 	"testing"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"go.uber.org/zap"
 )
+
+var testApp fyne.App
 
 func initTestLogger() *zap.SugaredLogger {
 	logger, _ := zap.NewProduction()
 	return logger.Sugar()
 }
 
+func setup() {
+	testApp = app.New()
+}
+
 func cleanup() {
+	if testApp != nil {
+		testApp.Quit()
+	}
 }
 
 type AvatarMock struct {
@@ -20,19 +34,20 @@ type AvatarMock struct {
 	char rune
 }
 
-func (av AvatarMock) Render() string {
-	return ""
-}
-func (av AvatarMock) GetPos() common.Coordinates         { return av.pos }
-func (av AvatarMock) GetID() string                      { return "" }
-func (av AvatarMock) Highlight()                         {}
-func (av AvatarMock) GetFlag() string                    { return "" }
-func (av AvatarMock) GetType() string                    { return "" }
-func (av AvatarMock) GetName() string                    { return "" }
-func (av AvatarMock) GetForegroundColor() string         { return "" }
-func (av AvatarMock) GetViewableRange() screen.ViewRange { return screen.ViewRange{} }
+func (av AvatarMock) GetPos() common.Coordinates          { return av.pos }
+func (av AvatarMock) GetPreviousPos() common.Coordinates  { return av.pos }
+func (av AvatarMock) GetID() string                       { return "" }
+func (av AvatarMock) Highlight()                          {}
+func (av AvatarMock) GetFlag() string                     { return "" }
+func (av AvatarMock) GetType() string                     { return "" }
+func (av AvatarMock) GetName() string                     { return "" }
+func (av AvatarMock) GetForegroundColor() color.Color     { return color.White }
+func (av AvatarMock) GetBackgroundColor() color.Color     { return color.White }
+func (av AvatarMock) GetViewableRange() window.Dimensions { return window.Dimensions{} }
+func (av AvatarMock) GetCharacter() string                { return string(av.char) }
 
 func TestWorldInit(t *testing.T) {
+	setup()
 	t.Cleanup(cleanup)
 	c := common.Coordinates{X: 10, Y: 10}
 	logger := initTestLogger()
@@ -45,9 +60,10 @@ func TestWorldInit(t *testing.T) {
 }
 
 func TestPaint(t *testing.T) {
+	setup()
 	t.Cleanup(cleanup)
 	avatar := AvatarMock{pos: common.Coordinates{X: 100, Y: 100}, char: '@'}
 	logger := initTestLogger()
 	world := Init(logger)
-	world.Paint(avatar, []common.AvatarReadOnly{}, avatar, 1)
+	world.Paint(avatar, []entities.AvatarReadOnly{}, avatar)
 }

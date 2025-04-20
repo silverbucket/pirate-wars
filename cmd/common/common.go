@@ -2,24 +2,22 @@ package common
 
 import (
 	"fmt"
+	"image/color"
 	"math/rand"
-	"pirate-wars/cmd/screen"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 )
 
 const (
-	LogFile     = "pirate-wars.log"
-	WorldWidth  = 600 // Y
-	WorldHeight = 600 // X
-	TotalTowns  = 20
-	TotalNpcs   = 100
+	LogFile        = "pirate-wars.log"
+	WorldCols  int = 800 // Y
+	WorldRows  int = 800 // X
+	TotalTowns     = 30
+	TotalNpcs      = 150
 )
-
-type Viewport struct {
-	Top    int
-	Left   int
-	Bottom int
-	Right  int
-}
 
 type Coordinates struct {
 	X int // left right
@@ -38,12 +36,6 @@ var Directions = []Coordinates{
 	{0, 1},   // right
 }
 
-type AvatarReadOnly interface {
-	GetPos() Coordinates
-	Render() string
-	GetViewableRange() screen.ViewRange
-}
-
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 
 func GenID(pos Coordinates) string {
@@ -52,7 +44,7 @@ func GenID(pos Coordinates) string {
 }
 
 func Inbounds(c Coordinates) bool {
-	return c.X >= 0 && c.X < WorldHeight && c.Y >= 0 && c.Y < WorldWidth
+	return c.X >= 0 && c.X < WorldRows && c.Y >= 0 && c.Y < WorldCols
 }
 
 func IsPositionAdjacent(p Coordinates, t Coordinates) bool {
@@ -65,15 +57,8 @@ func IsPositionAdjacent(p Coordinates, t Coordinates) bool {
 	return false
 }
 
-func IsPositionWithin(c Coordinates, v Viewport) bool {
-	if (v.Left <= c.X && c.X <= v.Right) && (v.Top <= c.Y && c.Y <= v.Bottom) {
-		return true
-	}
-	return false
-}
-
 func RandomPosition() Coordinates {
-	return Coordinates{X: rand.Intn(WorldWidth - 1), Y: rand.Intn(WorldHeight - 1)}
+	return Coordinates{X: rand.Intn(WorldCols - 1), Y: rand.Intn(WorldRows - 1)}
 }
 
 func AddDirection(p Coordinates, d Coordinates) Coordinates {
@@ -100,51 +85,39 @@ func diff(a, b int) int {
 	return a - b
 }
 
-func GetViewport(pos Coordinates, vr screen.ViewRange) Viewport {
-	// center viewport on position
-	left := pos.X - (vr.Width / 2)
-	right := pos.X + (vr.Width / 2)
-
-	top := pos.Y - (vr.Height / 2)
-	bottom := pos.Y + (vr.Height / 2)
-
-	// take up screen
-	if right-left < vr.Width {
-		left = right - vr.Width
-	}
-	if bottom-top < vr.Height {
-		top = bottom - vr.Height
-	}
-
-	// don't slide the screen when you hit the edge
-	if bottom >= WorldHeight {
-		bottom = WorldHeight
-		top = WorldHeight - vr.Height
-	}
-	if right >= WorldWidth {
-		right = WorldWidth
-		left = WorldWidth - vr.Width
-	}
-
-	if left < 0 {
-		left = 0
-		right = vr.Width
-	}
-	if top < 0 {
-		top = 0
-		bottom = vr.Height
-	}
-
-	return Viewport{top, left, bottom, right}
-}
-
-func GetMiniMapScale(c Coordinates) Coordinates {
-	return Coordinates{c.X / screen.MiniMapFactor, c.Y / screen.MiniMapFactor}
-}
-
 func CoordsMatch(c Coordinates, p Coordinates) bool {
 	if c.X == p.X && c.Y == p.Y {
 		return true
 	}
 	return false
+}
+
+func RenderContainer(r *canvas.Rectangle, t *canvas.Text) *fyne.Container {
+	t.Alignment = fyne.TextAlignCenter
+	return container.NewStack(r, t)
+}
+
+func CoordToKey(c Coordinates) int {
+	return c.X*WorldCols + c.Y
+}
+
+// compare colors
+// Optimize color comparison for RGBA colors
+func ColorEqual(c1, c2 color.Color) bool {
+	// Fast path for RGBA colors
+	if rgba1, ok1 := c1.(color.RGBA); ok1 {
+		if rgba2, ok2 := c2.(color.RGBA); ok2 {
+			return rgba1 == rgba2
+		}
+	}
+	// Fallback to standard comparison
+	r1, g1, b1, a1 := c1.RGBA()
+	r2, g2, b2, a2 := c2.RGBA()
+	return r1 == r2 && g1 == g2 && b1 == b2 && a1 == a2
+}
+
+func NewWrappedLabel(text string) *widget.Label {
+	label := widget.NewLabel(text)
+	label.Wrapping = fyne.TextWrapWord
+	return label
 }

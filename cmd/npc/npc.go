@@ -2,13 +2,16 @@ package npc
 
 import (
 	"fmt"
-	"go.uber.org/zap"
+	"image/color"
 	"math/rand"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/screen"
+	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/town"
+	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
 	"sort"
+
+	"go.uber.org/zap"
 )
 
 // ChanceToMove Percentage chance an NPC will calculate movement per tick
@@ -27,7 +30,7 @@ type Npc struct {
 	eType  string
 	flag   string
 	logger *zap.SugaredLogger
-	avatar Avatar
+	avatar entities.Avatar
 	agenda Agenda
 }
 
@@ -47,11 +50,15 @@ func (n *Npc) GetFlag() string {
 }
 
 func (n *Npc) GetPos() common.Coordinates {
-	return n.avatar.pos
+	return n.avatar.GetPos()
+}
+
+func (n *Npc) GetPreviousPos() common.Coordinates {
+	return n.avatar.GetPreviousPos()
 }
 
 func (n *Npc) SetPos(p common.Coordinates) {
-	n.avatar.pos = p
+	n.avatar.SetPos(p)
 }
 
 func (n *Npc) GetID() string {
@@ -62,25 +69,25 @@ func (n *Npc) SetID(s string) {
 	n.id = s
 }
 
-func (n *Npc) GetForegroundColor() string {
-	return n.avatar.fgColor
+func (n *Npc) GetForegroundColor() color.Color {
+	return n.avatar.GetForegroundColor()
 }
 
-func (n *Npc) Render() string {
-	return n.avatar.Render()
+func (n *Npc) GetCharacter() string {
+	return n.avatar.GetCharacter()
 }
 
-func (n *Npc) GetBackgroundColor() string {
-	return n.avatar.bgColor
+func (n *Npc) GetBackgroundColor() color.Color {
+	return n.avatar.GetBackgroundColor()
 }
 
-func (n *Npc) GetViewableRange() screen.ViewRange {
-	return screen.ViewRange{Width: 20, Height: 20}
+func (n *Npc) GetViewableRange() window.Dimensions {
+	return window.Dimensions{Width: 20, Height: 20}
 }
 
 func (n *Npc) Highlight() {
 	n.avatar.SetBlink(true)
-	n.avatar.SetBackgroundColor("7")
+	n.avatar.SetBackgroundColor(color.White)
 }
 
 func (ns *Npcs) ForEach(fn func(n Npc)) {
@@ -106,7 +113,7 @@ func (ns *Npcs) Create(towns *town.Towns, world *world.MapView) {
 				// either same town, or inaccessible from position
 				if tryCount > 20 {
 					// abort creation
-					ns.logger.Info(fmt.Sprintf("Failed creating npc at position %d, skipping [town: %v, accessible?: %v]", pos, newTown.GetPos(), newTown.AccessibleFrom(pos)))
+					//ns.logger.Info(fmt.Sprintf("Failed creating npc at position %d, skipping [town: %v, accessible?: %v]", pos, newTown.GetPos(), newTown.AccessibleFrom(pos)))
 					return
 				}
 				// try again
@@ -116,7 +123,7 @@ func (ns *Npcs) Create(towns *town.Towns, world *world.MapView) {
 		tradeTowns = append(tradeTowns, newTown)
 	}
 
-	color := ColorPossibilities[rand.Intn(len(ColorPossibilities)-1)]
+	c := entities.ColorPossibilities[rand.Intn(len(entities.ColorPossibilities)-1)]
 
 	npc := Npc{
 		id:     common.GenID(pos),
@@ -124,7 +131,7 @@ func (ns *Npcs) Create(towns *town.Towns, world *world.MapView) {
 		logger: ns.logger,
 		name:   common.GenerateCaptainName(),
 		flag:   common.GetRandomFlag(),
-		avatar: CreateAvatar(pos, '⏏', color),
+		avatar: entities.CreateAvatar(pos, '⏏', c),
 		agenda: Agenda{
 			goal:        GoalTypeTrade,
 			tradeTarget: 0,
@@ -147,6 +154,7 @@ func Init(towns *town.Towns, world *world.MapView, logger *zap.SugaredLogger) *N
 }
 
 func (ns *Npcs) CalcMovements() {
+	ns.logger.Infof("Calculating NPC movements: %d", len(ns.list))
 	for i := range ns.list {
 		if rand.Intn(100) > ChanceToMove {
 			continue
@@ -173,7 +181,7 @@ func (ns *Npcs) CalcMovements() {
 			}
 			//t.Logger.Debug(fmt.Sprintf("New heatmap coordinates check [%v][%v]", newX, newY))
 			//t.Logger.Debug(fmt.Sprintf("Npc at %v, %v - checking square %v, %v cost:%v [lowest cost: %v]", newPosition.X, newPosition.Y, newX, newY, town.HeatMap[newX][newY], lowestCost)
-			opts = append(opts, town.DirectionCost{n, targetTown.HeatMap.GetCost(n)})
+			opts = append(opts, town.DirectionCost{Pos: n, Cost: targetTown.HeatMap.GetCost(n)})
 		}
 
 		pick := town.DecideDirection(opts, targetTown.GetPos())
@@ -184,7 +192,7 @@ func (ns *Npcs) CalcMovements() {
 		if target.X == npcpos.X && target.Y == npcpos.Y {
 			ns.logger.Debug(fmt.Sprintf("[%v] NPC stuck at %+v! Travelling to town at %v (cost %v)", npc.id, npcpos, targetTown.GetPos(), cost))
 		} else {
-			//t.Logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (bg color: %v)", npc.id, npcpos, target, cost, npc.GetBackgroundColor()))
+			ns.logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (bg color: %v)", npc.id, npcpos, target, cost, npc.GetBackgroundColor()))
 			if !common.IsPositionAdjacent(npcpos, target) {
 				ns.logger.Debug(fmt.Sprintf("[%v] NPC warp! from %v to %v", npc.id, npcpos, target))
 			}
@@ -197,13 +205,13 @@ func (ns *Npcs) GetList() []Npc {
 	return ns.list
 }
 
-func (ns *Npcs) GetVisible(c common.Coordinates, vr screen.ViewRange) Npcs {
-	v := common.GetViewport(c, vr)
+func (ns *Npcs) GetVisible(c common.Coordinates, vr window.Dimensions) Npcs {
+	vp := window.GetViewportRegion(c)
 	viewable := map[int]Npc{}
 	keys := []int{}
 	for _, npc := range ns.list {
 		p := npc.GetPos()
-		if common.IsPositionWithin(p, v) {
+		if vp.IsPositionWithin(p) {
 			keys = append(keys, p.X)
 			viewable[p.X] = npc
 		}

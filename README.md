@@ -1,19 +1,22 @@
 # pirate-wars
-A pirate-themed roguelike, written in Go.
-
-![pirate-wars](https://storage.5apps.com/silverbucket/public/shares/250110-1732-Screenshot%202025-01-10%20at%2018.31.52.jpg)
+A pirate-themed game, written in Go, using the [Fyne UI Toolkit](https://github.com/fyne-io/fyne).
 
 **_NOTE_**: This is a hobby project, a work in progress.
 
+
+![Pirate Wars! Title Screen](https://storage.5apps.com/silverbucket/public/shares/250420-0050-pwicon.png)
+![Game Play Screenshot](https://storage.5apps.com/silverbucket/public/shares/250420-0046-pwss5.png)
+
+
 ## Overview
 
-You are a pirate, sailing the seas. 
+You are a pirate, sailing the seas. You can sail around, explore the map, and examine other ships you encounter.
 
 Currently there are NPC ships (`⏏`) which have basic pathfinding capabilities. They travel from one town to another (a "trade route"). 
 
 Towns are also generated throughout the map, with the red (`⩎`) characters. 
 
-You currently cannot interaction with the towns or ships.
+You currently cannot interaction with the towns or ships (other than examining).
 
 ## Keybindings
 
@@ -32,9 +35,6 @@ You currently cannot interaction with the towns or ships.
 * ~~`i`: View your info~~
 * ~~`?`: Help screen~~
 
-### Developer Commands
-* `p`: View heat-map for town 0 (debug purposes)
-
 ## Features
 * Move around in your boat
 * Explore the map
@@ -47,6 +47,12 @@ You currently cannot interaction with the towns or ships.
 * Towns don't spawn towns in small land-locked areas, however larger inaccessible can form with the terrain generation.
 
 ## Todo
+
+#### Visuals
+* Use Tilemaps
+* Animate tranistions
+* Nice borders for panels
+* Examine data popup over ship (rather than in side-panel)
 
 #### Towns
 * Enter towns

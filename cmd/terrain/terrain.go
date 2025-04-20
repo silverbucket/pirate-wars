@@ -2,7 +2,8 @@ package terrain
 
 import (
 	"fmt"
-	"github.com/charmbracelet/lipgloss"
+	"image/color"
+	"pirate-wars/cmd/common"
 )
 
 // Icon ideas
@@ -23,32 +24,36 @@ const (
 	TypeGhostTown    = 9
 )
 
+type Terrain struct {
+	Cells [common.WorldCols][common.WorldRows]Type
+}
+
 type Type int
 
 type TypeQualities struct {
 	symbol       rune
-	style        lipgloss.Style
+	color        color.RGBA
 	Passable     bool
 	RequiresBoat bool
 }
 
-func createTerrainItem(color lipgloss.Color) lipgloss.Style {
-	return lipgloss.NewStyle().Background(color).Padding(0).Margin(0)
-}
-
 var TypeLookup = map[Type]TypeQualities{
-	TypeDeepWater:    {symbol: '⏖', style: createTerrainItem("18"), Passable: true, RequiresBoat: true},
-	TypeOpenWater:    {symbol: '⏝', style: createTerrainItem("20"), Passable: true, RequiresBoat: true},
-	TypeShallowWater: {symbol: '⏑', style: createTerrainItem("26"), Passable: true, RequiresBoat: true},
-	TypeBeach:        {symbol: '~', style: createTerrainItem("#dad1ad"), Passable: true, RequiresBoat: false},
-	TypeLowland:      {symbol: ':', style: createTerrainItem("113"), Passable: true, RequiresBoat: false},
-	TypeHighland:     {symbol: ':', style: createTerrainItem("142"), Passable: true, RequiresBoat: false},
-	TypeRock:         {symbol: '%', style: createTerrainItem("244"), Passable: true, RequiresBoat: false},
-	TypePeak:         {symbol: '^', style: createTerrainItem("15"), Passable: false, RequiresBoat: false},
-	TypeTown:         {symbol: '⩎', style: createTerrainItem("1"), Passable: true, RequiresBoat: false},
-	TypeGhostTown:    {symbol: '⩎', style: createTerrainItem("94"), Passable: true, RequiresBoat: false},
+	TypeDeepWater:    {symbol: ' ', color: color.RGBA{2, 0, 121, 255}, Passable: true, RequiresBoat: true},
+	TypeOpenWater:    {symbol: ' ', color: color.RGBA{0, 19, 222, 255}, Passable: true, RequiresBoat: true},
+	TypeShallowWater: {symbol: ' ', color: color.RGBA{0, 33, 243, 255}, Passable: true, RequiresBoat: true},
+	TypeBeach:        {symbol: ' ', color: color.RGBA{205, 170, 109, 125}, Passable: true, RequiresBoat: false},
+	TypeLowland:      {symbol: ' ', color: color.RGBA{65, 152, 10, 255}, Passable: true, RequiresBoat: false},
+	TypeHighland:     {symbol: ' ', color: color.RGBA{192, 155, 40, 255}, Passable: true, RequiresBoat: false},
+	TypeRock:         {symbol: ' ', color: color.RGBA{150, 150, 150, 255}, Passable: true, RequiresBoat: false},
+	TypePeak:         {symbol: ' ', color: color.RGBA{229, 229, 229, 255}, Passable: false, RequiresBoat: false},
+	TypeTown:         {symbol: '⩎', color: color.RGBA{246, 104, 94, 255}, Passable: true, RequiresBoat: false},
+	TypeGhostTown:    {symbol: '⩎', color: color.RGBA{147, 62, 56, 255}, Passable: true, RequiresBoat: false},
 }
 
-func (tt *Type) Render() string {
-	return TypeLookup[*tt].style.PaddingLeft(1).PaddingRight(1).Render(fmt.Sprintf("%c", TypeLookup[*tt].symbol))
+func (tt *Type) GetBackgroundColor() color.RGBA {
+	return TypeLookup[*tt].color
+}
+
+func (tt *Type) GetCharacter() string {
+	return fmt.Sprintf("%c", TypeLookup[*tt].symbol)
 }
