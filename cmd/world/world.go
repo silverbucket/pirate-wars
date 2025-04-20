@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/resources"
 	"pirate-wars/cmd/terrain"
 	"pirate-wars/cmd/window"
 
@@ -48,6 +49,10 @@ type MapView struct {
 	viewPort     *fyne.Container
 	minimap      *image.RGBA
 	overlayItems []OverlayItems
+	// Cache for terrain tile images
+	terrainTileCache map[terrain.Type]image.Image
+	// Cache for entity images
+	entityImageCache map[string]image.Image
 }
 
 type MinimapOverlay struct {
@@ -238,7 +243,9 @@ func (world *MapView) generateViewPort() {
 	// initialize viewport cells
 	for x := 0; x < window.ViewPort.Region.Cols; x++ {
 		for y := 0; y < window.ViewPort.Region.Rows; y++ {
-			cell := common.RenderContainer(canvas.NewRectangle(color.Black), canvas.NewText("", color.White))
+			cell := container.NewStack(
+				canvas.NewImageFromImage(image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))),
+			)
 			cell.Resize(fyne.NewSize(float32(window.CellSize), float32(window.CellSize)))
 			cell.Move(fyne.NewPos(float32(x*window.CellSize), float32(y*window.CellSize)))
 			world.viewPort.Add(cell)
@@ -246,16 +253,50 @@ func (world *MapView) generateViewPort() {
 	}
 }
 
+func (world *MapView) getTerrainTile(tt terrain.Type) image.Image {
+	if world.terrainTileCache == nil {
+		world.terrainTileCache = make(map[terrain.Type]image.Image)
+	}
+
+	if tile, ok := world.terrainTileCache[tt]; ok {
+		return tile
+	}
+
+	tile := resources.GetTileImage(tt)
+	world.terrainTileCache[tt] = tile
+	return tile
+}
+
+func (world *MapView) getEntityImage(entity entities.AvatarReadOnly) image.Image {
+	if world.entityImageCache == nil {
+		world.entityImageCache = make(map[string]image.Image)
+	}
+
+	// Create a unique key for the entity based on its properties
+	key := fmt.Sprintf("%s-%v-%v",
+		entity.GetCharacter(),
+		entity.GetBackgroundColor(),
+		entity.GetForegroundColor())
+
+	if img, ok := world.entityImageCache[key]; ok {
+		return img
+	}
+
+	// Create new entity image
+	entityImg := image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))
+	draw.Draw(entityImg, entityImg.Bounds(), &image.Uniform{entity.GetBackgroundColor()}, image.Point{}, draw.Src)
+	world.entityImageCache[key] = entityImg
+	return entityImg
+}
+
 func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, highlight entities.ViewableEntity) {
 	p := avatar.GetPos()
-	h := highlight.GetPos() // potential entity to highlight (selected)
+	h := highlight.GetPos()
 	vpr := window.GetViewportRegion(p)
 
-	// overlay map of all avatars, player and npcs
-	// instead of terrain, in these overlay positions we generate the avatars
+	// Create overlay map
 	overlay := make(map[int]entities.AvatarReadOnly, len(npcs)+2)
 	overlay[common.CoordToKey(p)] = avatar
-
 	for _, n := range npcs {
 		overlay[common.CoordToKey(n.GetPos())] = n
 	}
@@ -263,63 +304,50 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 	// if the entity to highlight has real coords, we add it to the overlay
 	if h.X >= 0 {
 		world.logger.Debug("[%v] highlighting", highlight.GetID())
-		// actual entity to examine, we should highlight it
 		highlight.Highlight()
 		overlay[common.CoordToKey(h)] = highlight
 	}
 
-	// world.logger.Info("--")
-	// world.logger.Info("Player position %+v", p)
-	// world.logger.Info("Painting world with %v viewable NPCs", len(npcs))
-	// world.logger.Info("Viewport Region %+v", v)
-	// world.logger.Info("Increment amount %+v", inc)
-	// world.logger.Info("Grid length %v", len(g.Objects))
-
 	vpIdx := 0
 	needsRefresh := false
+
+	// Pre-calculate cell positions to avoid repeated calculations
+	cellPositions := make([]common.Coordinates, vpr.Cols*vpr.Rows)
 	for x := 0; x < vpr.Cols; x++ {
 		for y := 0; y < vpr.Rows; y++ {
-			// Calculate map coordinates
 			mapX := vpr.X + x
 			mapY := vpr.Y + y
-
-			// Skip if outside map bounds
-			if mapX < 0 || mapX >= common.WorldCols || mapY < 0 || mapY >= common.WorldRows {
-				continue
-			}
-
-			// Get existing cell from viewport
-			cell := world.viewPort.Objects[vpIdx].(*fyne.Container)
-			rect := cell.Objects[0].(*canvas.Rectangle)
-			text := cell.Objects[1].(*canvas.Text)
-
-			// Determine new content
-			var newText string
-			var newFgColor color.Color
-			var newBgColor color.Color
-
-			if item, ok := overlay[common.CoordToKey(common.Coordinates{X: mapX, Y: mapY})]; ok {
-				newText = item.GetCharacter()
-				newFgColor = item.GetForegroundColor()
-				newBgColor = item.GetBackgroundColor()
-			} else {
-				newText = world.terrain.Cells[mapX][mapY].GetCharacter()
-				newFgColor = color.White
-				newBgColor = world.terrain.Cells[mapX][mapY].GetBackgroundColor()
-			}
-
-			// Only update if content changed
-			if text.Text != newText ||
-				!common.ColorEqual(text.Color, newFgColor) ||
-				!common.ColorEqual(rect.FillColor, newBgColor) {
-
-				text.Text = newText
-				text.Color = newFgColor
-				rect.FillColor = newBgColor
-				needsRefresh = true
+			if mapX >= 0 && mapX < common.WorldCols && mapY >= 0 && mapY < common.WorldRows {
+				cellPositions[vpIdx] = common.Coordinates{X: mapX, Y: mapY}
 			}
 			vpIdx++
 		}
+	}
+
+	// Process all cells in the viewport
+	vpIdx = 0
+	for _, pos := range cellPositions {
+		if pos.X < 0 || pos.X >= common.WorldCols || pos.Y < 0 || pos.Y >= common.WorldRows {
+			vpIdx++
+			continue
+		}
+
+		cell := world.viewPort.Objects[vpIdx].(*fyne.Container)
+		img := cell.Objects[0].(*canvas.Image)
+
+		var newImage image.Image
+		if item, ok := overlay[common.CoordToKey(pos)]; ok {
+			newImage = world.getEntityImage(item)
+		} else {
+			terrainType := world.terrain.Cells[pos.X][pos.Y]
+			newImage = world.getTerrainTile(terrainType)
+		}
+
+		if img.Image != newImage {
+			img.Image = newImage
+			needsRefresh = true
+		}
+		vpIdx++
 	}
 
 	if needsRefresh {
@@ -330,10 +358,12 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 func Init(logger *zap.SugaredLogger) *MapView {
 	t := &terrain.Terrain{}
 	world := MapView{
-		logger:       logger,
-		terrain:      t,
-		viewPort:     container.NewWithoutLayout(),
-		overlayItems: []OverlayItems{},
+		logger:           logger,
+		terrain:          t,
+		viewPort:         container.NewWithoutLayout(),
+		overlayItems:     []OverlayItems{},
+		terrainTileCache: make(map[terrain.Type]image.Image),
+		entityImageCache: make(map[string]image.Image),
 	}
 
 	world.logger.Info("Initializing world...")
