@@ -30,15 +30,20 @@ var SidePanel *fyne.Container
 var ActionMenu *fyne.Container
 
 type GameState struct {
-	logger *zap.SugaredLogger
-	world  *world.MapView
-	player *entities.Avatar
-	npcs   *npc.Npcs
-	towns  *town.Towns
+	paused      bool
+	initialized bool
+	logger      *zap.SugaredLogger
+	world       *world.MapView
+	player      *entities.Avatar
+	npcs        *npc.Npcs
+	towns       *town.Towns
 }
 
 func initGameState(logger *zap.SugaredLogger) *GameState {
-	gs := GameState{}
+	gs := GameState{
+		paused:      true,
+		initialized: false,
+	}
 	gs.logger = logger
 	gs.world = world.Init(gs.logger)
 	gs.towns = town.Init(gs.world, gs.logger)
@@ -128,6 +133,10 @@ func (gs *GameState) createActionMenu() *fyne.Container {
 }
 
 func (m *GameState) processTick() {
+	if m.paused {
+		return
+	}
+
 	if ViewType == world.ViewTypeMainMap {
 		m.npcs.CalcMovements()
 	}
@@ -146,11 +155,13 @@ func (m *GameState) processTick() {
 
 // ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 func main() {
+	app := app.New()
+
+	app.Settings().SetTheme(&customDarkTheme{})
+
 	logger := createLogger()
 	logger.Info("Starting...")
 
-	app := app.New()
-	app.Settings().SetTheme(&customDarkTheme{})
 	w := app.NewWindow("Pirate Wars")
 
 	logger.Info(fmt.Sprintf("Window Dimensions %+v", window.Window))
@@ -175,6 +186,24 @@ func main() {
 	w.SetContent(content)
 	w.Resize(fyne.NewSize(float32(window.Window.Width), float32(window.Window.Height)))
 	w.SetFixedSize(true) // don't allow resizing for now
+
+	// Create splash overlay
+	splash := canvas.NewImageFromFile("./assets/pirate-wars.png")
+	splash.Resize(fyne.NewSize(1024, 768))
+	splash.FillMode = canvas.ImageFillOriginal
+
+	// Create overlay container
+	overlay := container.NewStack(content, splash)
+	w.SetContent(overlay)
+
+	// Hide splash after delay
+	go func() {
+		time.Sleep(time.Second * 3)
+		fyne.Do(func() {
+			w.SetContent(content)
+			gameState.paused = false
+		})
+	}()
 
 	go gameState.gameLoop()
 
