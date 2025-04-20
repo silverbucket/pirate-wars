@@ -56,8 +56,4 @@ jobs:
       run: make 
 
     - name: Tests
-      run: ${{ matrix.runner }} go test -v -coverprofile=c.out -race -tags "${{ matrix.tags }}" ./...
-
-    - name: Wayland Tests
-      run: go test -v -coverprofile=c.out -race -tags no_glfw,ci,wayland ./...
-      if: ${{ runner.os == 'Linux' }}
+      run: ${{ matrix.runner }} make test
