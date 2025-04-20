@@ -1,9 +1,12 @@
 # pirate-wars
 A pirate-themed game, written in Go, using the [Fyne UI Toolkit](https://github.com/fyne-io/fyne).
 
-![pirate-wars](https://storage.5apps.com/silverbucket/public/shares/250420-0046-pwss5.png)
-
 **_NOTE_**: This is a hobby project, a work in progress.
+
+
+![Pirate Wars! Title Screen](https://storage.5apps.com/silverbucket/public/shares/250420-0050-pwicon.png)
+![Game Play Screenshot](https://storage.5apps.com/silverbucket/public/shares/250420-0046-pwss5.png)
+
 
 ## Overview
 
