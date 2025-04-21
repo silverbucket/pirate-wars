@@ -97,7 +97,7 @@ func GetTileImage(tt terrain.Type) image.Image {
 // loadTilesetImage loads the tileset image from the bundled resources
 func loadTilesetImage() (image.Image, error) {
 	// Get the tileset data from the bundled resource
-	tilesetData := resourceAssetsTilesetPng.StaticContent
+	tilesetData := resourcePirateWarsTilesetPng.StaticContent
 
 	// Decode the PNG data into an image
 	img, err := png.Decode(bytes.NewReader(tilesetData))
