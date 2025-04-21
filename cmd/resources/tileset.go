@@ -37,29 +37,6 @@ var (
 	tileCache    = make(map[int]image.Image)
 )
 
-// areImagesEqual compares two images pixel by pixel
-func areImagesEqual(img1, img2 image.Image) bool {
-	bounds1 := img1.Bounds()
-	bounds2 := img2.Bounds()
-
-	// Check if dimensions match
-	if bounds1.Dx() != bounds2.Dx() || bounds1.Dy() != bounds2.Dy() {
-		return false
-	}
-
-	// Compare each pixel
-	for y := bounds1.Min.Y; y < bounds1.Max.Y; y++ {
-		for x := bounds1.Min.X; x < bounds1.Max.X; x++ {
-			r1, g1, b1, a1 := img1.At(x, y).RGBA()
-			r2, g2, b2, a2 := img2.At(x, y).RGBA()
-			if r1 != r2 || g1 != g2 || b1 != b2 || a1 != a2 {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 func getTileByRegion(idx int) image.Image {
 	// Get the tile coordinates from the mapping
 	tileCoords, ok := TileMapping[idx]
