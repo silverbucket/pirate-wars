@@ -49,21 +49,17 @@ type MapView struct {
 	viewPort     *fyne.Container
 	minimap      *image.RGBA
 	overlayItems []OverlayItems
-	// Cache for terrain tile images
-	terrainTileCache map[terrain.Type]image.Image
-	// Cache for entity images
-	entityImageCache map[string]image.Image
 }
 
 type MinimapOverlay struct {
-	pos         common.Coordinates
-	terrainType terrain.Type
-	color       color.Color
+	pos   common.Coordinates
+	color color.Color
 }
 
 type OverlayItems interface {
 	GetPos() common.Coordinates
-	GetTerrainType() terrain.Type
+	GetTerrainType() common.TerrainType
+	GetTileImage() image.Image
 }
 
 func (world *MapView) SetMapItem(m OverlayItems) {
@@ -74,7 +70,7 @@ func (world *MapView) IsAdjacentToWater(c common.Coordinates) bool {
 	adjacentCoords := world.GetAdjacentCoords(c)
 	isAdjacentWater := false
 	for _, a := range adjacentCoords {
-		if world.GetPositionType(a) == terrain.TypeShallowWater {
+		if world.GetPositionType(a) == common.TerrainTypeShallowWater {
 			isAdjacentWater = true
 			break
 		}
@@ -118,17 +114,17 @@ func (world *MapView) IsPassable(c common.Coordinates) bool {
 	return terrain.TypeLookup[tt].Passable
 }
 
-func (world *MapView) GetPositionType(c common.Coordinates) terrain.Type {
+func (world *MapView) GetPositionType(c common.Coordinates) common.TerrainType {
 	return world.terrain.Cells[c.X][c.Y]
 }
 
-func (world *MapView) SetPositionType(c common.Coordinates, tt terrain.Type) {
+func (world *MapView) SetPositionType(c common.Coordinates, tt common.TerrainType) {
 	world.terrain.Cells[c.X][c.Y] = tt
 }
 
 func (world *MapView) IsLand(c common.Coordinates) bool {
 	tt := world.terrain.Cells[c.X][c.Y]
-	if tt == terrain.TypeBeach || tt == terrain.TypeLowland || tt == terrain.TypeHighland || tt == terrain.TypePeak || tt == terrain.TypeRock {
+	if tt == common.TerrainTypeBeach || tt == common.TerrainTypeLowland || tt == common.TerrainTypeHighland || tt == common.TerrainTypePeak || tt == common.TerrainTypeRock {
 		return true
 	}
 	return false
@@ -138,7 +134,7 @@ func (world *MapView) RandomPositionDeepWater() common.Coordinates {
 	for {
 		c := common.Coordinates{X: rand.Intn(common.WorldCols-2) + 1, Y: rand.Intn(common.WorldRows-2) + 1}
 		//terrain.Logger.Info(fmt.Sprintf("Random position deep water at: %v, %v", c, terrain.World.GetPositionType(c)))
-		if world.GetPositionType(c) == terrain.TypeDeepWater {
+		if world.GetPositionType(c) == common.TerrainTypeDeepWater {
 			return c
 		}
 	}
@@ -164,7 +160,7 @@ func (world *MapView) createRawMapImage(cellWidth, cellHeight float32, cols, row
 		for c := 0; c < cols; c++ {
 			for y := int(float32(r) * cellHeight); y < int(float32(r+1)*cellHeight); y++ {
 				for x := int(float32(c) * cellWidth); x < int(float32(c+1)*cellWidth); x++ {
-					img.Set(x, y, world.terrain.Cells[c][r].GetBackgroundColor())
+					img.Set(x, y, terrain.GetColor(world.terrain.Cells[c][r]))
 					count++
 					if count%2000 == 0 {
 						fmt.Print(".")
@@ -189,11 +185,12 @@ func (world *MapView) getMinimapWithOverlays(pos common.Coordinates, entities en
 	cellWidth := float32(window.MiniMapArea.Width) / float32(cols)
 	cellHeight := float32(window.MiniMapArea.Height) / float32(rows)
 
+	// overlays can be anything that implements ViewableEntity (towns, player)
 	overlays := []MinimapOverlay{}
 	overlays = append(overlays, MinimapOverlay{pos: pos, color: color.White})
 
 	for _, e := range entities {
-		overlays = append(overlays, MinimapOverlay{pos: e.GetPos(), color: e.GetBackgroundColor()})
+		overlays = append(overlays, MinimapOverlay{pos: e.GetPos(), color: e.GetColor()})
 	}
 
 	dotSize := 5
@@ -245,48 +242,13 @@ func (world *MapView) generateViewPort() {
 		for y := 0; y < window.ViewPort.Region.Rows; y++ {
 			cell := container.NewStack(
 				canvas.NewImageFromImage(image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))),
+				canvas.NewImageFromImage(image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))),
 			)
 			cell.Resize(fyne.NewSize(float32(window.CellSize), float32(window.CellSize)))
 			cell.Move(fyne.NewPos(float32(x*window.CellSize), float32(y*window.CellSize)))
 			world.viewPort.Add(cell)
 		}
 	}
-}
-
-func (world *MapView) getTerrainTile(tt terrain.Type) image.Image {
-	if world.terrainTileCache == nil {
-		world.terrainTileCache = make(map[terrain.Type]image.Image)
-	}
-
-	if tile, ok := world.terrainTileCache[tt]; ok {
-		return tile
-	}
-
-	tile := resources.GetTileImage(tt)
-	world.terrainTileCache[tt] = tile
-	return tile
-}
-
-func (world *MapView) getEntityImage(entity entities.AvatarReadOnly) image.Image {
-	if world.entityImageCache == nil {
-		world.entityImageCache = make(map[string]image.Image)
-	}
-
-	// Create a unique key for the entity based on its properties
-	key := fmt.Sprintf("%s-%v-%v",
-		entity.GetCharacter(),
-		entity.GetBackgroundColor(),
-		entity.GetForegroundColor())
-
-	if img, ok := world.entityImageCache[key]; ok {
-		return img
-	}
-
-	// Create new entity image
-	entityImg := image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))
-	draw.Draw(entityImg, entityImg.Bounds(), &image.Uniform{entity.GetBackgroundColor()}, image.Point{}, draw.Src)
-	world.entityImageCache[key] = entityImg
-	return entityImg
 }
 
 func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, highlight entities.ViewableEntity) {
@@ -304,7 +266,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 	// if the entity to highlight has real coords, we add it to the overlay
 	if h.X >= 0 {
 		world.logger.Debug("[%v] highlighting", highlight.GetID())
-		highlight.Highlight()
+		highlight.Highlight(true)
 		overlay[common.CoordToKey(h)] = highlight
 	}
 
@@ -333,20 +295,45 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		}
 
 		cell := world.viewPort.Objects[vpIdx].(*fyne.Container)
-		img := cell.Objects[0].(*canvas.Image)
+		terrainImg := cell.Objects[0].(*canvas.Image)
+		// entityImg := cell.Objects[1].(*canvas.Image)
 
 		var newImage image.Image
 		if item, ok := overlay[common.CoordToKey(pos)]; ok {
-			newImage = world.getEntityImage(item)
+			newImage = item.GetTileImage()
 		} else {
-			terrainType := world.terrain.Cells[pos.X][pos.Y]
-			newImage = world.getTerrainTile(terrainType)
+			newImage = resources.GetTerrainTile(world.terrain.Cells[pos.X][pos.Y])
 		}
 
-		if img.Image != newImage {
-			img.Image = newImage
+		if terrainImg.Image != newImage {
+			terrainImg.Image = newImage
 			needsRefresh = true
 		}
+
+		// var newTerrainImage image.Image
+		// var newEntityImage image.Image
+
+		// if item, ok := overlay[common.CoordToKey(pos)]; ok {
+		// 	newEntityImage = item.GetTileImage()
+		// }
+
+		// newTerrainImage = resources.GetTerrainTile(world.terrain.Cells[pos.X][pos.Y])
+
+		// if terrainImg.Image != newTerrainImage {
+		// 	fmt.Printf("terrain image changed for %v\n", pos)
+		// 	terrainImg.Image = newTerrainImage
+		// 	needsRefresh = true
+		// }
+		// if entityImg.Image != newEntityImage {
+		// 	fmt.Printf("entity image changed for %v\n", pos)
+		// 	entityImg.Image = newEntityImage
+		// 	needsRefresh = true
+		// } else if entityImg.Image != emptyTile.Image {
+		// 	fmt.Printf("entity image cleaned up for %v\n", pos)
+		// 	// clean up old entity image
+		// 	entityImg.Image = emptyTile.Image
+		// 	needsRefresh = true
+		// }
 		vpIdx++
 	}
 
@@ -358,12 +345,10 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 func Init(logger *zap.SugaredLogger) *MapView {
 	t := &terrain.Terrain{}
 	world := MapView{
-		logger:           logger,
-		terrain:          t,
-		viewPort:         container.NewWithoutLayout(),
-		overlayItems:     []OverlayItems{},
-		terrainTileCache: make(map[terrain.Type]image.Image),
-		entityImageCache: make(map[string]image.Image),
+		logger:       logger,
+		terrain:      t,
+		viewPort:     container.NewWithoutLayout(),
+		overlayItems: []OverlayItems{},
 	}
 
 	world.logger.Info("Initializing world...")
@@ -395,23 +380,25 @@ func Init(logger *zap.SugaredLogger) *MapView {
 			}
 			// normalize to -1 to 1, and then from 0 to 1 (this is for the ability to use grayscale, if using colors could keep from -1 to 1)
 			var s = (total/normalizeOctaves + 1) / 2
+			var terrain common.TerrainType
 			if s > 0.59 {
-				world.SetPositionType(c, terrain.TypeDeepWater)
+				terrain = common.TerrainTypeDeepWater
 			} else if s > 0.44 {
-				world.SetPositionType(c, terrain.TypeOpenWater)
+				terrain = common.TerrainTypeOpenWater
 			} else if s > 0.42 {
-				world.SetPositionType(c, terrain.TypeShallowWater)
+				terrain = common.TerrainTypeShallowWater
 			} else if s > 0.40 {
-				world.SetPositionType(c, terrain.TypeBeach)
+				terrain = common.TerrainTypeBeach
 			} else if s > 0.31 {
-				world.SetPositionType(c, terrain.TypeLowland)
+				terrain = common.TerrainTypeLowland
 			} else if s > 0.26 {
-				world.SetPositionType(c, terrain.TypeHighland)
+				terrain = common.TerrainTypeHighland
 			} else if s > 0.21 {
-				world.SetPositionType(c, terrain.TypeRock)
+				terrain = common.TerrainTypeRock
 			} else {
-				world.SetPositionType(c, terrain.TypePeak)
+				terrain = common.TerrainTypePeak
 			}
+			world.SetPositionType(c, terrain)
 		}
 	}
 

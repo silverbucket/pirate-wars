@@ -3,10 +3,11 @@ package town
 import (
 	"errors"
 	"fmt"
+	"image"
 	"image/color"
 	"math/rand"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/terrain"
+	"pirate-wars/cmd/resources"
 	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
 
@@ -21,8 +22,9 @@ type Towns struct {
 type Town struct {
 	id          string
 	pos         []common.Coordinates
-	terrainType terrain.Type
+	terrainType common.TerrainType
 	logger      *zap.SugaredLogger
+	color       color.Color
 	HeatMap     HeatMap
 	blink       bool
 	alternate   bool
@@ -42,7 +44,7 @@ func (t *Town) GetPreviousPos() common.Coordinates {
 	return t.pos[0]
 }
 
-func (t *Town) GetTerrainType() terrain.Type {
+func (t *Town) GetTerrainType() common.TerrainType {
 	return t.terrainType
 }
 
@@ -54,18 +56,17 @@ func (t *Town) GetViewableRange() window.Dimensions {
 	return window.Dimensions{Width: 20, Height: 20}
 }
 
-func (t *Town) Highlight() {
-	t.SetBlink(true)
+func (t *Town) Highlight(b bool) {
+	t.blink = b
+	t.alternate = b
+
 }
 
-func (a *Town) SetBlink(b bool) {
-	a.blink = b
-	if !b {
-		a.alternate = false
-	}
+func (t *Town) IsHighlighted() bool {
+	return t.blink
 }
 
-func (t *Town) SetTerrainType(tt terrain.Type) {
+func (t *Town) SetTerrainType(tt common.TerrainType) {
 	t.terrainType = tt
 }
 
@@ -73,30 +74,23 @@ func (t *Town) GetName() string {
 	return t.id
 }
 
-func (t *Town) GetForegroundColor() color.Color {
-	return color.White
-}
-
-func (t *Town) GetBackgroundColor() color.Color {
+func (t *Town) GetColor() color.Color {
 	if t.blink {
-		if t.alternate {
-			t.alternate = false
-			return color.RGBA{0, 0, 0, 255}
-		} else {
+		if !t.alternate {
 			t.alternate = true
-			return color.RGBA{255, 255, 255, 255}
+			return color.RGBA{0, 0, 0, 0}
 		}
 	}
 	t.alternate = false
-	return t.terrainType.GetBackgroundColor()
+	return t.color
+}
+
+func (t *Town) GetTileImage() image.Image {
+	return resources.GetTerrainTile(t.terrainType)
 }
 
 func (t *Town) GetFlag() string {
 	return "NA"
-}
-
-func (t *Town) GetCharacter() string {
-	return t.terrainType.GetCharacter()
 }
 
 func (t *Town) AccessibleFrom(c common.Coordinates) bool {
@@ -112,8 +106,8 @@ func (t *Town) AccessibleFrom(c common.Coordinates) bool {
 func (t *Town) MakeGhostTown(world *world.MapView) {
 	t.logger.Info(fmt.Sprintf("[%v] Town turns to ghost town at %v", t.id, t.GetPos()))
 	for _, c := range t.pos {
-		t.SetTerrainType(terrain.TypeGhostTown)
-		world.SetPositionType(c, terrain.TypeGhostTown)
+		t.SetTerrainType(common.TerrainTypeGhostTown)
+		world.SetPositionType(c, common.TerrainTypeGhostTown)
 	}
 }
 
@@ -130,21 +124,22 @@ func (ts *Towns) CreateTown(c common.Coordinates, world *world.MapView) Town {
 	town := Town{
 		id:          common.GenID(c),
 		pos:         []common.Coordinates{c},
-		terrainType: terrain.TypeTown,
+		terrainType: common.TerrainTypeTown,
 		logger:      ts.logger,
+		color:       color.RGBA{189, 55, 31, 255},
 		HeatMap: HeatMap{
 			grid: heatMap,
 		},
 	}
 
-	world.SetPositionType(c, terrain.TypeTown)
+	world.SetPositionType(c, common.TerrainTypeTown)
 	heatMap[c.X][c.Y] = 0
 
 	// grow towns
 	for _, a := range world.GetAdjacentCoords(c) {
 		p := world.GetPositionType(a)
-		if (p == terrain.TypeLowland || p == terrain.TypeBeach) && world.IsAdjacentToWater(a) {
-			world.SetPositionType(a, terrain.TypeTown)
+		if (p == common.TerrainTypeLowland || p == common.TerrainTypeBeach) && world.IsAdjacentToWater(a) {
+			world.SetPositionType(a, common.TerrainTypeTown)
 			//HeatMap[a.X][a.Y] = 0
 			town.pos = append(town.pos, a)
 		}
@@ -160,7 +155,7 @@ func (ts *Towns) initializeTowns(fn func() common.Coordinates, world *world.MapV
 			c := fn()
 			if c.X > 1 && c.Y > 1 &&
 				c.X < common.WorldCols-1 && c.Y < common.WorldRows &&
-				world.GetPositionType(c) == terrain.TypeBeach {
+				world.GetPositionType(c) == common.TerrainTypeBeach {
 
 				if world.IsAdjacentToWater(c) {
 					town := ts.CreateTown(c, world)

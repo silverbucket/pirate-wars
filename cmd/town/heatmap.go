@@ -3,7 +3,6 @@ package town
 import (
 	"fmt"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/terrain"
 	"pirate-wars/cmd/world"
 )
 
@@ -49,11 +48,11 @@ func (town *Town) generateHeatMap(world *world.MapView) bool {
 		//t.Logger.Infof("[towm %v] Processing %v, %v", t`own, x, y)
 		if world.IsPassableByBoat(c) {
 			//t.Logger.Debug(fmt.Sprintf("[town %v] Assigning cost %v, %v = %v [%v]", town, x, y, cost, t.Towns[town].HeatMap[x][y]))
-			if world.GetPositionType(c) == terrain.TypeShallowWater {
+			if world.GetPositionType(c) == common.TerrainTypeShallowWater {
 				// shallow water costs more (dangerous)
 				cost = cost + 10
 				town.HeatMap.SetCost(c, cost)
-			} else if world.GetPositionType(c) == terrain.TypeOpenWater {
+			} else if world.GetPositionType(c) == common.TerrainTypeOpenWater {
 				// open water faster than shallow, but not as fast as deep
 				cost = cost + 5
 				town.HeatMap.SetCost(c, cost)
@@ -62,7 +61,7 @@ func (town *Town) generateHeatMap(world *world.MapView) bool {
 			}
 			cost = cost + 1
 		} else {
-			if cost == 0 && world.GetPositionType(c) == terrain.TypeTown {
+			if cost == 0 && world.GetPositionType(c) == common.TerrainTypeTown {
 				// starting town is the cheapest
 				town.HeatMap.SetCost(c, cost)
 			} else {

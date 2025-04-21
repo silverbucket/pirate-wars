@@ -2,10 +2,12 @@ package npc
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/resources"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
@@ -29,6 +31,7 @@ type Npc struct {
 	name   string
 	eType  string
 	flag   string
+	ship   common.ShipType
 	logger *zap.SugaredLogger
 	avatar entities.Avatar
 	agenda Agenda
@@ -62,32 +65,27 @@ func (n *Npc) SetPos(p common.Coordinates) {
 }
 
 func (n *Npc) GetID() string {
-	return n.id
+	return n.avatar.GetID()
 }
 
-func (n *Npc) SetID(s string) {
-	n.id = s
-}
-
-func (n *Npc) GetForegroundColor() color.Color {
-	return n.avatar.GetForegroundColor()
-}
-
-func (n *Npc) GetCharacter() string {
-	return n.avatar.GetCharacter()
-}
-
-func (n *Npc) GetBackgroundColor() color.Color {
-	return n.avatar.GetBackgroundColor()
+func (n *Npc) GetTileImage() image.Image {
+	return n.avatar.GetTileImage()
 }
 
 func (n *Npc) GetViewableRange() window.Dimensions {
 	return window.Dimensions{Width: 20, Height: 20}
 }
 
-func (n *Npc) Highlight() {
-	n.avatar.SetBlink(true)
-	n.avatar.SetBackgroundColor(color.White)
+func (n *Npc) Highlight(b bool) {
+	n.avatar.Highlight(b)
+}
+
+func (n *Npc) IsHighlighted() bool {
+	return n.avatar.IsHighlighted()
+}
+
+func (n *Npc) GetColor() color.Color {
+	return n.avatar.GetColor()
 }
 
 func (ns *Npcs) ForEach(fn func(n Npc)) {
@@ -123,15 +121,16 @@ func (ns *Npcs) Create(towns *town.Towns, world *world.MapView) {
 		tradeTowns = append(tradeTowns, newTown)
 	}
 
-	c := entities.ColorPossibilities[rand.Intn(len(entities.ColorPossibilities)-1)]
+	// c := entities.ColorPossibilities[rand.Intn(len(entities.ColorPossibilities)-1)]
+	flag := common.GetRandomFlag()
 
 	npc := Npc{
-		id:     common.GenID(pos),
 		eType:  "NPC",
 		logger: ns.logger,
 		name:   common.GenerateCaptainName(),
-		flag:   common.GetRandomFlag(),
-		avatar: entities.CreateAvatar(pos, '⏏', c),
+		flag:   flag.Name,
+		ship:   flag.Ship,
+		avatar: entities.CreateAvatar(pos, resources.GetShipTile(flag.Ship), flag.Color),
 		agenda: Agenda{
 			goal:        GoalTypeTrade,
 			tradeTarget: 0,
@@ -192,7 +191,7 @@ func (ns *Npcs) CalcMovements() {
 		if target.X == npcpos.X && target.Y == npcpos.Y {
 			ns.logger.Debug(fmt.Sprintf("[%v] NPC stuck at %+v! Travelling to town at %v (cost %v)", npc.id, npcpos, targetTown.GetPos(), cost))
 		} else {
-			ns.logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (bg color: %v)", npc.id, npcpos, target, cost, npc.GetBackgroundColor()))
+			ns.logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (color: %v)", npc.id, npcpos, target, cost, npc.GetColor()))
 			if !common.IsPositionAdjacent(npcpos, target) {
 				ns.logger.Debug(fmt.Sprintf("[%v] NPC warp! from %v to %v", npc.id, npcpos, target))
 			}

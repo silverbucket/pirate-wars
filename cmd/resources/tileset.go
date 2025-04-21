@@ -5,57 +5,76 @@ import (
 	"fmt"
 	"image"
 	"image/png"
-	"pirate-wars/cmd/terrain"
+	"pirate-wars/cmd/common"
 )
 
 // TileSize represents the size of each tile in the tileset
 const TileSize = 32
 
 // TileMapping maps terrain types to tile coordinates in the tileset
-var TileMapping = map[terrain.Type]image.Point{
-	terrain.TypeDeepWater:    {X: 0, Y: 1}, // Deep water
-	terrain.TypeOpenWater:    {X: 1, Y: 1}, // Open water
-	terrain.TypeShallowWater: {X: 2, Y: 1}, // Shallow water
-	terrain.TypeBeach:        {X: 1, Y: 0}, // Beach
-	terrain.TypeLowland:      {X: 0, Y: 0}, // Lowland
-	terrain.TypeHighland:     {X: 2, Y: 0}, // Highland
-	terrain.TypeRock:         {X: 3, Y: 0}, // Rock
-	terrain.TypePeak:         {X: 4, Y: 0}, // Peak
-	terrain.TypeTown:         {X: 3, Y: 1}, // Town
-	terrain.TypeGhostTown:    {X: 4, Y: 1}, // Ghost town
+var TileMapping = map[int]image.Point{
+	common.TerrainTypeDeepWater:    {X: 0, Y: 1}, // Deep water
+	common.TerrainTypeOpenWater:    {X: 1, Y: 1}, // Open water
+	common.TerrainTypeShallowWater: {X: 2, Y: 1}, // Shallow water
+	common.TerrainTypeBeach:        {X: 1, Y: 0}, // Beach
+	common.TerrainTypeLowland:      {X: 0, Y: 0}, // Lowland
+	common.TerrainTypeHighland:     {X: 2, Y: 0}, // Highland
+	common.TerrainTypeRock:         {X: 3, Y: 0}, // Rock
+	common.TerrainTypePeak:         {X: 4, Y: 0}, // Peak
+	common.TerrainTypeTown:         {X: 3, Y: 1}, // Town
+	common.TerrainTypeGhostTown:    {X: 4, Y: 1}, // Ghost town
+	common.TerrainTypeLowlandBrush: {X: 5, Y: 0}, // Lowland brush
+	common.ShipWhite:               {X: 0, Y: 2},
+	common.ShipPirate:              {X: 1, Y: 2},
+	common.ShipRed:                 {X: 2, Y: 2},
+	common.ShipGreen:               {X: 3, Y: 2},
+	common.ShipBlue:                {X: 4, Y: 2},
+	common.ShipYellow:              {X: 5, Y: 2},
 }
 
 var (
 	tilesetCache image.Image
-	tileCache    = make(map[terrain.Type]image.Image)
+	tileCache    = make(map[int]image.Image)
 )
 
-// GetTileImage returns the image for a specific terrain type
-func GetTileImage(tt terrain.Type) image.Image {
+// areImagesEqual compares two images pixel by pixel
+func areImagesEqual(img1, img2 image.Image) bool {
+	bounds1 := img1.Bounds()
+	bounds2 := img2.Bounds()
+
+	// Check if dimensions match
+	if bounds1.Dx() != bounds2.Dx() || bounds1.Dy() != bounds2.Dy() {
+		return false
+	}
+
+	// Compare each pixel
+	for y := bounds1.Min.Y; y < bounds1.Max.Y; y++ {
+		for x := bounds1.Min.X; x < bounds1.Max.X; x++ {
+			r1, g1, b1, a1 := img1.At(x, y).RGBA()
+			r2, g2, b2, a2 := img2.At(x, y).RGBA()
+			if r1 != r2 || g1 != g2 || b1 != b2 || a1 != a2 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func getTileByRegion(idx int) image.Image {
+	// Get the tile coordinates from the mapping
+	tileCoords, ok := TileMapping[idx]
+	if !ok {
+		fmt.Printf("No mapping found for ship type %v, using default\n", idx)
+		tileCoords = TileMapping[common.ShipWhite]
+	}
+
 	// Check if we have this tile cached
-	if cached, ok := tileCache[tt]; ok {
+	if cached, ok := tileCache[idx]; ok {
 		return cached
 	}
+	fmt.Printf("Getting tile %v at coordinates (%d,%d)\n", idx, tileCoords.X, tileCoords.Y)
 
-	// Get the tile coordinates from the mapping
-	tileCoords, ok := TileMapping[tt]
-	if !ok {
-		fmt.Printf("No mapping found for terrain type %v, using deep water\n", tt)
-		tileCoords = TileMapping[terrain.TypeDeepWater]
-	}
-
-	fmt.Printf("Getting tile for terrain type %v at coordinates (%d,%d)\n", tt, tileCoords.X, tileCoords.Y)
-
-	// Load or get cached tileset
-	if tilesetCache == nil {
-		var err error
-		tilesetCache, err = loadTilesetImage()
-		if err != nil {
-			fmt.Printf("Error loading tileset: %v\n", err)
-			return image.NewRGBA(image.Rect(0, 0, TileSize, TileSize))
-		}
-		fmt.Printf("Loaded tileset image with bounds: %v\n", tilesetCache.Bounds())
-	}
+	tileset := getTileset()
 
 	// Create a new RGBA image for the tile
 	tileImg := image.NewRGBA(image.Rect(0, 0, TileSize, TileSize))
@@ -67,31 +86,25 @@ func GetTileImage(tt terrain.Type) image.Image {
 	// Copy pixels directly from the tileset to our tile image
 	for y := 0; y < TileSize; y++ {
 		for x := 0; x < TileSize; x++ {
-			srcPixel := tilesetCache.At(srcX+x, srcY+y)
+			srcPixel := tileset.At(srcX+x, srcY+y)
 			tileImg.Set(x, y, srcPixel)
 		}
 	}
 
 	// Cache the tile
-	tileCache[tt] = tileImg
-
-	// Debug: Check if the tile has any non-black pixels
-	hasNonBlack := false
-	for y := 0; y < TileSize; y++ {
-		for x := 0; x < TileSize; x++ {
-			r, g, b, a := tileImg.At(x, y).RGBA()
-			if r > 0 || g > 0 || b > 0 || a > 0 {
-				hasNonBlack = true
-				break
-			}
-		}
-		if hasNonBlack {
-			break
-		}
-	}
-	fmt.Printf("Tile for terrain type %v has non-black pixels: %v\n", tt, hasNonBlack)
-
+	tileCache[idx] = tileImg
 	return tileImg
+}
+
+func GetShipTile(s common.ShipType) image.Image {
+	idx := int(s)
+	return getTileByRegion(idx)
+}
+
+// GetTerrainTile returns the image for a specific terrain type
+func GetTerrainTile(tt common.TerrainType) image.Image {
+	idx := int(tt)
+	return getTileByRegion(idx)
 }
 
 // loadTilesetImage loads the tileset image from the bundled resources
@@ -106,4 +119,17 @@ func loadTilesetImage() (image.Image, error) {
 	}
 
 	return img, nil
+}
+
+func getTileset() image.Image {
+	if tilesetCache == nil {
+		var err error
+		tilesetCache, err = loadTilesetImage()
+		if err != nil {
+			fmt.Printf("Error loading tileset: %v\n", err)
+			return image.NewRGBA(image.Rect(0, 0, TileSize, TileSize))
+		}
+		fmt.Printf("Loaded tileset image with bounds: %v\n", tilesetCache.Bounds())
+	}
+	return tilesetCache
 }
