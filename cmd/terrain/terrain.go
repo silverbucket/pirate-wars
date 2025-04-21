@@ -1,9 +1,10 @@
 package terrain
 
 import (
-	"fmt"
+	"image"
 	"image/color"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/resources"
 )
 
 // Icon ideas
@@ -11,49 +12,42 @@ import (
 // Boats: ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
 // People: 옷
 
-const (
-	TypeDeepWater    = 0
-	TypeOpenWater    = 1
-	TypeShallowWater = 2
-	TypeBeach        = 3
-	TypeLowland      = 4
-	TypeHighland     = 5
-	TypeRock         = 6
-	TypePeak         = 7
-	TypeTown         = 8
-	TypeGhostTown    = 9
-)
-
 type Terrain struct {
-	Cells [common.WorldCols][common.WorldRows]Type
+	Cells [common.WorldCols][common.WorldRows]common.TerrainType
 }
 
-type Type int
-
 type TypeQualities struct {
-	symbol       rune
 	color        color.RGBA
 	Passable     bool
 	RequiresBoat bool
+	tile         image.Image
 }
 
-var TypeLookup = map[Type]TypeQualities{
-	TypeDeepWater:    {symbol: ' ', color: color.RGBA{2, 0, 121, 255}, Passable: true, RequiresBoat: true},
-	TypeOpenWater:    {symbol: ' ', color: color.RGBA{0, 19, 222, 255}, Passable: true, RequiresBoat: true},
-	TypeShallowWater: {symbol: ' ', color: color.RGBA{0, 33, 243, 255}, Passable: true, RequiresBoat: true},
-	TypeBeach:        {symbol: ' ', color: color.RGBA{205, 170, 109, 125}, Passable: true, RequiresBoat: false},
-	TypeLowland:      {symbol: ' ', color: color.RGBA{65, 152, 10, 255}, Passable: true, RequiresBoat: false},
-	TypeHighland:     {symbol: ' ', color: color.RGBA{192, 155, 40, 255}, Passable: true, RequiresBoat: false},
-	TypeRock:         {symbol: ' ', color: color.RGBA{150, 150, 150, 255}, Passable: true, RequiresBoat: false},
-	TypePeak:         {symbol: ' ', color: color.RGBA{229, 229, 229, 255}, Passable: false, RequiresBoat: false},
-	TypeTown:         {symbol: '⩎', color: color.RGBA{246, 104, 94, 255}, Passable: true, RequiresBoat: false},
-	TypeGhostTown:    {symbol: '⩎', color: color.RGBA{147, 62, 56, 255}, Passable: true, RequiresBoat: false},
+var TypeLookup = map[common.TerrainType]TypeQualities{
+	common.TerrainTypeDeepWater:    {color: color.RGBA{2, 0, 121, 255}, tile: resources.GetTerrainTile(common.TerrainTypeDeepWater), Passable: true, RequiresBoat: true},
+	common.TerrainTypeOpenWater:    {color: color.RGBA{0, 19, 222, 255}, tile: resources.GetTerrainTile(common.TerrainTypeOpenWater), Passable: true, RequiresBoat: true},
+	common.TerrainTypeShallowWater: {color: color.RGBA{0, 33, 243, 255}, tile: resources.GetTerrainTile(common.TerrainTypeShallowWater), Passable: true, RequiresBoat: true},
+	common.TerrainTypeBeach:        {color: color.RGBA{205, 170, 109, 125}, tile: resources.GetTerrainTile(common.TerrainTypeBeach), Passable: true, RequiresBoat: false},
+	common.TerrainTypeLowland:      {color: color.RGBA{65, 152, 10, 255}, tile: resources.GetTerrainTile(common.TerrainTypeLowland), Passable: true, RequiresBoat: false},
+	common.TerrainTypeHighland:     {color: color.RGBA{192, 155, 40, 255}, tile: resources.GetTerrainTile(common.TerrainTypeHighland), Passable: true, RequiresBoat: false},
+	common.TerrainTypeRock:         {color: color.RGBA{150, 150, 150, 255}, tile: resources.GetTerrainTile(common.TerrainTypeRock), Passable: true, RequiresBoat: false},
+	common.TerrainTypePeak:         {color: color.RGBA{229, 229, 229, 255}, tile: resources.GetTerrainTile(common.TerrainTypePeak), Passable: false, RequiresBoat: false},
+	common.TerrainTypeTown:         {color: color.RGBA{246, 104, 94, 255}, tile: resources.GetTerrainTile(common.TerrainTypeTown), Passable: true, RequiresBoat: false},
+	common.TerrainTypeGhostTown:    {color: color.RGBA{147, 62, 56, 255}, tile: resources.GetTerrainTile(common.TerrainTypeGhostTown), Passable: true, RequiresBoat: false},
 }
 
-func (tt *Type) GetBackgroundColor() color.RGBA {
-	return TypeLookup[*tt].color
+func GetColor(tt common.TerrainType) color.RGBA {
+	return TypeLookup[tt].color
 }
 
-func (tt *Type) GetCharacter() string {
-	return fmt.Sprintf("%c", TypeLookup[*tt].symbol)
+func GetTile(tt common.TerrainType) image.Image {
+	return TypeLookup[tt].tile
+}
+
+func IsPassable(tt common.TerrainType) bool {
+	return TypeLookup[tt].Passable
+}
+
+func RequiresBoat(tt common.TerrainType) bool {
+	return TypeLookup[tt].RequiresBoat
 }

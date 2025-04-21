@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"image"
 	"image/color"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/window"
@@ -15,10 +16,10 @@ type ViewableEntity interface {
 	GetPos() common.Coordinates
 	GetPreviousPos() common.Coordinates
 	GetID() string
-	GetForegroundColor() color.Color
-	GetBackgroundColor() color.Color
-	GetCharacter() string
-	Highlight()
+	GetColor() color.Color
+	Highlight(b bool)
+	IsHighlighted() bool
+	GetTileImage() image.Image
 	GetViewableRange() window.Dimensions
 }
 
@@ -42,20 +43,16 @@ func (e *EmptyViewableEntity) GetFlag() string {
 func (e *EmptyViewableEntity) GetType() string {
 	return ""
 }
-func (e *EmptyViewableEntity) GetForegroundColor() color.Color {
-	return color.White
+func (e *EmptyViewableEntity) GetColor() color.Color {
+	return color.Transparent
 }
-func (e *EmptyViewableEntity) GetBackgroundColor() color.Color {
-	return color.Black
+func (e *EmptyViewableEntity) IsHighlighted() bool {
+	return false
 }
-func (e *EmptyViewableEntity) GetCharacter() string {
-	return ""
+func (e *EmptyViewableEntity) GetTileImage() image.Image {
+	return nil
 }
-
-//	func (e *EmptyViewableEntity) Render() *fyne.Container {
-//		return container.NewWithoutLayout()
-//	}
-func (e *EmptyViewableEntity) Highlight() {}
+func (e *EmptyViewableEntity) Highlight(b bool) {}
 func (e *EmptyViewableEntity) GetViewableRange() window.Dimensions {
 	return window.Dimensions{Width: 20, Height: 20}
 }

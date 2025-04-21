@@ -4,17 +4,17 @@ A pirate-themed game, written in Go, using the [Fyne UI Toolkit](https://github.
 **_NOTE_**: This is a hobby project, a work in progress.
 
 
-![Pirate Wars! Title Screen](https://storage.5apps.com/silverbucket/public/shares/250420-0050-pwicon.png)
-![Game Play Screenshot](https://storage.5apps.com/silverbucket/public/shares/250420-0046-pwss5.png)
+![Pirate Wars! Title Screen](https://storage.5apps.com/silverbucket/public/shares/250421-2239-pirate-wars.png)
+![Game Play Screenshot](https://storage.5apps.com/silverbucket/public/shares/250421-2238-Screenshot%202025-04-22%20at%2000.38.36.jpg)
 
 
 ## Overview
 
 You are a pirate, sailing the seas. You can sail around, explore the map, and examine other ships you encounter.
 
-Currently there are NPC ships (`⏏`) which have basic pathfinding capabilities. They travel from one town to another (a "trade route"). 
+Currently there are NPC ships which have basic pathfinding capabilities. They travel from one town to another (a "trade route"). 
 
-Towns are also generated throughout the map, with the red (`⩎`) characters. 
+Towns are also generated throughout the map. 
 
 You currently cannot interaction with the towns or ships (other than examining).
 
@@ -39,17 +39,18 @@ You currently cannot interaction with the towns or ships (other than examining).
 * Move around in your boat
 * Explore the map
 * Visit towns (currently you cannot enter them)
-* View mini-map of entire world, with towns listed (`m`)
+* View mini-map of entire world, with towns listed
 * NPC boats with basic pathfinding AI
 * View NPC ship details
 
 ### Towns
-* Towns don't spawn towns in small land-locked areas, however larger inaccessible can form with the terrain generation.
+* Towns don't spawn towns in small land-locked areas, however larger inaccessible areas can form with the terrain generation.
 
 ## Todo
 
 #### Visuals
-* Use Tilemaps
+* ~~Use Tilemaps~~
+* Rounded edges
 * Animate tranistions
 * Nice borders for panels
 * Examine data popup over ship (rather than in side-panel)
@@ -61,6 +62,7 @@ You currently cannot interaction with the towns or ships (other than examining).
 * Found your own town? (Pirate hideaway?)
 
 #### Travel
+* Use wind and rotating ship to sail, speed etc.
 * Engage with NPCs
 * Improved NPC AI
 * Hire/Dig channels pathways?

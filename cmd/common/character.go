@@ -1,13 +1,38 @@
 package common
 
 import (
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
+	"image/color"
 	"math/rand"
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
-var Flags = []string{"French", "English", "Dutch", "Spanish", "Pirate"}
+type Flag struct {
+	Ship  ShipType
+	Name  string
+	Color color.Color
+}
+
+const (
+	ShipWhite  = 101
+	ShipPirate = 102
+	ShipRed    = 103
+	ShipGreen  = 104
+	ShipBlue   = 105
+	ShipYellow = 106
+)
+
+type ShipType int
+
+var Flags = []Flag{
+	{Ship: ShipPirate, Name: "Pirate", Color: color.RGBA{103, 124, 126, 255}},
+	{Ship: ShipBlue, Name: "French", Color: color.RGBA{111, 153, 191, 255}},
+	{Ship: ShipRed, Name: "English", Color: color.RGBA{219, 99, 88, 255}},
+	{Ship: ShipGreen, Name: "Dutch", Color: color.RGBA{117, 188, 79, 255}},
+	{Ship: ShipYellow, Name: "Spanish", Color: color.RGBA{231, 186, 35, 255}},
+}
 
 func roll() bool {
 	return rand.Intn(2) == 0
@@ -83,6 +108,6 @@ func GenerateCaptainName() string {
 	return cases.Title(language.English).String(strings.Join(fullName, " "))
 }
 
-func GetRandomFlag() string {
+func GetRandomFlag() Flag {
 	return Flags[rand.Intn(len(Flags))]
 }

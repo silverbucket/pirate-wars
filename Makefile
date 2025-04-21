@@ -1,6 +1,10 @@
 
 .DEFAULT_GOAL := build
 
+.PHONY: assets
+assets:
+	fyne bundle --package resources -o cmd/resources/resources.go assets/pirate-wars-tileset.png
+
 .PHONY: test
 test:
 	go test -v -cover -coverprofile=c.out ./...
