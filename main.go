@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"image/color"
-	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/player"
@@ -33,6 +32,7 @@ type GameState struct {
 	paused      bool
 	initialized bool
 	logger      *zap.SugaredLogger
+	window      fyne.Window
 	world       *world.MapView
 	player      *entities.Avatar
 	npcs        *npc.Npcs
@@ -63,20 +63,6 @@ func (gs *GameState) sidePanelContent(examine entities.ViewableEntity) *fyne.Con
 	)
 	examineContent.Wrapping = fyne.TextWrapWord
 
-	windowContent := widget.NewLabel(fmt.Sprintf("Window: %dx%dpx\nViewport: %dx%dpx\nSide Panel: %dx%dpx\nAction Menu: %dx%dpx\n",
-		window.Window.Width, window.Window.Height,
-		window.ViewPort.Dimensions.Width, window.ViewPort.Dimensions.Height,
-		window.SidePanel.Width, window.SidePanel.Height,
-		window.ActionMenu.Width, window.ActionMenu.Height),
-	)
-	windowContent.Wrapping = fyne.TextWrapWord
-
-	mapContent := widget.NewLabel(
-		fmt.Sprintf("Map: %dx%d\nViewport: %dx%d\n",
-			common.WorldCols, common.WorldRows, window.ViewPort.Region.Cols, window.ViewPort.Region.Rows),
-	)
-	mapContent.Wrapping = fyne.TextWrapWord
-
 	content := container.NewVBox(
 		widget.NewLabel("Ship Status                        "),
 		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
@@ -85,14 +71,6 @@ func (gs *GameState) sidePanelContent(examine entities.ViewableEntity) *fyne.Con
 		widget.NewLabel("Examine"),
 		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
 		examineContent,
-		layout.NewSpacer(),
-		widget.NewLabel("Map Info"),
-		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
-		mapContent,
-		layout.NewSpacer(),
-		widget.NewLabel("Window"),
-		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
-		windowContent,
 	)
 	content.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
 	return content
@@ -151,6 +129,7 @@ func (m *GameState) processTick() {
 	m.updatePanels(highlight)
 
 	m.world.Paint(m.player, visible, highlight)
+	m.syncMinimap()
 }
 
 // ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
@@ -187,6 +166,7 @@ func main() {
 			logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewPort))
 
 			gameState = initGameState(logger)
+			gameState.window = w
 			mainContent := gameState.world.GetViewPort()
 			SidePanel = gameState.createSidePanel()
 			ActionMenu = gameState.createActionMenu()
@@ -210,16 +190,6 @@ func main() {
 
 			w.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
 				gameState.handleKeyPress(key)
-				if ViewType == world.ViewTypeMiniMap {
-					towns := gameState.towns.GetTowns()
-					var entities entities.ViewableEntities
-					for _, t := range towns {
-						entities = append(entities, &t)
-					}
-					gameState.world.ShowMinimapPopup(gameState.player.GetPos(), entities, w)
-				} else {
-					gameState.world.HideMinimapPopup()
-				}
 			})
 		}()
 

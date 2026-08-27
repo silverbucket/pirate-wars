@@ -193,3 +193,14 @@ func (ts *Towns) GetRandomTown() (Town, error) {
 func (ts *Towns) GetTowns() []Town {
 	return ts.list
 }
+
+func (ts *Towns) GetVisible(playerPos common.Coordinates) []Town {
+	vp := window.GetViewportRegion(playerPos)
+	visible := []Town{}
+	for _, town := range ts.list {
+		if vp.IsPositionWithin(town.GetPos()) {
+			visible = append(visible, town)
+		}
+	}
+	return visible
+}

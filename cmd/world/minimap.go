@@ -88,10 +88,22 @@ func (world *MapView) getMinimapWithOverlays(pos common.Coordinates, entities en
 }
 
 func (world *MapView) ShowMinimapPopup(pos common.Coordinates, entities entities.ViewableEntities, w fyne.Window) {
+	img := world.getMinimapWithOverlays(pos, entities)
+
+	if minimapPopup != nil {
+		if stack, ok := minimapPopup.Content.(*fyne.Container); ok && len(stack.Objects) > 0 {
+			if imageWidget, ok := stack.Objects[0].(*canvas.Image); ok {
+				imageWidget.Image = img
+				imageWidget.Refresh()
+				return
+			}
+		}
+		world.HideMinimapPopup()
+	}
+
+	minimapImage := canvas.NewImageFromImage(img)
 	minimapPopup = widget.NewModalPopUp(
-		container.NewStack(
-			canvas.NewImageFromImage(world.getMinimapWithOverlays(pos, entities)),
-		),
+		container.NewStack(minimapImage),
 		w.Canvas(),
 	)
 	minimapPopup.Resize(fyne.NewSize(float32(window.MiniMapArea.Width), float32(window.MiniMapArea.Height)))

@@ -33,8 +33,9 @@ var TileMapping = map[int]image.Point{
 }
 
 var (
-	tilesetCache image.Image
-	tileCache    = make(map[int]image.Image)
+	tilesetCache          image.Image
+	tileCache             = make(map[int]image.Image)
+	highlightOverlayCache image.Image
 )
 
 func getTileByRegion(idx int) image.Image {
@@ -96,6 +97,26 @@ func loadTilesetImage() (image.Image, error) {
 	}
 
 	return img, nil
+}
+
+// GetHighlightOverlay returns a pulsing highlight frame for examined entities.
+func GetHighlightOverlay(size int) image.Image {
+	if highlightOverlayCache != nil {
+		return highlightOverlayCache
+	}
+
+	img := image.NewRGBA(image.Rect(0, 0, size, size))
+	for x := 0; x < size; x++ {
+		img.Set(x, 0, image.White)
+		img.Set(x, size-1, image.White)
+	}
+	for y := 0; y < size; y++ {
+		img.Set(0, y, image.White)
+		img.Set(size-1, y, image.White)
+	}
+
+	highlightOverlayCache = img
+	return img
 }
 
 func getTileset() image.Image {
