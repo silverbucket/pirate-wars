@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
-	"pirate-wars/cmd/resources"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
@@ -130,7 +129,7 @@ func (ns *Npcs) Create(towns *town.Towns, world *world.MapView) {
 		name:   common.GenerateCaptainName(),
 		flag:   flag.Name,
 		ship:   flag.Ship,
-		avatar: entities.CreateAvatar(pos, resources.GetShipTile(flag.Ship), flag.Color),
+		avatar: entities.CreateAvatar(pos, flag.Ship, flag.Color),
 		agenda: Agenda{
 			goal:        GoalTypeTrade,
 			tradeTarget: 0,

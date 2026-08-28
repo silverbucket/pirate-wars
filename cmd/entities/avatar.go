@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/resources"
 	"pirate-wars/cmd/window"
 )
 
@@ -11,6 +12,8 @@ type Avatar struct {
 	id        string
 	pos       common.Coordinates
 	prevPos   common.Coordinates
+	ship      common.ShipType
+	facing    common.Facing
 	image     image.Image
 	color     color.Color
 	blink     bool
@@ -33,6 +36,12 @@ func (a *Avatar) GetID() string {
 
 func (a *Avatar) SetPos(c common.Coordinates) {
 	if !common.CoordsMatch(a.pos, c) {
+		dx := c.X - a.pos.X
+		dy := c.Y - a.pos.Y
+		if facing, ok := common.FacingFromDelta(dx, dy); ok {
+			a.facing = facing
+			a.image = resources.GetShipTile(a.ship, a.facing)
+		}
 		a.prevPos = a.pos
 		a.pos = c
 	}
@@ -77,10 +86,15 @@ func (a *Avatar) GetTileImage() image.Image {
 	return a.image
 }
 
-func CreateAvatar(pos common.Coordinates, i image.Image, c color.Color) Avatar {
+func CreateAvatar(pos common.Coordinates, ship common.ShipType, c color.Color) Avatar {
+	facing := common.FacingN
 	return Avatar{
-		id:  common.GenID(pos),
-		pos: pos, image: i, color: c,
+		id:     common.GenID(pos),
+		pos:    pos,
+		ship:   ship,
+		facing: facing,
+		image:  resources.GetShipTile(ship, facing),
+		color:  c,
 	}
 }
 
