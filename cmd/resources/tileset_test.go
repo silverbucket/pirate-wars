@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestGetShipTileFallsBackToNorth(t *testing.T) {
+func TestGetShipTileEightWayArt(t *testing.T) {
 	north := GetShipTile(common.ShipWhite, common.FacingN)
 	if north == nil {
 		t.Fatal("north ship tile should not be nil")
@@ -27,8 +27,11 @@ func TestGetShipTileFallsBackToNorth(t *testing.T) {
 		if got == nil {
 			t.Fatalf("ship tile for facing %v should not be nil", facing)
 		}
-		if got != north {
-			t.Fatalf("ship tile for facing %v should fall back to north tile", facing)
+		if isTileNearlyEmpty(got) {
+			t.Fatalf("ship tile for facing %v should not be empty", facing)
+		}
+		if got == north {
+			t.Fatalf("ship tile for facing %v should not be the north tile", facing)
 		}
 	}
 }
