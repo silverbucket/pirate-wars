@@ -95,6 +95,7 @@ func (world *MapView) ShowMinimapPopup(pos common.Coordinates, entities entities
 			if imageWidget, ok := stack.Objects[0].(*canvas.Image); ok {
 				imageWidget.Image = img
 				imageWidget.Refresh()
+				minimapPopup.Show()
 				return
 			}
 		}

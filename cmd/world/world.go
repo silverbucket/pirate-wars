@@ -173,14 +173,15 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 	// if the entity to highlight has real coords, we add it to the overlay
 	if h.X >= 0 {
 		world.logger.Debug("[%v] highlighting", highlight.GetID())
-		highlight.Highlight(true)
+		if !highlight.IsHighlighted() {
+			highlight.Highlight(true)
+		}
 		_, _, _, a := highlight.GetColor().RGBA()
 		highlightVisible = a > 0
 		overlay[common.CoordToKey(h)] = highlight
 	}
 
 	emptyEntityImage := image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))
-	highlightOverlay := resources.GetHighlightOverlay(window.CellSize)
 
 	vpIdx := 0
 	needsRefresh := false
@@ -228,7 +229,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		}
 
 		if h.X >= 0 && common.CoordsMatch(pos, h) && highlight.IsHighlighted() && highlightVisible && highlight.GetType() == "Town" {
-			newEntityImage = highlightOverlay
+			newEntityImage = resources.CompositeWithHighlight(highlight.GetTileImage(), window.CellSize)
 		}
 
 		newTerrainImage = resources.GetTerrainTile(world.terrain.Cells[pos.X][pos.Y])

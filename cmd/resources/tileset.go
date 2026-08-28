@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/draw"
 	"image/png"
 	"pirate-wars/cmd/common"
 )
@@ -35,7 +36,7 @@ var TileMapping = map[int]image.Point{
 var (
 	tilesetCache          image.Image
 	tileCache             = make(map[int]image.Image)
-	highlightOverlayCache image.Image
+	highlightOverlayCache = make(map[int]image.Image)
 )
 
 func getTileByRegion(idx int) image.Image {
@@ -101,8 +102,8 @@ func loadTilesetImage() (image.Image, error) {
 
 // GetHighlightOverlay returns a pulsing highlight frame for examined entities.
 func GetHighlightOverlay(size int) image.Image {
-	if highlightOverlayCache != nil {
-		return highlightOverlayCache
+	if cached, ok := highlightOverlayCache[size]; ok {
+		return cached
 	}
 
 	img := image.NewRGBA(image.Rect(0, 0, size, size))
@@ -115,8 +116,18 @@ func GetHighlightOverlay(size int) image.Image {
 		img.Set(size-1, y, image.White)
 	}
 
-	highlightOverlayCache = img
+	highlightOverlayCache[size] = img
 	return img
+}
+
+// CompositeWithHighlight draws a highlight frame over a base tile image.
+func CompositeWithHighlight(base image.Image, size int) image.Image {
+	result := image.NewRGBA(image.Rect(0, 0, size, size))
+	if base != nil {
+		draw.Draw(result, result.Bounds(), base, image.Point{}, draw.Over)
+	}
+	draw.Draw(result, result.Bounds(), GetHighlightOverlay(size), image.Point{}, draw.Over)
+	return result
 }
 
 func getTileset() image.Image {
