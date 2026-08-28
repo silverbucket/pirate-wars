@@ -77,8 +77,5 @@ func GetViewportRegion(pos common.Coordinates) Region {
 }
 
 func (v *Region) IsPositionWithin(c common.Coordinates) bool {
-	if (v.X <= c.X && c.X <= v.X+v.Cols) && (v.Y <= c.Y && c.Y <= v.Y+v.Rows) {
-		return true
-	}
-	return false
+	return v.X <= c.X && c.X < v.X+v.Cols && v.Y <= c.Y && c.Y < v.Y+v.Rows
 }
