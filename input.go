@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/user_action"
 	"pirate-wars/cmd/world"
@@ -29,6 +30,18 @@ type keyItem struct {
 
 type KeyMap []keyItem
 
+func (m *GameState) syncMinimap() {
+	if ViewType == world.ViewTypeMiniMap {
+		var viewable entities.ViewableEntities
+		for _, t := range m.towns.GetTowns() {
+			viewable = append(viewable, &t)
+		}
+		m.world.ShowMinimapPopup(m.player.GetPos(), viewable, m.window)
+	} else {
+		m.world.HideMinimapPopup()
+	}
+}
+
 func (m *GameState) handleKeyPress(key *fyne.KeyEvent) {
 	if ViewType == world.ViewTypeMainMap {
 		m.processInput(key, sailingKeyMap)
@@ -37,6 +50,7 @@ func (m *GameState) handleKeyPress(key *fyne.KeyEvent) {
 	} else if ViewType == world.ViewTypeExamine {
 		m.processInput(key, examineKeyMap)
 	}
+	m.syncMinimap()
 }
 
 func (m *GameState) processInput(key *fyne.KeyEvent, km KeyMap) {
@@ -94,12 +108,16 @@ var sailingKeyMap = KeyMap{
 		exec: func(m GameState) {
 			Action = user_action.UserActionIdExamine
 			npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
+			towns := m.towns.GetVisible(m.player.GetPos())
 			ExamineData = user_action.Examine()
-			if len(npcs.GetList()) > 0 {
+			if len(npcs.GetList()) > 0 || len(towns) > 0 {
 				ViewType = world.ViewTypeExamine
 				npcs.ForEach(func(n npc.Npc) {
 					ExamineData.AddItem(&n)
 				})
+				for i := range towns {
+					ExamineData.AddItem(&towns[i])
+				}
 			}
 		},
 	},
@@ -301,6 +319,7 @@ func (gs *GameState) ActionItems() *fyne.Container {
 		if k.cat != KeyCatAdmin && k.cat != KeyCatNav {
 			elements = append(elements, widget.NewButton(k.help, func() {
 				k.exec(*gs)
+				gs.syncMinimap()
 			}))
 		}
 	}
