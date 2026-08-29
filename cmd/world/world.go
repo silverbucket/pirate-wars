@@ -216,6 +216,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		var newTerrainImage image.Image
 		var newEntityImage image.Image
 		var newOverlayImage image.Image = emptyEntityImage
+		var overlayLayers []image.Image
 
 		if item, ok := overlay[common.CoordToKey(pos)]; ok {
 			if item.IsHighlighted() {
@@ -232,14 +233,18 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		}
 
 		if h.X >= 0 && common.CoordsMatch(pos, h) && highlight.IsHighlighted() && highlightVisible {
-			newEntityImage = resources.CompositeWithHighlight(highlight.GetTileImage(), window.CellSize)
+			overlayLayers = append(overlayLayers, resources.GetExamineRingOverlay(window.CellSize))
 		}
 
 		if common.CoordsMatch(pos, p) {
-			newOverlayImage = resources.GetPlayerMarkerOverlay(window.CellSize)
+			overlayLayers = append(overlayLayers, resources.GetPlayerMarkerOverlay(window.CellSize))
 		}
 
-		newTerrainImage = resources.GetTerrainTile(world.terrain.Cells[pos.X][pos.Y])
+		if len(overlayLayers) > 0 {
+			newOverlayImage = resources.CompositeOverlays(window.CellSize, overlayLayers...)
+		}
+
+		newTerrainImage = world.terrainTileAt(pos)
 
 		if terrainImg.Image != newTerrainImage {
 			terrainImg.Image = newTerrainImage

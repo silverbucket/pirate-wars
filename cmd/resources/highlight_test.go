@@ -25,16 +25,10 @@ func TestGetPlayerMarkerOverlayVisible(t *testing.T) {
 		t.Fatal("player marker should not be nil")
 	}
 
-	coloredPixels := 0
-	for y := 0; y < 32; y++ {
-		for x := 0; x < 32; x++ {
-			_, _, _, a := marker.At(x, y).RGBA()
-			if a > 0 {
-				coloredPixels++
-			}
-		}
-	}
-	if coloredPixels == 0 {
+	if countOpaquePixels(marker) == 0 {
 		t.Fatal("player marker should draw visible pixels")
+	}
+	if !HasTransparentCenter(marker) {
+		t.Fatal("player marker center should be transparent")
 	}
 }

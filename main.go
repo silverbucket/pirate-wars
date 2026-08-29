@@ -138,6 +138,7 @@ func (m *GameState) processTick() {
 	m.updatePanels(highlight)
 	m.updateDebugOverlay()
 
+	m.world.AdvanceAnimation()
 	m.world.Paint(m.player, visible, highlight)
 	m.syncMinimap()
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	"image/color"
 	"image/draw"
 	"image/png"
 	"pirate-wars/cmd/common"
@@ -205,54 +204,6 @@ func CompositeWithHighlight(base image.Image, size int) image.Image {
 		draw.Draw(result, result.Bounds(), base, image.Point{}, draw.Over)
 	}
 	draw.Draw(result, result.Bounds(), GetHighlightOverlay(size), image.Point{}, draw.Over)
-	return result
-}
-
-// GetPlayerMarkerOverlay returns a small marker drawn over the player ship cell.
-func GetPlayerMarkerOverlay(size int) image.Image {
-	if cached, ok := playerMarkerCache[size]; ok {
-		return cached
-	}
-
-	img := image.NewRGBA(image.Rect(0, 0, size, size))
-	marker := color.RGBA{R: 255, G: 220, B: 0, A: 255}
-	inset := size / 8
-	if inset < 2 {
-		inset = 2
-	}
-	length := size/4
-	if length < 4 {
-		length = 4
-	}
-
-	// Corner brackets so the player stays visible after zoom.
-	for i := 0; i < length; i++ {
-		img.Set(inset+i, inset, marker)
-		img.Set(inset, inset+i, marker)
-
-		img.Set(size-inset-1-i, inset, marker)
-		img.Set(size-inset-1, inset+i, marker)
-
-		img.Set(inset+i, size-inset-1, marker)
-		img.Set(inset, size-inset-1-i, marker)
-
-		img.Set(size-inset-1-i, size-inset-1, marker)
-		img.Set(size-inset-1, size-inset-1-i, marker)
-	}
-
-	playerMarkerCache[size] = img
-	return img
-}
-
-// CompositeWithOverlay draws an overlay image on top of a base tile.
-func CompositeWithOverlay(base, overlay image.Image, size int) image.Image {
-	result := image.NewRGBA(image.Rect(0, 0, size, size))
-	if base != nil {
-		draw.Draw(result, result.Bounds(), base, image.Point{}, draw.Over)
-	}
-	if overlay != nil {
-		draw.Draw(result, result.Bounds(), overlay, image.Point{}, draw.Over)
-	}
 	return result
 }
 
