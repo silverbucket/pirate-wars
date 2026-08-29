@@ -29,14 +29,15 @@ var SidePanel *fyne.Container
 var ActionMenu *fyne.Container
 
 type GameState struct {
-	paused      bool
-	initialized bool
-	logger      *zap.SugaredLogger
-	window      fyne.Window
-	world       *world.MapView
-	player      *entities.Avatar
-	npcs        *npc.Npcs
-	towns       *town.Towns
+	paused         bool
+	initialized    bool
+	logger         *zap.SugaredLogger
+	window         fyne.Window
+	world          *world.MapView
+	player         *entities.Avatar
+	npcs           *npc.Npcs
+	towns          *town.Towns
+	debugOverlay   *widget.Label
 }
 
 func initGameState(logger *zap.SugaredLogger) *GameState {
@@ -53,14 +54,9 @@ func initGameState(logger *zap.SugaredLogger) *GameState {
 }
 
 func (gs *GameState) sidePanelContent(examine entities.ViewableEntity) *fyne.Container {
-	shipStatusContent := widget.NewLabel(
-		fmt.Sprintf("Galeon\nPostion %+v\nHealth: %d\nSpeed: %d\nCargo: %d\n", gs.player.GetPos(), 100, 5, 250),
-	)
+	shipStatusContent := widget.NewLabel(shipStatusText())
 	shipStatusContent.Wrapping = fyne.TextWrapWord
-	examineContent := widget.NewLabel(
-		fmt.Sprintf("Captain: %s\nType: %s\nFlag: %s\nPosition: %+v\n",
-			examine.GetName(), examine.GetType(), examine.GetFlag(), examine.GetPos()),
-	)
+	examineContent := widget.NewLabel(examinePanelText(examine))
 	examineContent.Wrapping = fyne.TextWrapWord
 
 	content := container.NewVBox(
@@ -74,6 +70,19 @@ func (gs *GameState) sidePanelContent(examine entities.ViewableEntity) *fyne.Con
 	)
 	content.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
 	return content
+}
+
+func (gs *GameState) updateDebugOverlay() {
+	if gs.debugOverlay == nil {
+		return
+	}
+	if debugOverlayVisible {
+		gs.debugOverlay.SetText(debugOverlayText(gs.player.GetPos()))
+		gs.debugOverlay.Show()
+	} else {
+		gs.debugOverlay.Hide()
+	}
+	gs.debugOverlay.Refresh()
 }
 
 func (gs *GameState) updatePanels(examine entities.ViewableEntity) {
@@ -127,6 +136,7 @@ func (m *GameState) processTick() {
 	}
 
 	m.updatePanels(highlight)
+	m.updateDebugOverlay()
 
 	m.world.Paint(m.player, visible, highlight)
 	m.syncMinimap()
@@ -171,6 +181,10 @@ func main() {
 			SidePanel = gameState.createSidePanel()
 			ActionMenu = gameState.createActionMenu()
 
+			debugOverlay := widget.NewLabel("")
+			debugOverlay.Hide()
+			gameState.debugOverlay = debugOverlay
+
 			// Main layout
 			viewportBg := canvas.NewRectangle(color.Transparent)
 			viewportBg.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
@@ -180,7 +194,7 @@ func main() {
 				ActionMenu,
 				nil,
 				SidePanel,
-				container.NewStack(viewportBg, mainContent),
+				container.NewStack(viewportBg, mainContent, debugOverlay),
 			)
 
 			// Signal that initialization is complete

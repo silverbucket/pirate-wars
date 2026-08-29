@@ -149,6 +149,7 @@ func (world *MapView) generateViewPort() {
 			cell := container.NewStack(
 				canvas.NewImageFromImage(image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))),
 				canvas.NewImageFromImage(image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))),
+				canvas.NewImageFromImage(image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))),
 			)
 			cell.Resize(fyne.NewSize(float32(window.CellSize), float32(window.CellSize)))
 			cell.Move(fyne.NewPos(float32(x*window.CellSize), float32(y*window.CellSize)))
@@ -210,9 +211,11 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		cell := world.viewPort.Objects[vpIdx].(*fyne.Container)
 		terrainImg := cell.Objects[0].(*canvas.Image)
 		entityImg := cell.Objects[1].(*canvas.Image)
+		overlayImg := cell.Objects[2].(*canvas.Image)
 
 		var newTerrainImage image.Image
 		var newEntityImage image.Image
+		var newOverlayImage image.Image = emptyEntityImage
 
 		if item, ok := overlay[common.CoordToKey(pos)]; ok {
 			if item.IsHighlighted() {
@@ -228,8 +231,12 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 			newEntityImage = emptyEntityImage
 		}
 
-		if h.X >= 0 && common.CoordsMatch(pos, h) && highlight.IsHighlighted() && highlightVisible && highlight.GetType() == "Town" {
+		if h.X >= 0 && common.CoordsMatch(pos, h) && highlight.IsHighlighted() && highlightVisible {
 			newEntityImage = resources.CompositeWithHighlight(highlight.GetTileImage(), window.CellSize)
+		}
+
+		if common.CoordsMatch(pos, p) {
+			newOverlayImage = resources.GetPlayerMarkerOverlay(window.CellSize)
 		}
 
 		newTerrainImage = resources.GetTerrainTile(world.terrain.Cells[pos.X][pos.Y])
@@ -241,6 +248,11 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 
 		if entityImg.Image != newEntityImage {
 			entityImg.Image = newEntityImage
+			needsRefresh = true
+		}
+
+		if overlayImg.Image != newOverlayImage {
+			overlayImg.Image = newOverlayImage
 			needsRefresh = true
 		}
 		vpIdx++
