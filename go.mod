@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	fyne.io/fyne/v2 v2.6.0
-	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/charmbracelet/lipgloss/v2 v2.0.6
 	github.com/ojrac/opensimplex-go v1.0.2
 	go.uber.org/zap v1.27.0
 	golang.org/x/text v0.24.0
