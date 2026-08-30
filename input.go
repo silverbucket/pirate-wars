@@ -5,6 +5,7 @@ import (
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/npc"
+	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/user_action"
 	"pirate-wars/cmd/world"
 
@@ -129,138 +130,98 @@ var sailingKeyMap = KeyMap{
 	},
 	{
 		key:  []string{"Left", "H", "A"},
-		help: "left",
+		help: "heading W",
 		cat:  KeyCatNav,
 		exec: func(m GameState) {
-			c := m.player.GetPos()
-			if c.X > 0 {
-				t := common.Coordinates{
-					X: c.X - 1,
-					Y: c.Y,
-				}
-				if m.world.IsPassableByBoat(t) {
-					m.player.SetPos(t)
-				}
-			}
+			setPlayerHeading(&m, common.Coordinates{X: -1, Y: 0})
 		},
 	},
 	{
 		key:  []string{"Right", "L", "D"},
-		help: "right",
+		help: "heading E",
 		cat:  KeyCatNav,
 		exec: func(m GameState) {
-			c := m.player.GetPos()
-			if c.X < m.world.GetWidth()-1 {
-				t := common.Coordinates{
-					X: c.X + 1,
-					Y: c.Y,
-				}
-				if m.world.IsPassableByBoat(t) {
-					m.player.SetPos(t)
-				}
-			}
+			setPlayerHeading(&m, common.Coordinates{X: 1, Y: 0})
 		},
 	},
 	{
 		key:  []string{"Up", "K", "W"},
-		help: "up",
+		help: "heading N",
 		cat:  KeyCatNav,
 		exec: func(m GameState) {
-			c := m.player.GetPos()
-			if c.Y > 0 {
-				t := common.Coordinates{
-					X: c.X,
-					Y: c.Y - 1,
-				}
-				if m.world.IsPassableByBoat(t) {
-					m.player.SetPos(t)
-				}
-			}
+			setPlayerHeading(&m, common.Coordinates{X: 0, Y: -1})
 		},
 	},
 	{
 		key:  []string{"Down", "J", "S"},
-		help: "down",
+		help: "heading S",
 		cat:  KeyCatNav,
 		exec: func(m GameState) {
-			c := m.player.GetPos()
-			if c.Y < m.world.GetHeight()-1 {
-				t := common.Coordinates{
-					X: c.X,
-					Y: c.Y + 1,
-				}
-				if m.world.IsPassableByBoat(t) {
-					m.player.SetPos(t)
-				}
-			}
+			setPlayerHeading(&m, common.Coordinates{X: 0, Y: 1})
 		},
 	},
 	{
 		key:  []string{"Q", "Y"},
-		help: "up & left",
+		help: "heading NW",
 		cat:  KeyCatNav,
 		exec: func(m GameState) {
-			c := m.player.GetPos()
-			if c.Y > 0 && c.X > 0 {
-				t := common.Coordinates{
-					X: c.X - 1,
-					Y: c.Y - 1,
-				}
-				if m.world.IsPassableByBoat(t) {
-					m.player.SetPos(t)
-				}
-			}
+			setPlayerHeading(&m, common.Coordinates{X: -1, Y: -1})
 		},
 	},
 	{
 		key:  []string{"B", "Z"},
-		help: "down & left",
+		help: "heading SW",
 		cat:  KeyCatNav,
 		exec: func(m GameState) {
-			c := m.player.GetPos()
-			if c.Y < m.world.GetHeight()-1 && c.X > 0 {
-				t := common.Coordinates{
-					X: c.X - 1,
-					Y: c.Y + 1,
-				}
-				if m.world.IsPassableByBoat(t) {
-					m.player.SetPos(t)
-				}
-			}
+			setPlayerHeading(&m, common.Coordinates{X: -1, Y: 1})
 		},
 	},
 	{
 		key:  []string{"U", "E"},
-		help: "up & right",
+		help: "heading NE",
 		cat:  KeyCatNav,
 		exec: func(m GameState) {
-			c := m.player.GetPos()
-			if c.Y > 0 && c.X < m.world.GetWidth()-1 {
-				t := common.Coordinates{
-					X: c.X + 1,
-					Y: c.Y - 1,
-				}
-				if m.world.IsPassableByBoat(t) {
-					m.player.SetPos(t)
-				}
-			}
+			setPlayerHeading(&m, common.Coordinates{X: 1, Y: -1})
 		},
 	},
 	{
 		key:  []string{"N", "C"},
-		help: "down & right",
+		help: "heading SE",
 		cat:  KeyCatNav,
 		exec: func(m GameState) {
-			c := m.player.GetPos()
-			if c.Y < m.world.GetHeight()-1 && c.X < m.world.GetWidth()-1 {
-				t := common.Coordinates{
-					X: c.X + 1,
-					Y: c.Y + 1,
-				}
-				if m.world.IsPassableByBoat(t) {
-					m.player.SetPos(t)
-				}
-			}
+			setPlayerHeading(&m, common.Coordinates{X: 1, Y: 1})
+		},
+	},
+	{
+		key:  []string{"1"},
+		help: "full sail",
+		cat:  KeyCatAction,
+		exec: func(m GameState) {
+			setPlayerSail(&m, sailing.SailFull)
+		},
+	},
+	{
+		key:  []string{"2"},
+		help: "half sail",
+		cat:  KeyCatAction,
+		exec: func(m GameState) {
+			setPlayerSail(&m, sailing.SailHalf)
+		},
+	},
+	{
+		key:  []string{"3"},
+		help: "furled sail",
+		cat:  KeyCatAction,
+		exec: func(m GameState) {
+			setPlayerSail(&m, sailing.SailFurled)
+		},
+	},
+	{
+		key:  []string{"V"},
+		help: "cycle sail",
+		cat:  KeyCatAction,
+		exec: func(m GameState) {
+			cyclePlayerSail(&m)
 		},
 	},
 	{
@@ -319,6 +280,18 @@ func (gs *GameState) ActionItems() *fyne.Container {
 	} else if ViewType == world.ViewTypeMainMap {
 		elements = append(elements, widget.NewLabel("Sailing"))
 		keyMap = sailingKeyMap
+		elements = append(elements, widget.NewButton("Full sail", func() {
+			setPlayerSail(gs, sailing.SailFull)
+			gs.syncMinimap()
+		}))
+		elements = append(elements, widget.NewButton("Half sail", func() {
+			setPlayerSail(gs, sailing.SailHalf)
+			gs.syncMinimap()
+		}))
+		elements = append(elements, widget.NewButton("Furled", func() {
+			setPlayerSail(gs, sailing.SailFurled)
+			gs.syncMinimap()
+		}))
 	}
 
 	for _, k := range keyMap {

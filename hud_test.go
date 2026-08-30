@@ -2,12 +2,14 @@ package main
 
 import (
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/sailing"
 	"strings"
 	"testing"
 )
 
 func TestShipStatusTextUsesGalleonSpelling(t *testing.T) {
-	text := shipStatusText()
+	wind := sailing.NewWind(sailing.DefaultConfig())
+	text := shipStatusText(2.5, wind)
 	if strings.Contains(text, "Galeon") {
 		t.Fatal("ship status should use Galleon spelling")
 	}
@@ -20,7 +22,7 @@ func TestShipStatusTextUsesGalleonSpelling(t *testing.T) {
 	if strings.Contains(text, "{") {
 		t.Fatal("ship status should not include raw coordinates")
 	}
-	for _, field := range []string{"Health:", "Speed:", "Cargo:", "Gold:"} {
+	for _, field := range []string{"Health:", "Speed:", "Wind:", "Cargo:", "Gold:"} {
 		if !strings.Contains(text, field) {
 			t.Fatalf("ship status should include %s", field)
 		}
@@ -48,8 +50,9 @@ func TestExamineActionBarLabel(t *testing.T) {
 }
 
 func TestDebugOverlayTextIncludesHiddenHUDFields(t *testing.T) {
-	text := debugOverlayText(entities.NewEmptyViewableEntity().GetPos())
-	for _, field := range []string{"Window:", "Viewport:", "Map:", "Player:"} {
+	wind := sailing.NewWind(sailing.DefaultConfig())
+	text := debugOverlayText(entities.NewEmptyViewableEntity().GetPos(), wind)
+	for _, field := range []string{"Window:", "Viewport:", "Map:", "Player:", "wind:"} {
 		if !strings.Contains(text, field) {
 			t.Fatalf("debug overlay should include %s", field)
 		}

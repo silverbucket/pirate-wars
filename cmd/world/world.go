@@ -61,6 +61,14 @@ type OverlayItems interface {
 	GetTileImage() image.Image
 }
 
+// viewablePaintWrapper adapts ViewableEntity for paint overlays that need sailing fields.
+type viewablePaintWrapper struct {
+	entities.ViewableEntity
+}
+
+func (v viewablePaintWrapper) GetFacing() common.Facing { return common.FacingN }
+func (v viewablePaintWrapper) MovedThisTick() bool      { return false }
+
 func (world *MapView) SetMapItem(m OverlayItems) {
 	world.overlayItems = append(world.overlayItems, m)
 }
@@ -158,7 +166,7 @@ func (world *MapView) generateViewPort() {
 	}
 }
 
-func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, highlight entities.ViewableEntity) {
+func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, highlight entities.ViewableEntity, windFacing common.Facing) {
 	p := avatar.GetPos()
 	h := highlight.GetPos()
 	vpr := window.GetViewportRegion(p)
@@ -170,6 +178,15 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		overlay[common.CoordToKey(n.GetPos())] = n
 	}
 
+	// Wake cells aft of ships that moved this tick
+	wakeCells := make(map[int]bool)
+	for _, ship := range overlay {
+		if ship.MovedThisTick() {
+			aft := resources.WakeAftPosition(ship.GetPos(), ship.GetFacing())
+			wakeCells[common.CoordToKey(aft)] = true
+		}
+	}
+
 	highlightVisible := false
 	// if the entity to highlight has real coords, we add it to the overlay
 	if h.X >= 0 {
@@ -179,7 +196,7 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 		}
 		_, _, _, a := highlight.GetColor().RGBA()
 		highlightVisible = a > 0
-		overlay[common.CoordToKey(h)] = highlight
+		overlay[common.CoordToKey(h)] = viewablePaintWrapper{highlight}
 	}
 
 	emptyEntityImage := image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))
@@ -234,6 +251,19 @@ func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.Avat
 
 		if h.X >= 0 && common.CoordsMatch(pos, h) && highlight.IsHighlighted() && highlightVisible {
 			overlayLayers = append(overlayLayers, resources.GetExamineRingOverlay(window.CellSize))
+		}
+
+		if ship, ok := overlay[common.CoordToKey(pos)]; ok {
+			if pennant := resources.GetPennantOverlay(windFacing); pennant != nil {
+				overlayLayers = append(overlayLayers, pennant)
+			}
+			_ = ship
+		}
+
+		if wakeCells[common.CoordToKey(pos)] {
+			if wake := resources.GetWakeOverlay(resources.CurrentWakeFrame()); wake != nil {
+				overlayLayers = append(overlayLayers, wake)
+			}
 		}
 
 		if common.CoordsMatch(pos, p) {

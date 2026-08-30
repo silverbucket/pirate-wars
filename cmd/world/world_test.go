@@ -42,6 +42,8 @@ func (av AvatarMock) GetFlag() string                     { return "" }
 func (av AvatarMock) GetType() string                     { return "" }
 func (av AvatarMock) GetName() string                     { return "" }
 func (av AvatarMock) GetColor() color.Color               { return color.White }
+func (av AvatarMock) GetFacing() common.Facing             { return common.FacingN }
+func (av AvatarMock) MovedThisTick() bool                  { return false }
 func (av AvatarMock) GetViewableRange() window.Dimensions { return window.Dimensions{} }
 func (av AvatarMock) GetCharacter() string                { return string(av.char) }
 func (av AvatarMock) GetTileImage() image.Image {
@@ -70,5 +72,5 @@ func TestPaint(t *testing.T) {
 	avatar := AvatarMock{pos: common.Coordinates{X: 100, Y: 100}, char: '@'}
 	logger := initTestLogger()
 	world := Init(logger)
-	world.Paint(avatar, []entities.AvatarReadOnly{}, avatar)
+	world.Paint(avatar, []entities.AvatarReadOnly{}, avatar, common.FacingE)
 }

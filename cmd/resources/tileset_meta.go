@@ -1,6 +1,7 @@
 package resources
 
 const ExpandedTilesetHeight = 384
+const SailingVisualsTilesetHeight = 448
 
 // Coast tile coordinates (col, row).
 const (
@@ -37,3 +38,30 @@ func GetTilesetHeight() int {
 func HasExpandedTileset() bool {
 	return GetTilesetHeight() >= ExpandedTilesetHeight
 }
+
+// HasSailingVisualsTileset reports whether rows 12–13 (pennant/wake) are available.
+func HasSailingVisualsTileset() bool {
+	return GetTilesetHeight() >= SailingVisualsTilesetHeight
+}
+
+// Pennant tile coordinates (col, row) — pennant points downwind.
+const (
+	PennantRow = 12
+
+	PennantNCol  = 0
+	PennantNECol = 1
+	PennantECol  = 2
+	PennantSECol = 3
+	PennantSCol  = 4
+	PennantSWCol = 5
+
+	PennantWRow   = 13
+	PennantWCol   = 0
+	PennantNWCol  = 1
+	PennantNWRow  = 13
+
+	WakeFrame0Col = 2
+	WakeFrame0Row = 13
+	WakeFrame1Col = 3
+	WakeFrame1Row = 13
+)

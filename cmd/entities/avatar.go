@@ -5,29 +5,35 @@ import (
 	"image/color"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/resources"
+	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/window"
 )
 
 type Avatar struct {
-	id        string
-	pos       common.Coordinates
-	prevPos   common.Coordinates
-	ship      common.ShipType
-	facing    common.Facing
-	image     image.Image
-	color     color.Color
-	blink     bool
-	alternate bool
+	id            string
+	pos           common.Coordinates
+	prevPos       common.Coordinates
+	ship          common.ShipType
+	facing        common.Facing
+	sail          sailing.SailSetting
+	image         image.Image
+	color         color.Color
+	blink         bool
+	alternate     bool
+	movedThisTick bool
+	lastSpeed     float64
 }
 
 type AvatarReadOnly interface {
 	GetID() string
 	GetPos() common.Coordinates
 	GetPreviousPos() common.Coordinates
+	GetFacing() common.Facing
 	GetTileImage() image.Image
 	GetViewableRange() window.Dimensions
 	IsHighlighted() bool
 	GetColor() color.Color
+	MovedThisTick() bool
 }
 
 func (a *Avatar) GetID() string {
@@ -44,7 +50,43 @@ func (a *Avatar) SetPos(c common.Coordinates) {
 		}
 		a.prevPos = a.pos
 		a.pos = c
+		a.movedThisTick = true
 	}
+}
+
+func (a *Avatar) SetHeading(f common.Facing) {
+	if a.facing != f {
+		a.facing = f
+		a.image = resources.GetShipTile(a.ship, a.facing)
+	}
+}
+
+func (a *Avatar) GetFacing() common.Facing {
+	return a.facing
+}
+
+func (a *Avatar) SetSail(s sailing.SailSetting) {
+	a.sail = s
+}
+
+func (a *Avatar) GetSail() sailing.SailSetting {
+	return a.sail
+}
+
+func (a *Avatar) MovedThisTick() bool {
+	return a.movedThisTick
+}
+
+func (a *Avatar) ClearMovedFlag() {
+	a.movedThisTick = false
+}
+
+func (a *Avatar) SetLastSpeed(speed float64) {
+	a.lastSpeed = speed
+}
+
+func (a *Avatar) GetLastSpeed() float64 {
+	return a.lastSpeed
 }
 
 func (a *Avatar) GetPos() common.Coordinates {
@@ -93,6 +135,7 @@ func CreateAvatar(pos common.Coordinates, ship common.ShipType, c color.Color) A
 		pos:    pos,
 		ship:   ship,
 		facing: facing,
+		sail:   sailing.SailFull,
 		image:  resources.GetShipTile(ship, facing),
 		color:  c,
 	}
