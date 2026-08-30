@@ -33,9 +33,12 @@ var TileMapping = map[int]image.Point{
 	common.ShipYellow:              {X: 5, Y: 2},
 }
 
+const shipBaseRow = 2
+
 var (
 	tilesetCache          image.Image
 	tileCache             = make(map[int]image.Image)
+	shipTileCache         = make(map[int]image.Image)
 	highlightOverlayCache = make(map[int]image.Image)
 )
 
@@ -75,9 +78,82 @@ func getTileByRegion(idx int) image.Image {
 	return tileImg
 }
 
-func GetShipTile(s common.ShipType) image.Image {
-	idx := int(s)
-	return getTileByRegion(idx)
+func shipColumn(s common.ShipType) int {
+	tileCoords, ok := TileMapping[int(s)]
+	if !ok {
+		tileCoords = TileMapping[common.ShipWhite]
+	}
+	return tileCoords.X
+}
+
+func shipTileCacheKey(s common.ShipType, facing common.Facing) int {
+	return int(s)*100 + int(facing)
+}
+
+func tileRegionInBounds(col, row int) bool {
+	tileset := getTileset()
+	bounds := tileset.Bounds()
+	srcX := col * TileSize
+	srcY := row * TileSize
+	return srcX+TileSize <= bounds.Dx() && srcY+TileSize <= bounds.Dy() && srcX >= 0 && srcY >= 0
+}
+
+func extractTileAt(col, row int) image.Image {
+	if !tileRegionInBounds(col, row) {
+		return nil
+	}
+
+	tileset := getTileset()
+	tileImg := image.NewRGBA(image.Rect(0, 0, TileSize, TileSize))
+	srcX := col * TileSize
+	srcY := row * TileSize
+
+	for y := 0; y < TileSize; y++ {
+		for x := 0; x < TileSize; x++ {
+			tileImg.Set(x, y, tileset.At(srcX+x, srcY+y))
+		}
+	}
+
+	return tileImg
+}
+
+func isTileNearlyEmpty(img image.Image) bool {
+	if img == nil {
+		return true
+	}
+
+	coloredPixels := 0
+	for y := 0; y < TileSize; y++ {
+		for x := 0; x < TileSize; x++ {
+			r, g, b, a := img.At(x, y).RGBA()
+			if a < 0x1000 {
+				continue
+			}
+			if r>>8 > 20 || g>>8 > 20 || b>>8 > 20 {
+				coloredPixels++
+			}
+		}
+	}
+
+	return coloredPixels < 10
+}
+
+func GetShipTile(s common.ShipType, facing common.Facing) image.Image {
+	cacheKey := shipTileCacheKey(s, facing)
+	if cached, ok := shipTileCache[cacheKey]; ok {
+		return cached
+	}
+
+	col := shipColumn(s)
+	row := shipBaseRow + int(facing)
+	tile := extractTileAt(col, row)
+
+	if facing != common.FacingN && (tile == nil || isTileNearlyEmpty(tile)) {
+		tile = GetShipTile(s, common.FacingN)
+	}
+
+	shipTileCache[cacheKey] = tile
+	return tile
 }
 
 // GetTerrainTile returns the image for a specific terrain type
