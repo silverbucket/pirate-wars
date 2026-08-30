@@ -1,0 +1,5 @@
+sha256=e440a0be1ef0d6280a7b75cc0159d06e84a0102cf1e34fd209ccd7b2fbda595d
+bytes=34896
+b64_len=46528
+parts=32
+chunk=1500
