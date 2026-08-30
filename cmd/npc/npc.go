@@ -53,7 +53,8 @@ func (n *Npc) TraderAmount() int {
 	return n.traderAmount
 }
 
-func (n *Npc) dumpCargoAtTown(t *town.Town, cfg economy.Config) {
+// DumpCargoAtTown unloads trader cargo into the town market.
+func (n *Npc) DumpCargoAtTown(t *town.Town, cfg economy.Config) {
 	if n.traderAmount <= 0 || t == nil {
 		return
 	}
@@ -239,7 +240,7 @@ func (ns *Npcs) ResolveMovements(cfg sailing.Config, econCfg economy.Config, win
 		if targetTown.HeatMap.GetCost(npc.avatar.GetPos()) < 3 {
 			oldTown := npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 			if live := towns.GetByID(oldTown.GetID()); live != nil {
-				npc.dumpCargoAtTown(live, econCfg)
+				npc.DumpCargoAtTown(live, econCfg)
 			}
 			npc.agenda.tradeTarget = npc.agenda.tradeTarget ^ 1
 			npc.loadTraderCargo(econCfg)

@@ -9,8 +9,15 @@ import (
 	"testing"
 
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/dock"
+	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/hail"
+	"pirate-wars/cmd/npc"
+	"pirate-wars/cmd/player"
 	"pirate-wars/cmd/sailing"
+	"pirate-wars/cmd/tavern"
+	"pirate-wars/cmd/town"
 )
 
 // playpassCfg loads the branch sailing.cfg defaults (do not mutate).
@@ -225,4 +232,158 @@ func TestPlayPassSailingLoop(t *testing.T) {
 	if !shiftedAt100 {
 		t.Fatal("Q6: wind did not shift after 100 ticks")
 	}
+}
+
+type slice2BoatWorld map[int]bool
+
+func (s slice2BoatWorld) IsPassableByBoat(pos common.Coordinates) bool {
+	return s[common.CoordToKey(pos)]
+}
+
+var slice2FlavorRumors = []string{
+	"hidden cove",
+	"navy patrols",
+	"merchant fleet",
+}
+
+// TestPlayPassSlice2 walks the slice-2 economy/social checklist headlessly.
+func TestPlayPassSlice2(t *testing.T) {
+	cfg := economy.LoadConfig("economy.cfg")
+	if cfg.SellPercent != 80 {
+		t.Fatalf("sell_percent = %d, want 80", cfg.SellPercent)
+	}
+
+	townAPos := common.Coordinates{X: 20, Y: 20}
+	townBPos := common.Coordinates{X: 40, Y: 40}
+	waterPos := common.Coordinates{X: 19, Y: 20}
+
+	townA := town.NewTownForTest(townAPos, cfg)
+	townB := town.NewTownForTest(townBPos, cfg)
+	townA.Market().SetStock(economy.GoodRum, cfg.RumStockMax, cfg) // plenty → lower buy
+	townB.Market().SetStock(economy.GoodRum, cfg.RumStockMin, cfg) // scarce → higher sell
+
+	towns := town.TestTownsWith(townA, townB)
+	world := slice2BoatWorld{
+		common.CoordToKey(waterPos): true,
+	}
+
+	// Beat 1: dock from water-adjacent tile, buy rum.
+	hold := player.NewHold(cfg)
+	goldStart := hold.Gold
+	if !dock.CanDock(waterPos, world, towns) {
+		t.Fatal("beat1 FAIL: cannot dock from adjacent water")
+	}
+	docked := dock.AdjacentTown(waterPos, world, towns)
+	if docked == nil || docked.GetID() != townA.GetID() {
+		t.Fatal("beat1 FAIL: dock did not resolve town A")
+	}
+	buyPriceA := docked.Market().BuyPrice(economy.GoodRum)
+	bought := economy.BuyFromTown(docked.Market(), &hold.Cargo, &hold.Gold, cfg, economy.GoodRum, 1)
+	if bought != 1 || hold.Cargo.Amount(economy.GoodRum) != 1 || hold.Gold >= goldStart {
+		t.Fatalf("beat1 FAIL: bought=%d gold=%d rum=%d (start gold %d)",
+			bought, hold.Gold, hold.Cargo.Amount(economy.GoodRum), goldStart)
+	}
+	t.Logf("BEAT1 dock+buy: PASS gold %d→%d (paid %d) rum=%d dock_town=%s",
+		goldStart, hold.Gold, goldStart-hold.Gold, hold.Cargo.Amount(economy.GoodRum), docked.GetName())
+
+	// Beat 2: sell rum at a different town (own market/prices).
+	goldBeforeSellB := hold.Gold
+	sellPriceB := townB.Market().SellPrice(economy.GoodRum, cfg)
+	soldB := economy.SellToTown(townB.Market(), &hold.Cargo, &hold.Gold, cfg, economy.GoodRum, 1)
+	if soldB != 1 || hold.Cargo.Amount(economy.GoodRum) != 0 {
+		t.Fatalf("beat2 FAIL: sold=%d rum_left=%d", soldB, hold.Cargo.Amount(economy.GoodRum))
+	}
+	if hold.Gold <= goldBeforeSellB {
+		t.Fatalf("beat2 FAIL: gold did not rise selling at town B (%d→%d)", goldBeforeSellB, hold.Gold)
+	}
+	if sellPriceB == buyPriceA*cfg.SellPercent/100 && townA.GetID() == townB.GetID() {
+		t.Fatal("beat2 FAIL: town B should be a different market")
+	}
+	t.Logf("BEAT2 cross-town sell: PASS gold %d→%d (sell@%d in %s, bought@%d in %s)",
+		goldBeforeSellB, hold.Gold, sellPriceB, townB.GetName(), buyPriceA, townA.GetName())
+
+	// Beat 3: same-town buy-then-sell loses gold (80%% sell).
+	hold.Gold = cfg.StartingGold
+	hold.Cargo = economy.NewCargoHold(cfg.CargoCapacity)
+	marketA := townA.Market()
+	marketA.SetStock(economy.GoodRum, 20, cfg)
+	goldRoundStart := hold.Gold
+	buyP := marketA.BuyPrice(economy.GoodRum)
+	if economy.BuyFromTown(marketA, &hold.Cargo, &hold.Gold, cfg, economy.GoodRum, 3) != 3 {
+		t.Fatal("beat3 FAIL: could not buy 3 rum")
+	}
+	sellP := marketA.SellPrice(economy.GoodRum, cfg)
+	if economy.SellToTown(marketA, &hold.Cargo, &hold.Gold, cfg, economy.GoodRum, 3) != 3 {
+		t.Fatal("beat3 FAIL: could not sell 3 rum")
+	}
+	roundLoss := goldRoundStart - hold.Gold
+	if hold.Gold >= goldRoundStart {
+		t.Fatalf("beat3 FAIL: round-trip did not lose gold %d→%d", goldRoundStart, hold.Gold)
+	}
+	t.Logf("BEAT3 same-town flip: PASS gold %d→%d loss=%d (buy@%d sell@%d, sell_percent=%d)",
+		goldRoundStart, hold.Gold, roundLoss, buyP, sellP, cfg.SellPercent)
+
+	// Beat 4: hail payload has name, cargo, dest.
+	trader := npc.Npc{}
+	trader.SetTestState("Black Bart", townB, economy.GoodRum, 7)
+	hailPayload := hail.PayloadFromNPC(&trader)
+	if hailPayload.Name == "" || hailPayload.Dest == "" || hailPayload.Cargo == "" {
+		t.Fatalf("beat4 FAIL: hail payload incomplete: %+v", hailPayload)
+	}
+	if hailPayload.Dest != townB.GetName() || !strings.Contains(hailPayload.Cargo, "Rum") {
+		t.Fatalf("beat4 FAIL: dest=%q cargo=%q", hailPayload.Dest, hailPayload.Cargo)
+	}
+	t.Logf("BEAT4 hail: PASS name=%q dest=%q cargo=%q",
+		hailPayload.Name, hailPayload.Dest, hailPayload.Cargo)
+
+	// Beat 5: trader dump — NPC cargo 0, town stock up.
+	dumpTown := town.NewTownForTest(common.Coordinates{X: 8, Y: 9}, cfg)
+	dumpTrader := npc.Npc{}
+	dumpTrader.SetTestState("Trader", dumpTown, economy.GoodPowder, 9)
+	stockBefore := dumpTown.Market().Stock(economy.GoodPowder)
+	dumpTrader.DumpCargoAtTown(&dumpTown, cfg)
+	stockAfter := dumpTown.Market().Stock(economy.GoodPowder)
+	stockDelta := stockAfter - stockBefore
+	if dumpTrader.TraderAmount() != 0 || stockDelta != 9 {
+		t.Fatalf("beat5 FAIL: trader_cargo=%d stock_delta=%d want 9", dumpTrader.TraderAmount(), stockDelta)
+	}
+	t.Logf("BEAT5 trader dump: PASS cargo 9→0 stock %d→%d (+%d powder)",
+		stockBefore, stockAfter, stockDelta)
+
+	// Beat 6: tavern rumor is live intel, never flavor.
+	destTown := town.NewTownForTest(common.Coordinates{X: 2, Y: 3}, cfg)
+	shortTown := town.NewTownForTest(common.Coordinates{X: 9, Y: 9}, cfg)
+	shortTown.Market().SetStock(economy.GoodRum, cfg.RumStockMin, cfg)
+	rumorTrader := npc.Npc{}
+	rumorTrader.SetTestState("Anne Bonny", destTown, economy.GoodCloth, 12)
+	rumorNPCs := npc.TestNpcsWith(rumorTrader)
+	rumorTowns := town.TestTownsWith(destTown, shortTown)
+	rumor := tavern.PickRumor(cfg, rumorNPCs, rumorTowns, 0)
+	lower := strings.ToLower(rumor)
+	for _, flavor := range slice2FlavorRumors {
+		if strings.Contains(lower, flavor) {
+			t.Fatalf("beat6 FAIL: flavor rumor %q in %q", flavor, rumor)
+		}
+	}
+	shipIntel := strings.Contains(rumor, "Anne Bonny") && strings.Contains(rumor, destTown.GetName()) && strings.Contains(rumor, "Cloth")
+	townIntel := strings.Contains(rumor, shortTown.GetName()) && strings.Contains(rumor, "Rum")
+	if !shipIntel && !townIntel {
+		t.Fatalf("beat6 FAIL: rumor not live intel: %q", rumor)
+	}
+	t.Logf("BEAT6 tavern rumor: PASS %q", rumor)
+
+	// Beat 7: clock advances time-of-day.
+	clock := economy.NewClock(cfg.TicksPerDay)
+	timeStart := clock.TimeOfDay()
+	clock.Tick()
+	timeAfter := clock.TimeOfDay()
+	if timeStart == timeAfter {
+		t.Fatalf("beat7 FAIL: time stuck at %s after tick", timeStart)
+	}
+	t.Logf("BEAT7 clock: PASS tick %d time %s→%s (ticks_per_day=%d)",
+		clock.CurrentTick(), timeStart, timeAfter, cfg.TicksPerDay)
+
+	// Beat 8: sailing loop still matches #52.
+	t.Run("sailing_loop", TestPlayPassSailingLoop)
+	t.Log("BEAT8 sailing loop: PASS (see TestPlayPassSailingLoop Q1–Q6 logs)")
 }

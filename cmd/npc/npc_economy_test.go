@@ -16,7 +16,7 @@ func TestTraderDumpsOneGoodAtTown(t *testing.T) {
 	n := &Npc{}
 	n.SetTestState("Trader", marketTown, economy.GoodPowder, 9)
 
-	n.dumpCargoAtTown(&marketTown, cfg)
+	n.DumpCargoAtTown(&marketTown, cfg)
 
 	if n.TraderAmount() != 0 {
 		t.Fatalf("trader cargo = %d, want 0 after dump", n.TraderAmount())
