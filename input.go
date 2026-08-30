@@ -43,6 +43,12 @@ func (m *GameState) syncMinimap() {
 }
 
 func (m *GameState) handleKeyPress(key *fyne.KeyEvent) {
+	if string(key.Name) == "F3" {
+		debugOverlayVisible = !debugOverlayVisible
+		m.updateDebugOverlay()
+		return
+	}
+
 	if ViewType == world.ViewTypeMainMap {
 		m.processInput(key, sailingKeyMap)
 	} else if ViewType == world.ViewTypeMiniMap {
@@ -305,7 +311,7 @@ func (gs *GameState) ActionItems() *fyne.Container {
 
 	var keyMap KeyMap
 	if ViewType == world.ViewTypeExamine {
-		elements = append(elements, widget.NewLabel("Examine"))
+		elements = append(elements, widget.NewLabel(examineActionBarLabel(ExamineData.GetFocusedEntity())))
 		keyMap = examineKeyMap
 	} else if ViewType == world.ViewTypeMiniMap {
 		elements = append(elements, widget.NewLabel("MiniMap"))

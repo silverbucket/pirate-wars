@@ -34,25 +34,30 @@ var ActionMenu Dimensions = Dimensions{
 	Height: 68,
 }
 
+// CellSize matches native tileset pixels so ship art is readable at follow-cam zoom.
+var CellSize = 32
+
 var viewPortWidth = Window.Width - SidePanel.Width
 var viewPortHeight = Window.Height - ActionMenu.Height + 28
-var ViewPort DimensionsAndRegion = DimensionsAndRegion{
-	Dimensions: Dimensions{
-		Width:  viewPortWidth,
-		Height: viewPortHeight,
-	},
-	Region: Region{
-		Cols: viewPortWidth / CellSize,
-		Rows: viewPortHeight / CellSize,
-	},
+var ViewPort = viewportDimensions()
+
+func viewportDimensions() DimensionsAndRegion {
+	return DimensionsAndRegion{
+		Dimensions: Dimensions{
+			Width:  viewPortWidth,
+			Height: viewPortHeight,
+		},
+		Region: Region{
+			Cols: viewPortWidth / CellSize,
+			Rows: viewPortHeight / CellSize,
+		},
+	}
 }
 
 var MiniMapArea Dimensions = Dimensions{
 	Width:  700,
 	Height: 700,
 }
-
-var CellSize = 20
 
 func GetViewportRegion(pos common.Coordinates) Region {
 	// viewable range is based on columns in grid and ratio of ViewableArea

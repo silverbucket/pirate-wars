@@ -40,6 +40,7 @@ var (
 	tileCache             = make(map[int]image.Image)
 	shipTileCache         = make(map[int]image.Image)
 	highlightOverlayCache = make(map[int]image.Image)
+	playerMarkerCache     = make(map[int]image.Image)
 )
 
 func getTileByRegion(idx int) image.Image {
