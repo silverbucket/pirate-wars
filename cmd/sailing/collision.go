@@ -23,6 +23,7 @@ func (o Occupancy) OccupantAt(pos common.Coordinates, selfID string) (string, bo
 	return id, true
 }
 
+// IsOccupied reports whether another ship occupies the cell.
 func (o Occupancy) IsOccupied(pos common.Coordinates, selfID string) bool {
 	id, ok := o[common.CoordToKey(pos)]
 	return ok && id != selfID

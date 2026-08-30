@@ -269,6 +269,7 @@ var dockKeyMap = KeyMap{
 			if gameStateRef != nil {
 				gameStateRef.dockTown = nil
 				gameStateRef.dockPage = dockPageMenu
+				gameStateRef.tavernRumor = ""
 				ViewType = world.ViewTypeMainMap
 				gameStateRef.hideOverlay()
 			}
@@ -331,13 +332,19 @@ func (gs *GameState) ActionItems() *fyne.Container {
 		elements = append(elements, widget.NewLabel("Dock"))
 		keyMap = dockKeyMap
 		elements = append(elements, widget.NewButton("Leave dock", func() {
-			gs.closeDock()
+			gs.dockTown = nil
+			gs.dockPage = dockPageMenu
+			gs.tavernRumor = ""
+			ViewType = world.ViewTypeMainMap
+			gs.hideOverlay()
 		}))
 	} else if ViewType == world.ViewTypeHail {
 		elements = append(elements, widget.NewLabel("Hail"))
 		keyMap = hailKeyMap
 		elements = append(elements, widget.NewButton("Dismiss", func() {
-			gs.closeHail()
+			gs.hailData = hail.Payload{}
+			ViewType = world.ViewTypeMainMap
+			gs.hideOverlay()
 		}))
 	} else if ViewType == world.ViewTypeMainMap {
 		elements = append(elements, widget.NewLabel("Sailing"))

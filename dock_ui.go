@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/hail"
-	"pirate-wars/cmd/resources"
 	"pirate-wars/cmd/tavern"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/world"
@@ -42,16 +41,16 @@ func (gs *GameState) dockOverlayContent() fyne.CanvasObject {
 func (gs *GameState) dockMenuContent() fyne.CanvasObject {
 	title := widget.NewLabel(fmt.Sprintf("Dock — %s", gs.dockTown.GetName()))
 	title.TextStyle = fyne.TextStyle{Bold: true}
-	merchant := iconButton("Merchant", resources.Slice2IconMerchant, func() {
+	merchant := widget.NewButton("Merchant", func() {
 		gs.dockPage = dockPageMerchant
 		gs.refreshOverlay()
 	})
-	tavern := iconButton("Tavern", resources.Slice2IconTavern, func() {
+	tavern := widget.NewButton("Tavern", func() {
 		gs.tavernRumor = tavern.PickRumor(gs.economyCfg, gs.npcs, gs.towns, int(gs.clock.CurrentTick()))
 		gs.dockPage = dockPageTavern
 		gs.refreshOverlay()
 	})
-	shipwright := iconButton("Shipwright", resources.Slice2IconShipwright, func() {
+	shipwright := widget.NewButton("Shipwright", func() {
 		gs.dockPage = dockPageShipwright
 		gs.refreshOverlay()
 	})
@@ -75,11 +74,11 @@ func (gs *GameState) dockMerchantContent(t *town.Town) fyne.CanvasObject {
 			"%s — stock %d  buy %d / sell %d gold",
 			good.Label(), market.Stock(good), buyPrice, sellPrice,
 		)))
-		buy := iconButton(fmt.Sprintf("Buy 1 %s", good.Label()), goodIconIndex(good), func() {
+		buy := widget.NewButton(fmt.Sprintf("Buy 1 %s", good.Label()), func() {
 			economy.BuyFromTown(market, &gs.hold.Cargo, &gs.hold.Gold, gs.economyCfg, good, 1)
 			gs.refreshOverlay()
 		})
-		sell := iconButton(fmt.Sprintf("Sell 1 %s", good.Label()), goodIconIndex(good), func() {
+		sell := widget.NewButton(fmt.Sprintf("Sell 1 %s", good.Label()), func() {
 			economy.SellToTown(market, &gs.hold.Cargo, &gs.hold.Gold, gs.economyCfg, good, 1)
 			gs.refreshOverlay()
 		})
@@ -136,19 +135,6 @@ func (gs *GameState) buyFineSails() {
 	gs.hold.Gold -= gs.economyCfg.SailUpgradeCost
 	gs.hold.FineSailsPurchased = true
 	gs.sailingCfg.HullSpeed += gs.economyCfg.SailUpgradeHullBonus
-}
-
-func goodIconIndex(g economy.Good) int {
-	switch g {
-	case economy.GoodRum:
-		return resources.Slice2IconRum
-	case economy.GoodPowder:
-		return resources.Slice2IconPowder
-	case economy.GoodCloth:
-		return resources.Slice2IconCloth
-	default:
-		return -1
-	}
 }
 
 func (gs *GameState) openDock(t *town.Town) {
