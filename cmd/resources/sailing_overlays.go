@@ -71,10 +71,23 @@ func getSailingOverlayTile(col, row int) image.Image {
 		return nil
 	}
 	tile := extractTileAt(col, row)
-	if tile == nil || isTileNearlyEmpty(tile) {
+	if tile == nil || !hasOpaquePixels(tile) {
 		return nil
 	}
 	return tile
+}
+
+func hasOpaquePixels(img image.Image) bool {
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			_, _, _, a := img.At(x, y).RGBA()
+			if a > 0x8000 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // WakeAftPosition returns the cell behind a ship for wake placement.

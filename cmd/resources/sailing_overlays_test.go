@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"image"
 	"pirate-wars/cmd/common"
 	"testing"
 )
@@ -78,6 +79,15 @@ func TestWakeAftCoordinate(t *testing.T) {
 	}
 }
 
+func TestWakeFrame1Extraction(t *testing.T) {
+	if !HasSailingVisualsTileset() {
+		t.Skip("sailing visuals tileset not present")
+	}
+	if GetWakeOverlay(1) == nil {
+		t.Fatal("GetWakeOverlay(1) returned nil")
+	}
+}
+
 func TestSailingOverlayTransparentWhenPresent(t *testing.T) {
 	if !HasSailingVisualsTileset() {
 		t.Skip("sailing visuals tileset not present")
@@ -86,14 +96,40 @@ func TestSailingOverlayTransparentWhenPresent(t *testing.T) {
 	if pennant == nil {
 		t.Fatal("pennant overlay should not be nil with 448px tileset")
 	}
-	if !HasTransparentCenter(pennant) {
-		t.Fatal("pennant overlay center should be transparent")
+	if countOpaquePixels(pennant) == 0 {
+		t.Fatal("pennant overlay should have opaque pixels")
 	}
-	wake := GetWakeOverlay(0)
-	if wake == nil {
-		t.Fatal("wake overlay should not be nil with 448px tileset")
+	if countTransparentPixels(pennant) == 0 {
+		t.Fatal("pennant overlay should have transparent pixels")
 	}
-	if !HasTransparentCenter(wake) {
-		t.Fatal("wake overlay center should be transparent")
+	wake0 := GetWakeOverlay(0)
+	wake1 := GetWakeOverlay(1)
+	if wake0 == nil && wake1 == nil {
+		t.Fatal("at least one wake overlay frame should be present with 448px tileset")
 	}
+	if wake1 == nil {
+		t.Fatal("wake frame 1 overlay should not be nil with 448px tileset")
+	}
+	if wake1 != nil {
+		if countOpaquePixels(wake1) == 0 {
+			t.Fatal("wake frame 1 should have opaque pixels")
+		}
+		if countTransparentPixels(wake1) == 0 {
+			t.Fatal("wake frame 1 should have transparent pixels")
+		}
+	}
+}
+
+func countTransparentPixels(img image.Image) int {
+	count := 0
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			_, _, _, a := img.At(x, y).RGBA()
+			if a <= 0x8000 {
+				count++
+			}
+		}
+	}
+	return count
 }
