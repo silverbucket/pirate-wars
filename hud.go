@@ -24,7 +24,7 @@ func shipStatusText(speed float64, wind *sailing.Wind) string {
 		windStrength = wind.Strength
 	}
 	return fmt.Sprintf(
-		"Galleon\nHealth: %d\nSpeed: %.1f\nWind: %s (%d)\nCargo: %d\nGold: %d\n",
+		"Galleon\nHealth: %d\nSpeed: %.2f\nWind: %s (%d)\nCargo: %d\nGold: %d\n",
 		placeholderHealth,
 		speed,
 		windLabel,

@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+func TestShipStatusTextSpeedTwoDecimals(t *testing.T) {
+	wind := sailing.NewWind(sailing.DefaultConfig())
+	text := shipStatusText(0.55, wind)
+	if !strings.Contains(text, "Speed: 0.55") {
+		t.Fatalf("speed should display two decimals honestly, got:\n%s", text)
+	}
+	if strings.Contains(text, "Speed: 0.6") {
+		t.Fatal("speed must not round 0.55 up to 0.6")
+	}
+}
+
 func TestShipStatusTextUsesGalleonSpelling(t *testing.T) {
 	wind := sailing.NewWind(sailing.DefaultConfig())
 	text := shipStatusText(2.5, wind)

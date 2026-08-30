@@ -196,8 +196,8 @@ func TestPlayPassSailingLoop(t *testing.T) {
 	}
 	t.Logf("Q5 HUD: live_speed=%.3f hud_speed=%.3f wind=%s(%d) hud_wind=%s(%d)",
 		liveSpeed, hudSpeed, wind.Label(), wind.Strength, hudLabel, hudStrength)
-	if math.Abs(hudSpeed-liveSpeed) > 0.05 {
-		t.Fatalf("Q5: HUD speed %.1f != live %.3f", hudSpeed, liveSpeed)
+	if math.Abs(hudSpeed-liveSpeed) > 1e-9 {
+		t.Fatalf("Q5: HUD speed %.2f != live %.3f", hudSpeed, liveSpeed)
 	}
 	if hudLabel != wind.Label() || hudStrength != wind.Strength {
 		t.Fatalf("Q5: HUD wind %s(%d) != live %s(%d)", hudLabel, hudStrength, wind.Label(), wind.Strength)
