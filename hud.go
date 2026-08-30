@@ -4,23 +4,31 @@ import (
 	"fmt"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/window"
 )
 
 const (
 	placeholderHealth = 100
-	placeholderSpeed  = 5
 	placeholderCargo  = 250
 	placeholderGold   = 0
 )
 
 var debugOverlayVisible = false
 
-func shipStatusText() string {
+func shipStatusText(speed float64, wind *sailing.Wind) string {
+	windLabel := "—"
+	windStrength := 0
+	if wind != nil {
+		windLabel = wind.Label()
+		windStrength = wind.Strength
+	}
 	return fmt.Sprintf(
-		"Galleon\nHealth: %d\nSpeed: %d\nCargo: %d\nGold: %d\n",
+		"Galleon\nHealth: %d\nSpeed: %.2f\nWind: %s (%d)\nCargo: %d\nGold: %d\n",
 		placeholderHealth,
-		placeholderSpeed,
+		speed,
+		windLabel,
+		windStrength,
 		placeholderCargo,
 		placeholderGold,
 	)
@@ -35,9 +43,13 @@ func examinePanelText(examine entities.ViewableEntity) string {
 	)
 }
 
-func debugOverlayText(playerPos common.Coordinates) string {
+func debugOverlayText(playerPos common.Coordinates, wind *sailing.Wind) string {
+	windInfo := "wind: n/a"
+	if wind != nil {
+		windInfo = fmt.Sprintf("wind: %s strength %d", wind.Label(), wind.Strength)
+	}
 	return fmt.Sprintf(
-		"Window: %dx%d\nViewport: %dx%d (%dx%d tiles)\nMap: %dx%d\nPlayer: %+v\n",
+		"Window: %dx%d\nViewport: %dx%d (%dx%d tiles)\nMap: %dx%d\nPlayer: %+v\n%s\n",
 		window.Window.Width,
 		window.Window.Height,
 		window.ViewPort.Dimensions.Width,
@@ -47,6 +59,7 @@ func debugOverlayText(playerPos common.Coordinates) string {
 		common.WorldCols,
 		common.WorldRows,
 		playerPos,
+		windInfo,
 	)
 }
 

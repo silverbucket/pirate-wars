@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
@@ -15,7 +16,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ChanceToMove Percentage chance an NPC will calculate movement per tick
+// ChanceToMove is deprecated; NPC skip percent now comes from sailing.cfg.
 const ChanceToMove = 50
 const GoalTypeTrade = 1
 
@@ -151,17 +152,33 @@ func Init(towns *town.Towns, world *world.MapView, logger *zap.SugaredLogger) *N
 	return &ns
 }
 
-func (ns *Npcs) CalcMovements() {
-	ns.logger.Infof("Calculating NPC movements: %d", len(ns.list))
+func (n *Npc) GetFacing() common.Facing {
+	return n.avatar.GetFacing()
+}
+
+func (n *Npc) MovedThisTick() bool {
+	return n.avatar.MovedThisTick()
+}
+
+func (n *Npc) ClearMovedFlag() {
+	n.avatar.ClearMovedFlag()
+}
+
+func (ns *Npcs) ClearMovedFlags() {
 	for i := range ns.list {
-		if rand.Intn(100) > ChanceToMove {
+		ns.list[i].ClearMovedFlag()
+	}
+}
+
+func (ns *Npcs) ResolveMovements(cfg sailing.Config, wind *sailing.Wind, world *world.MapView, occupancy sailing.Occupancy) {
+	for i := range ns.list {
+		if rand.Intn(100) < cfg.NPCSkipPercent {
 			continue
 		}
 
 		npc := &ns.list[i]
 		targetTown := &npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 
-		// if we're already at our destination, flip our trade route
 		if targetTown.HeatMap.GetCost(npc.avatar.GetPos()) < 3 {
 			oldTown := npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 			npc.agenda.tradeTarget = npc.agenda.tradeTarget ^ 1
@@ -169,32 +186,41 @@ func (ns *Npcs) CalcMovements() {
 			ns.logger.Info(fmt.Sprintf("[%v] NPC movement trade route switch town %v to town %v", npc.id, oldTown.GetPos(), targetTown.GetPos()))
 		}
 
-		// find next move by cost on heatmap
 		opts := []town.DirectionCost{}
 		for _, dir := range common.Directions {
 			n := common.AddDirection(npc.GetPos(), dir)
 			if !common.Inbounds(n) {
-				// don't check out of bounds
 				continue
 			}
-			//t.Logger.Debug(fmt.Sprintf("New heatmap coordinates check [%v][%v]", newX, newY))
-			//t.Logger.Debug(fmt.Sprintf("Npc at %v, %v - checking square %v, %v cost:%v [lowest cost: %v]", newPosition.X, newPosition.Y, newX, newY, town.HeatMap[newX][newY], lowestCost)
 			opts = append(opts, town.DirectionCost{Pos: n, Cost: targetTown.HeatMap.GetCost(n)})
 		}
 
 		pick := town.DecideDirection(opts, targetTown.GetPos())
 		target := pick.Pos
-		cost := pick.Cost
 		npcpos := npc.GetPos()
 
 		if target.X == npcpos.X && target.Y == npcpos.Y {
-			ns.logger.Debug(fmt.Sprintf("[%v] NPC stuck at %+v! Travelling to town at %v (cost %v)", npc.id, npcpos, targetTown.GetPos(), cost))
-		} else {
-			ns.logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (cost %v) (color: %v)", npc.id, npcpos, target, cost, npc.GetColor()))
-			if !common.IsPositionAdjacent(npcpos, target) {
-				ns.logger.Debug(fmt.Sprintf("[%v] NPC warp! from %v to %v", npc.id, npcpos, target))
-			}
-			npc.SetPos(target)
+			ns.logger.Debug(fmt.Sprintf("[%v] NPC stuck at %+v! Travelling to town at %v (cost %v)", npc.id, npcpos, targetTown.GetPos(), pick.Cost))
+			continue
+		}
+
+		dx := target.X - npcpos.X
+		dy := target.Y - npcpos.Y
+		if facing, ok := common.FacingFromDelta(dx, dy); ok {
+			npc.avatar.SetHeading(facing)
+		}
+
+		speed := cfg.EffectiveSpeed(npc.avatar.GetFacing(), npc.avatar.GetSail(), wind)
+		if !npc.avatar.AccumulateSpeed(speed) {
+			continue
+		}
+
+		newPos, moved := sailing.TryStep(npcpos, npc.avatar.GetFacing(), npc.GetID(), occupancy, world.IsPassableByBoat)
+		if moved {
+			ns.logger.Info(fmt.Sprintf("[%v] NPC moving from %v to %v (color: %v)", npc.id, npcpos, newPos, npc.GetColor()))
+			npc.SetPos(newPos)
+			occupancy[common.CoordToKey(newPos)] = npc.GetID()
+			delete(occupancy, common.CoordToKey(npcpos))
 		}
 	}
 }

@@ -8,6 +8,7 @@ import (
 
 func (world *MapView) AdvanceAnimation() {
 	resources.AdvanceWaveAnimation()
+	resources.AdvanceWakeAnimation()
 }
 
 func (world *MapView) isWaterAt(x, y int) bool {

@@ -6,6 +6,7 @@ import (
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/player"
+	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
@@ -38,12 +39,17 @@ type GameState struct {
 	npcs           *npc.Npcs
 	towns          *town.Towns
 	debugOverlay   *widget.Label
+	sailingCfg     sailing.Config
+	wind           *sailing.Wind
 }
 
 func initGameState(logger *zap.SugaredLogger) *GameState {
+	cfg := sailing.LoadConfig("sailing.cfg")
 	gs := GameState{
 		paused:      true,
 		initialized: false,
+		sailingCfg:  cfg,
+		wind:        sailing.NewWind(cfg),
 	}
 	gs.logger = logger
 	gs.world = world.Init(gs.logger)
@@ -54,7 +60,7 @@ func initGameState(logger *zap.SugaredLogger) *GameState {
 }
 
 func (gs *GameState) sidePanelContent(examine entities.ViewableEntity) *fyne.Container {
-	shipStatusContent := widget.NewLabel(shipStatusText())
+	shipStatusContent := widget.NewLabel(shipStatusText(gs.player.GetLastSpeed(), gs.wind))
 	shipStatusContent.Wrapping = fyne.TextWrapWord
 	examineContent := widget.NewLabel(examinePanelText(examine))
 	examineContent.Wrapping = fyne.TextWrapWord
@@ -77,7 +83,7 @@ func (gs *GameState) updateDebugOverlay() {
 		return
 	}
 	if debugOverlayVisible {
-		gs.debugOverlay.SetText(debugOverlayText(gs.player.GetPos()))
+		gs.debugOverlay.SetText(debugOverlayText(gs.player.GetPos(), gs.wind))
 		gs.debugOverlay.Show()
 	} else {
 		gs.debugOverlay.Hide()
@@ -125,7 +131,7 @@ func (m *GameState) processTick() {
 	}
 
 	if ViewType == world.ViewTypeMainMap {
-		m.npcs.CalcMovements()
+		m.resolveSailingTick()
 	}
 
 	// get visible NPCs
@@ -139,7 +145,7 @@ func (m *GameState) processTick() {
 	m.updateDebugOverlay()
 
 	m.world.AdvanceAnimation()
-	m.world.Paint(m.player, visible, highlight)
+	m.world.Paint(m.player, visible, highlight, m.wind.Facing)
 	m.syncMinimap()
 }
 
@@ -230,8 +236,9 @@ func main() {
 }
 
 func (m *GameState) gameLoop() {
+	tick := m.sailingCfg.TickDuration()
 	for {
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(tick)
 		// Use fyne.Do to ensure UI updates happen on the main thread
 		fyne.Do(func() {
 			m.processTick()
