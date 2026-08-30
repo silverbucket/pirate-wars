@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"math/rand"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/town"
@@ -27,19 +28,73 @@ type Agenda struct {
 }
 
 type Npc struct {
-	id     string
-	name   string
-	eType  string
-	flag   string
-	ship   common.ShipType
-	logger *zap.SugaredLogger
-	avatar entities.Avatar
-	agenda Agenda
+	id            string
+	name          string
+	eType         string
+	flag          string
+	ship          common.ShipType
+	logger        *zap.SugaredLogger
+	avatar        entities.Avatar
+	agenda        Agenda
+	traderGood    economy.Good
+	traderAmount  int
 }
 
 type Npcs struct {
 	logger *zap.SugaredLogger
 	list   []Npc
+}
+
+func (n *Npc) TraderGood() economy.Good {
+	return n.traderGood
+}
+
+func (n *Npc) TraderAmount() int {
+	return n.traderAmount
+}
+
+func (n *Npc) dumpCargoAtTown(t *town.Town) {
+	if n.traderAmount <= 0 || t == nil {
+		return
+	}
+	t.Market().AddStock(n.traderGood, n.traderAmount)
+	if n.logger != nil {
+		n.logger.Infof("[%v] dumped %d %s at %s", n.GetID(), n.traderAmount, n.traderGood, t.GetName())
+	}
+	n.traderAmount = 0
+}
+
+// SetTestState configures trader fields for unit tests.
+func (n *Npc) SetTestState(name string, dest town.Town, good economy.Good, amount int) {
+	n.name = name
+	n.agenda.tadeRoute = []town.Town{dest}
+	n.agenda.tradeTarget = 0
+	n.traderGood = good
+	n.traderAmount = amount
+}
+
+func (n *Npc) loadTraderCargo(cfg economy.Config) {
+	n.traderGood = economy.AllGoods[rand.Intn(len(economy.AllGoods))]
+	min, max := cfg.TraderCargoMin, cfg.TraderCargoMax
+	if max < min {
+		max = min
+	}
+	amount := min
+	if max > min {
+		amount = min + rand.Intn(max-min+1)
+	}
+	n.traderAmount = amount
+}
+
+func (n *Npc) DestinationTown() (town.Town, bool) {
+	if len(n.agenda.tadeRoute) == 0 {
+		return town.Town{}, false
+	}
+	idx := n.agenda.tradeTarget
+	if idx < 0 || idx >= len(n.agenda.tadeRoute) {
+		return town.Town{}, false
+	}
+	return n.agenda.tadeRoute[idx], true
 }
 
 func (n *Npc) GetName() string {
@@ -94,7 +149,7 @@ func (ns *Npcs) ForEach(fn func(n Npc)) {
 	}
 }
 
-func (ns *Npcs) Create(towns *town.Towns, world *world.MapView) {
+func (ns *Npcs) Create(towns *town.Towns, world *world.MapView, cfg economy.Config) {
 	pos := world.RandomPositionDeepWater()
 	tradeTowns := []town.Town{}
 
@@ -137,16 +192,17 @@ func (ns *Npcs) Create(towns *town.Towns, world *world.MapView) {
 			tadeRoute:   tradeTowns,
 		},
 	}
+	npc.loadTraderCargo(cfg)
 	ns.logger.Infof("[%v] NPC created at %d, %d", npc.id, pos.X, pos.Y)
 	ns.list = append(ns.list, npc)
 }
 
-func Init(towns *town.Towns, world *world.MapView, logger *zap.SugaredLogger) *Npcs {
+func Init(towns *town.Towns, world *world.MapView, logger *zap.SugaredLogger, cfg economy.Config) *Npcs {
 	ns := Npcs{
 		logger: logger,
 	}
 	for i := 0; i < common.TotalNpcs; i++ {
-		ns.Create(towns, world)
+		ns.Create(towns, world, cfg)
 	}
 	logger.Infof("NPCs initialized: %d", len(ns.list))
 	return &ns
@@ -170,7 +226,7 @@ func (ns *Npcs) ClearMovedFlags() {
 	}
 }
 
-func (ns *Npcs) ResolveMovements(cfg sailing.Config, wind *sailing.Wind, world *world.MapView, occupancy sailing.Occupancy) {
+func (ns *Npcs) ResolveMovements(cfg sailing.Config, econCfg economy.Config, wind *sailing.Wind, world *world.MapView, towns *town.Towns, occupancy sailing.Occupancy) {
 	for i := range ns.list {
 		if rand.Intn(100) < cfg.NPCSkipPercent {
 			continue
@@ -181,7 +237,11 @@ func (ns *Npcs) ResolveMovements(cfg sailing.Config, wind *sailing.Wind, world *
 
 		if targetTown.HeatMap.GetCost(npc.avatar.GetPos()) < 3 {
 			oldTown := npc.agenda.tadeRoute[npc.agenda.tradeTarget]
+			if live := towns.GetByID(oldTown.GetID()); live != nil {
+				npc.dumpCargoAtTown(live)
+			}
 			npc.agenda.tradeTarget = npc.agenda.tradeTarget ^ 1
+			npc.loadTraderCargo(econCfg)
 			targetTown = &npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 			ns.logger.Info(fmt.Sprintf("[%v] NPC movement trade route switch town %v to town %v", npc.id, oldTown.GetPos(), targetTown.GetPos()))
 		}
@@ -223,6 +283,15 @@ func (ns *Npcs) ResolveMovements(cfg sailing.Config, wind *sailing.Wind, world *
 			delete(occupancy, common.CoordToKey(npcpos))
 		}
 	}
+}
+
+func (ns *Npcs) GetByID(id string) *Npc {
+	for i := range ns.list {
+		if ns.list[i].GetID() == id {
+			return &ns.list[i]
+		}
+	}
+	return nil
 }
 
 func (ns *Npcs) GetList() []Npc {

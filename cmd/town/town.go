@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"math/rand"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/resources"
 	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
@@ -26,6 +27,7 @@ type Town struct {
 	logger      *zap.SugaredLogger
 	color       color.Color
 	HeatMap     HeatMap
+	market      economy.TownMarket
 	blink       bool
 	alternate   bool
 }
@@ -38,6 +40,14 @@ func (t *Town) GetID() string {
 
 func (t *Town) GetPos() common.Coordinates {
 	return t.pos[0]
+}
+
+func (t *Town) GetPositions() []common.Coordinates {
+	return t.pos
+}
+
+func (t *Town) Market() *economy.TownMarket {
+	return &t.market
 }
 
 func (t *Town) GetPreviousPos() common.Coordinates {
@@ -111,7 +121,7 @@ func (t *Town) MakeGhostTown(world *world.MapView) {
 	}
 }
 
-func (ts *Towns) CreateTown(c common.Coordinates, world *world.MapView) Town {
+func (ts *Towns) CreateTown(c common.Coordinates, world *world.MapView, cfg economy.Config) Town {
 	var heatMap = make([][]HeatMapCost, common.WorldRows)
 
 	for i := range heatMap {
@@ -130,6 +140,7 @@ func (ts *Towns) CreateTown(c common.Coordinates, world *world.MapView) Town {
 		HeatMap: HeatMap{
 			grid: heatMap,
 		},
+		market: economy.NewTownMarket(cfg, rand.New(rand.NewSource(int64(c.X*1000+c.Y)))),
 	}
 
 	world.SetPositionType(c, common.TerrainTypeTown)
@@ -148,7 +159,7 @@ func (ts *Towns) CreateTown(c common.Coordinates, world *world.MapView) Town {
 	return town
 }
 
-func (ts *Towns) initializeTowns(fn func() common.Coordinates, world *world.MapView) []Town {
+func (ts *Towns) initializeTowns(fn func() common.Coordinates, world *world.MapView, cfg economy.Config) []Town {
 	ts.logger.Info(fmt.Sprintf("Initializing %v towns", common.TotalTowns))
 	for i := 0; i < common.TotalTowns; i++ {
 		for {
@@ -158,7 +169,7 @@ func (ts *Towns) initializeTowns(fn func() common.Coordinates, world *world.MapV
 				world.GetPositionType(c) == common.TerrainTypeBeach {
 
 				if world.IsAdjacentToWater(c) {
-					town := ts.CreateTown(c, world)
+					town := ts.CreateTown(c, world, cfg)
 					if town.generateHeatMap(world) {
 						ts.logger.Info(fmt.Sprintf("[%v] Town created at %v", town.id, c))
 						townList = append(townList, town)
@@ -173,14 +184,37 @@ func (ts *Towns) initializeTowns(fn func() common.Coordinates, world *world.MapV
 	return townList
 }
 
-func Init(world *world.MapView, logger *zap.SugaredLogger) *Towns {
+func Init(world *world.MapView, logger *zap.SugaredLogger, cfg economy.Config) *Towns {
 	ts := Towns{
 		logger: logger,
 		list:   []Town{},
 	}
-	ts.list = ts.initializeTowns(common.RandomPosition, world)
+	ts.list = ts.initializeTowns(common.RandomPosition, world, cfg)
 	ts.logger.Info(fmt.Sprintf("Created %v towns", len(ts.list)))
 	return &ts
+}
+
+func (ts *Towns) GetByID(id string) *Town {
+	for i := range ts.list {
+		if ts.list[i].GetID() == id {
+			return &ts.list[i]
+		}
+	}
+	return nil
+}
+
+func (ts *Towns) AdjacentTown(pos common.Coordinates, world interface{ IsPassableByBoat(common.Coordinates) bool }) *Town {
+	if world == nil || !world.IsPassableByBoat(pos) {
+		return nil
+	}
+	for i := range ts.list {
+		for _, tp := range ts.list[i].GetPositions() {
+			if common.IsPositionAdjacent(pos, tp) {
+				return &ts.list[i]
+			}
+		}
+	}
+	return nil
 }
 
 func (ts *Towns) GetRandomTown() (Town, error) {
@@ -192,6 +226,22 @@ func (ts *Towns) GetRandomTown() (Town, error) {
 
 func (ts *Towns) GetTowns() []Town {
 	return ts.list
+}
+
+// NewTownForTest builds a minimal town for unit tests.
+func NewTownForTest(pos common.Coordinates, cfg economy.Config) Town {
+	return Town{
+		id:          common.GenID(pos),
+		pos:         []common.Coordinates{pos},
+		terrainType: common.TerrainTypeTown,
+		color:       color.RGBA{189, 55, 31, 255},
+		market:      economy.NewTownMarket(cfg, rand.New(rand.NewSource(int64(pos.X*1000+pos.Y)))),
+	}
+}
+
+// TestTownsWith returns a Towns collection for unit tests.
+func TestTownsWith(towns ...Town) *Towns {
+	return &Towns{list: towns}
 }
 
 func (ts *Towns) GetVisible(playerPos common.Coordinates) []Town {

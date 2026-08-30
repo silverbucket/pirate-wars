@@ -14,7 +14,15 @@ func NewOccupancy(ships map[string]common.Coordinates) Occupancy {
 	return o
 }
 
-// IsOccupied reports whether another ship occupies the cell.
+// OccupantAt returns the ship id occupying pos, excluding selfID.
+func (o Occupancy) OccupantAt(pos common.Coordinates, selfID string) (string, bool) {
+	id, ok := o[common.CoordToKey(pos)]
+	if !ok || id == selfID {
+		return "", false
+	}
+	return id, true
+}
+
 func (o Occupancy) IsOccupied(pos common.Coordinates, selfID string) bool {
 	id, ok := o[common.CoordToKey(pos)]
 	return ok && id != selfID

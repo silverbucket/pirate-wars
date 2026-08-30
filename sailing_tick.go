@@ -2,6 +2,7 @@ package main
 
 import (
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/hail"
 	"pirate-wars/cmd/sailing"
 )
 
@@ -14,7 +15,7 @@ func (m *GameState) resolveSailingTick() {
 	occupancy := m.buildOccupancy()
 
 	m.resolvePlayerMovement(occupancy)
-	m.npcs.ResolveMovements(m.sailingCfg, m.wind, m.world, occupancy)
+	m.npcs.ResolveMovements(m.sailingCfg, m.economyCfg, m.wind, m.world, m.towns, occupancy)
 }
 
 func (m *GameState) buildOccupancy() sailing.Occupancy {
@@ -32,8 +33,20 @@ func (m *GameState) resolvePlayerMovement(occupancy sailing.Occupancy) {
 	if !m.player.AccumulateSpeed(speed) {
 		return
 	}
+
+	from := m.player.GetPos()
+	delta := common.FacingToDelta(m.player.GetFacing())
+	target := common.Coordinates{X: from.X + delta.X, Y: from.Y + delta.Y}
+
+	if occupantID, bumped := occupancy.OccupantAt(target, m.player.GetID()); bumped {
+		if npc := m.npcs.GetByID(occupantID); npc != nil {
+			m.openHail(hail.PayloadFromNPC(npc))
+		}
+		return
+	}
+
 	newPos, moved := sailing.TryStep(
-		m.player.GetPos(),
+		from,
 		m.player.GetFacing(),
 		m.player.GetID(),
 		occupancy,

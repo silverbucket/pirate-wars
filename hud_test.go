@@ -7,9 +7,14 @@ import (
 	"testing"
 )
 
-func TestShipStatusTextSpeedTwoDecimals(t *testing.T) {
+func defaultHUDArgs() (float64, *sailing.Wind, string, int, int, int) {
 	wind := sailing.NewWind(sailing.DefaultConfig())
-	text := shipStatusText(0.55, wind)
+	return 0.55, wind, "12:00", 50, 0, 20
+}
+
+func TestShipStatusTextSpeedTwoDecimals(t *testing.T) {
+	speed, wind, tod, gold, cargo, cap := defaultHUDArgs()
+	text := shipStatusText(speed, wind, tod, gold, cargo, cap)
 	if !strings.Contains(text, "Speed: 0.55") {
 		t.Fatalf("speed should display two decimals honestly, got:\n%s", text)
 	}
@@ -19,8 +24,9 @@ func TestShipStatusTextSpeedTwoDecimals(t *testing.T) {
 }
 
 func TestShipStatusTextUsesGalleonSpelling(t *testing.T) {
-	wind := sailing.NewWind(sailing.DefaultConfig())
-	text := shipStatusText(2.5, wind)
+	speed, wind, tod, gold, cargo, cap := defaultHUDArgs()
+	speed = 2.5
+	text := shipStatusText(speed, wind, tod, gold, cargo, cap)
 	if strings.Contains(text, "Galeon") {
 		t.Fatal("ship status should use Galleon spelling")
 	}
@@ -33,7 +39,7 @@ func TestShipStatusTextUsesGalleonSpelling(t *testing.T) {
 	if strings.Contains(text, "{") {
 		t.Fatal("ship status should not include raw coordinates")
 	}
-	for _, field := range []string{"Health:", "Speed:", "Wind:", "Cargo:", "Gold:"} {
+	for _, field := range []string{"Time:", "Health:", "Speed:", "Wind:", "Cargo:", "Gold:"} {
 		if !strings.Contains(text, field) {
 			t.Fatalf("ship status should include %s", field)
 		}

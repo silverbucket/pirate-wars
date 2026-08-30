@@ -25,6 +25,8 @@ const ViewTypeMainMap = 0
 const ViewTypeHeatMap = 1
 const ViewTypeMiniMap = 2
 const ViewTypeExamine = 3
+const ViewTypeDock = 4
+const ViewTypeHail = 5
 
 var minimapPopup *widget.PopUp
 
