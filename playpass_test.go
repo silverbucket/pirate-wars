@@ -185,7 +185,7 @@ func TestPlayPassSailingLoop(t *testing.T) {
 	// Q5: HUD Speed/Wind match live sailing state (not placeholders like speed=5).
 	hudSim := newTickSim(cfg, wind, common.Coordinates{X: 20, Y: 20}, common.FacingE)
 	liveSpeed, _ := hudSim.playerTick()
-	hudText := shipStatusText(hudSim.avatar.GetLastSpeed(), hudSim.wind)
+	hudText := shipStatusText(hudSim.avatar.GetLastSpeed(), hudSim.wind, "06:00", 50, 0, 20)
 	hudSpeed, ok := parseHUDSpeed(hudText)
 	if !ok {
 		t.Fatal("Q5: could not parse HUD Speed")

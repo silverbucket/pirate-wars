@@ -8,15 +8,11 @@ import (
 	"pirate-wars/cmd/window"
 )
 
-const (
-	placeholderHealth = 100
-	placeholderCargo  = 250
-	placeholderGold   = 0
-)
+const placeholderHealth = 100
 
 var debugOverlayVisible = false
 
-func shipStatusText(speed float64, wind *sailing.Wind) string {
+func shipStatusText(speed float64, wind *sailing.Wind, timeOfDay string, gold, cargoTotal, cargoCapacity int) string {
 	windLabel := "—"
 	windStrength := 0
 	if wind != nil {
@@ -24,13 +20,15 @@ func shipStatusText(speed float64, wind *sailing.Wind) string {
 		windStrength = wind.Strength
 	}
 	return fmt.Sprintf(
-		"Galleon\nHealth: %d\nSpeed: %.2f\nWind: %s (%d)\nCargo: %d\nGold: %d\n",
+		"Galleon\nTime: %s\nHealth: %d\nSpeed: %.2f\nWind: %s (%d)\nCargo: %d/%d\nGold: %d\n",
+		timeOfDay,
 		placeholderHealth,
 		speed,
 		windLabel,
 		windStrength,
-		placeholderCargo,
-		placeholderGold,
+		cargoTotal,
+		cargoCapacity,
+		gold,
 	)
 }
 

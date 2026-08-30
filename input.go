@@ -3,7 +3,9 @@ package main
 import (
 	"os"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/dock"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/hail"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/user_action"
@@ -16,6 +18,7 @@ import (
 
 var ExamineData = user_action.Examine()
 var Action = user_action.UserActionIdNone
+var gameStateRef *GameState
 
 const KeyCatAdmin = 0
 const KeyCatNav = 1
@@ -56,6 +59,10 @@ func (m *GameState) handleKeyPress(key *fyne.KeyEvent) {
 		m.processInput(key, miniMapKeyMap)
 	} else if ViewType == world.ViewTypeExamine {
 		m.processInput(key, examineKeyMap)
+	} else if ViewType == world.ViewTypeDock {
+		m.processInput(key, dockKeyMap)
+	} else if ViewType == world.ViewTypeHail {
+		m.processInput(key, hailKeyMap)
 	}
 	m.syncMinimap()
 }
@@ -232,6 +239,50 @@ var sailingKeyMap = KeyMap{
 	},
 }
 
+var hailKeyMap = KeyMap{
+	{
+		key:  []string{"Enter", "Escape", "X"},
+		help: "Dismiss hail",
+		cat:  KeyCatAction,
+		exec: func(m GameState) {
+			if gameStateRef != nil {
+				gameStateRef.hailData = hail.Payload{}
+				ViewType = world.ViewTypeMainMap
+				gameStateRef.hideOverlay()
+			}
+		},
+	},
+	{
+		key:  []string{"ctrl+q"},
+		help: "(Ctrl+Q) quit",
+		cat:  KeyCatAdmin,
+		exec: keyQuit,
+	},
+}
+
+var dockKeyMap = KeyMap{
+	{
+		key:  []string{"Escape"},
+		help: "Leave dock",
+		cat:  KeyCatAction,
+		exec: func(m GameState) {
+			if gameStateRef != nil {
+				gameStateRef.dockTown = nil
+				gameStateRef.dockPage = dockPageMenu
+				gameStateRef.tavernRumor = ""
+				ViewType = world.ViewTypeMainMap
+				gameStateRef.hideOverlay()
+			}
+		},
+	},
+	{
+		key:  []string{"ctrl+q"},
+		help: "(Ctrl+Q) quit",
+		cat:  KeyCatAdmin,
+		exec: keyQuit,
+	},
+}
+
 var examineKeyMap = KeyMap{
 	{
 		key:  []string{"X", "Enter"},
@@ -277,9 +328,33 @@ func (gs *GameState) ActionItems() *fyne.Container {
 	} else if ViewType == world.ViewTypeMiniMap {
 		elements = append(elements, widget.NewLabel("MiniMap"))
 		keyMap = miniMapKeyMap
+	} else if ViewType == world.ViewTypeDock {
+		elements = append(elements, widget.NewLabel("Dock"))
+		keyMap = dockKeyMap
+		elements = append(elements, widget.NewButton("Leave dock", func() {
+			gs.dockTown = nil
+			gs.dockPage = dockPageMenu
+			gs.tavernRumor = ""
+			ViewType = world.ViewTypeMainMap
+			gs.hideOverlay()
+		}))
+	} else if ViewType == world.ViewTypeHail {
+		elements = append(elements, widget.NewLabel("Hail"))
+		keyMap = hailKeyMap
+		elements = append(elements, widget.NewButton("Dismiss", func() {
+			gs.hailData = hail.Payload{}
+			ViewType = world.ViewTypeMainMap
+			gs.hideOverlay()
+		}))
 	} else if ViewType == world.ViewTypeMainMap {
 		elements = append(elements, widget.NewLabel("Sailing"))
 		keyMap = sailingKeyMap
+		if t := dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns); t != nil {
+			townRef := t
+			elements = append(elements, widget.NewButton("Dock", func() {
+				gs.openDock(townRef)
+			}))
+		}
 		elements = append(elements, widget.NewButton("Full sail", func() {
 			setPlayerSail(gs, sailing.SailFull)
 			gs.syncMinimap()

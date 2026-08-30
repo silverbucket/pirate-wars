@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/hail"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/player"
 	"pirate-wars/cmd/sailing"
@@ -41,26 +43,46 @@ type GameState struct {
 	debugOverlay   *widget.Label
 	sailingCfg     sailing.Config
 	wind           *sailing.Wind
+	economyCfg     economy.Config
+	clock          *economy.Clock
+	hold           player.Hold
+	dockTown       *town.Town
+	dockPage       dockPage
+	tavernRumor    string
+	hailData       hail.Payload
+	overlayRoot    *fyne.Container
+	overlayPanel   *fyne.Container
 }
 
 func initGameState(logger *zap.SugaredLogger) *GameState {
-	cfg := sailing.LoadConfig("sailing.cfg")
+	sailingCfg := sailing.LoadConfig("sailing.cfg")
+	economyCfg := economy.LoadConfig("economy.cfg")
 	gs := GameState{
 		paused:      true,
 		initialized: false,
-		sailingCfg:  cfg,
-		wind:        sailing.NewWind(cfg),
+		sailingCfg:  sailingCfg,
+		wind:        sailing.NewWind(sailingCfg),
+		economyCfg:  economyCfg,
+		clock:       economy.NewClock(economyCfg.TicksPerDay),
+		hold:        player.NewHold(economyCfg),
 	}
 	gs.logger = logger
 	gs.world = world.Init(gs.logger)
-	gs.towns = town.Init(gs.world, gs.logger)
-	gs.npcs = npc.Init(gs.towns, gs.world, gs.logger)
+	gs.towns = town.Init(gs.world, gs.logger, economyCfg)
+	gs.npcs = npc.Init(gs.towns, gs.world, gs.logger, economyCfg)
 	gs.player = player.Create(gs.world)
 	return &gs
 }
 
 func (gs *GameState) sidePanelContent(examine entities.ViewableEntity) *fyne.Container {
-	shipStatusContent := widget.NewLabel(shipStatusText(gs.player.GetLastSpeed(), gs.wind))
+	shipStatusContent := widget.NewLabel(shipStatusText(
+		gs.player.GetLastSpeed(),
+		gs.wind,
+		gs.clock.TimeOfDay(),
+		gs.hold.Gold,
+		gs.hold.Cargo.Total(),
+		gs.hold.Cargo.Capacity(),
+	))
 	shipStatusContent.Wrapping = fyne.TextWrapWord
 	examineContent := widget.NewLabel(examinePanelText(examine))
 	examineContent.Wrapping = fyne.TextWrapWord
@@ -130,6 +152,10 @@ func (m *GameState) processTick() {
 		return
 	}
 
+	if ViewType == world.ViewTypeMainMap || ViewType == world.ViewTypeDock || ViewType == world.ViewTypeHail {
+		m.clock.Tick()
+	}
+
 	if ViewType == world.ViewTypeMainMap {
 		m.resolveSailingTick()
 	}
@@ -184,6 +210,7 @@ func main() {
 
 			gameState = initGameState(logger)
 			gameState.window = w
+			gameStateRef = gameState
 			mainContent := gameState.world.GetViewPort()
 			SidePanel = gameState.createSidePanel()
 			ActionMenu = gameState.createActionMenu()
@@ -191,6 +218,8 @@ func main() {
 			debugOverlay := widget.NewLabel("")
 			debugOverlay.Hide()
 			gameState.debugOverlay = debugOverlay
+
+			overlay := gameState.buildOverlayShell()
 
 			// Main layout
 			viewportBg := canvas.NewRectangle(color.Transparent)
@@ -201,7 +230,7 @@ func main() {
 				ActionMenu,
 				nil,
 				SidePanel,
-				container.NewStack(viewportBg, mainContent, debugOverlay),
+				container.NewStack(viewportBg, mainContent, overlay, debugOverlay),
 			)
 
 			// Signal that initialization is complete
