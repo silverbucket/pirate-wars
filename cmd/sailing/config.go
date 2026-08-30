@@ -15,6 +15,9 @@ type Config struct {
 	WindDriftTicks    int
 	WindStrengthMin   int
 	WindStrengthMax   int
+	WindFactorLight   float64
+	WindFactorFresh   float64
+	WindFactorStrong  float64
 	NPCSkipPercent    int
 	PointOfSailRun    float64
 	PointOfSailBroad  float64
@@ -30,11 +33,14 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		TickMS:           250,
-		HullSpeed:        1.0,
-		WindDriftTicks:   20,
+		HullSpeed:        0.55,
+		WindDriftTicks:   100,
 		WindStrengthMin:  1,
 		WindStrengthMax:  3,
-		NPCSkipPercent:   50,
+		WindFactorLight:  0.55,
+		WindFactorFresh:  1.0,
+		WindFactorStrong: 1.25,
+		NPCSkipPercent:   0,
 		PointOfSailRun:   1.0,
 		PointOfSailBroad: 0.9,
 		PointOfSailBeam:  0.75,
@@ -43,6 +49,25 @@ func DefaultConfig() Config {
 		SailFull:         1.0,
 		SailHalf:         0.5,
 		SailFurled:       0.0,
+	}
+}
+
+// WindStrengthFactor maps wind strength 0–3 to a movement multiplier.
+func (c Config) WindStrengthFactor(strength int) float64 {
+	switch strength {
+	case 0:
+		return 0
+	case 1:
+		return c.WindFactorLight
+	case 2:
+		return c.WindFactorFresh
+	case 3:
+		return c.WindFactorStrong
+	default:
+		if strength < 0 {
+			return 0
+		}
+		return c.WindFactorStrong
 	}
 }
 
@@ -101,6 +126,18 @@ func applyConfigValue(cfg *Config, key, val string) {
 	case "npc_skip_percent":
 		if n, err := strconv.Atoi(val); err == nil && n >= 0 && n <= 100 {
 			cfg.NPCSkipPercent = n
+		}
+	case "wind_factor_light":
+		if f, err := strconv.ParseFloat(val, 64); err == nil {
+			cfg.WindFactorLight = f
+		}
+	case "wind_factor_fresh":
+		if f, err := strconv.ParseFloat(val, 64); err == nil {
+			cfg.WindFactorFresh = f
+		}
+	case "wind_factor_strong":
+		if f, err := strconv.ParseFloat(val, 64); err == nil {
+			cfg.WindFactorStrong = f
 		}
 	case "point_of_sail_run":
 		if f, err := strconv.ParseFloat(val, 64); err == nil {

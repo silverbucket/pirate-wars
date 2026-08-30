@@ -3,6 +3,7 @@ package entities
 import (
 	"image/color"
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/sailing"
 	"testing"
 )
 
@@ -50,5 +51,8 @@ func TestAvatarSpawnFacingNorth(t *testing.T) {
 	avatar := CreateAvatar(common.Coordinates{X: 1, Y: 1}, common.ShipPirate, color.White)
 	if avatar.facing != common.FacingN {
 		t.Fatalf("spawn facing = %v, want %v", avatar.facing, common.FacingN)
+	}
+	if avatar.GetSail() != sailing.SailFull {
+		t.Fatalf("spawn sail = %v, want full", avatar.GetSail())
 	}
 }

@@ -67,20 +67,9 @@ func (w *Wind) drift() {
 	}
 }
 
-// StrengthFactor returns a 0–1 multiplier from current wind strength.
+// StrengthFactor returns the configured movement multiplier for current wind strength.
 func (w *Wind) StrengthFactor() float64 {
-	max := w.cfg.WindStrengthMax
-	if max <= 0 {
-		return 0
-	}
-	f := float64(w.Strength) / float64(max)
-	if f < 0 {
-		return 0
-	}
-	if f > 1 {
-		return 1
-	}
-	return f
+	return w.cfg.WindStrengthFactor(w.Strength)
 }
 
 // Label returns a short HUD/debug label for wind direction.

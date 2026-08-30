@@ -22,6 +22,7 @@ type Avatar struct {
 	alternate     bool
 	movedThisTick bool
 	lastSpeed     float64
+	speedProgress float64
 }
 
 type AvatarReadOnly interface {
@@ -87,6 +88,11 @@ func (a *Avatar) SetLastSpeed(speed float64) {
 
 func (a *Avatar) GetLastSpeed() float64 {
 	return a.lastSpeed
+}
+
+// AccumulateSpeed adds per-tick speed; returns true when the ship should advance one cell.
+func (a *Avatar) AccumulateSpeed(tickSpeed float64) bool {
+	return sailing.AccumulateSpeed(&a.speedProgress, tickSpeed)
 }
 
 func (a *Avatar) GetPos() common.Coordinates {

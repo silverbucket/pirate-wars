@@ -29,7 +29,7 @@ func (m *GameState) buildOccupancy() sailing.Occupancy {
 func (m *GameState) resolvePlayerMovement(occupancy sailing.Occupancy) {
 	speed := m.sailingCfg.EffectiveSpeed(m.player.GetFacing(), m.player.GetSail(), m.wind)
 	m.player.SetLastSpeed(speed)
-	if !sailing.ShouldMove(speed) {
+	if !m.player.AccumulateSpeed(speed) {
 		return
 	}
 	newPos, moved := sailing.TryStep(

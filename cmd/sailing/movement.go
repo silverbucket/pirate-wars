@@ -1,19 +1,20 @@
 package sailing
 
 import (
-	"math/rand"
 	"pirate-wars/cmd/common"
 )
 
-// ShouldMove rolls whether a ship advances one cell this tick given effective speed.
-func ShouldMove(speed float64) bool {
-	if speed <= 0 {
+// AccumulateSpeed adds tick speed to progress; returns true when a step is due.
+func AccumulateSpeed(progress *float64, tickSpeed float64) bool {
+	if tickSpeed <= 0 {
 		return false
 	}
-	if speed >= 1 {
+	*progress += tickSpeed
+	if *progress >= 1.0 {
+		*progress -= 1.0
 		return true
 	}
-	return rand.Float64() < speed
+	return false
 }
 
 // WakeAftPosition returns the cell immediately behind the ship for wake overlay.

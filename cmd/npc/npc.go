@@ -211,7 +211,7 @@ func (ns *Npcs) ResolveMovements(cfg sailing.Config, wind *sailing.Wind, world *
 		}
 
 		speed := cfg.EffectiveSpeed(npc.avatar.GetFacing(), npc.avatar.GetSail(), wind)
-		if !sailing.ShouldMove(speed) {
+		if !npc.avatar.AccumulateSpeed(speed) {
 			continue
 		}
 
