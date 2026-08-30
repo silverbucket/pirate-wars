@@ -19,6 +19,11 @@ func NewWind(cfg Config) *Wind {
 	return w
 }
 
+// NewFixedWind returns wind locked to a facing and strength (deterministic sims/tests).
+func NewFixedWind(cfg Config, facing common.Facing, strength int) *Wind {
+	return &Wind{cfg: cfg, Facing: facing, Strength: strength}
+}
+
 func (w *Wind) randomize() {
 	w.Facing = common.Facing(rand.Intn(8))
 	min := w.cfg.WindStrengthMin
