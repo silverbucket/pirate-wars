@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/hail"
+	"pirate-wars/cmd/resources"
+	"pirate-wars/cmd/tavern"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/world"
 
@@ -40,15 +42,16 @@ func (gs *GameState) dockOverlayContent() fyne.CanvasObject {
 func (gs *GameState) dockMenuContent() fyne.CanvasObject {
 	title := widget.NewLabel(fmt.Sprintf("Dock — %s", gs.dockTown.GetName()))
 	title.TextStyle = fyne.TextStyle{Bold: true}
-	merchant := widget.NewButton("Merchant", func() {
+	merchant := iconButton("Merchant", resources.Slice2IconMerchant, func() {
 		gs.dockPage = dockPageMerchant
 		gs.refreshOverlay()
 	})
-	tavern := widget.NewButton("Tavern", func() {
+	tavern := iconButton("Tavern", resources.Slice2IconTavern, func() {
+		gs.tavernRumor = tavern.PickRumor(gs.economyCfg, gs.npcs, gs.towns, int(gs.clock.CurrentTick()))
 		gs.dockPage = dockPageTavern
 		gs.refreshOverlay()
 	})
-	shipwright := widget.NewButton("Shipwright", func() {
+	shipwright := iconButton("Shipwright", resources.Slice2IconShipwright, func() {
 		gs.dockPage = dockPageShipwright
 		gs.refreshOverlay()
 	})
@@ -66,16 +69,18 @@ func (gs *GameState) dockMerchantContent(t *town.Town) fyne.CanvasObject {
 	}
 	for _, g := range economy.AllGoods {
 		good := g
+		buyPrice := market.BuyPrice(good)
+		sellPrice := market.SellPrice(good, gs.economyCfg)
 		lines = append(lines, widget.NewLabel(fmt.Sprintf(
-			"%s — stock %d @ %d gold",
-			good.Label(), market.Stock(good), market.Price(good),
+			"%s — stock %d  buy %d / sell %d gold",
+			good.Label(), market.Stock(good), buyPrice, sellPrice,
 		)))
-		buy := widget.NewButton(fmt.Sprintf("Buy 1 %s", good.Label()), func() {
-			economy.BuyFromTown(market, &gs.hold.Cargo, &gs.hold.Gold, good, 1)
+		buy := iconButton(fmt.Sprintf("Buy 1 %s", good.Label()), goodIconIndex(good), func() {
+			economy.BuyFromTown(market, &gs.hold.Cargo, &gs.hold.Gold, gs.economyCfg, good, 1)
 			gs.refreshOverlay()
 		})
-		sell := widget.NewButton(fmt.Sprintf("Sell 1 %s", good.Label()), func() {
-			economy.SellToTown(market, &gs.hold.Cargo, &gs.hold.Gold, good, 1)
+		sell := iconButton(fmt.Sprintf("Sell 1 %s", good.Label()), goodIconIndex(good), func() {
+			economy.SellToTown(market, &gs.hold.Cargo, &gs.hold.Gold, gs.economyCfg, good, 1)
 			gs.refreshOverlay()
 		})
 		lines = append(lines, container.NewHBox(buy, sell))
@@ -89,10 +94,9 @@ func (gs *GameState) dockMerchantContent(t *town.Town) fyne.CanvasObject {
 }
 
 func (gs *GameState) dockTavernContent() fyne.CanvasObject {
-	rumor := "The tavern is quiet."
-	if len(gs.economyCfg.Rumors) > 0 {
-		idx := gs.clock.CurrentTick() % len(gs.economyCfg.Rumors)
-		rumor = gs.economyCfg.Rumors[idx]
+	rumor := gs.tavernRumor
+	if rumor == "" {
+		rumor = "The tavern has no fresh leads."
 	}
 	back := widget.NewButton("Back", func() {
 		gs.dockPage = dockPageMenu
@@ -134,6 +138,19 @@ func (gs *GameState) buyFineSails() {
 	gs.sailingCfg.HullSpeed += gs.economyCfg.SailUpgradeHullBonus
 }
 
+func goodIconIndex(g economy.Good) int {
+	switch g {
+	case economy.GoodRum:
+		return resources.Slice2IconRum
+	case economy.GoodPowder:
+		return resources.Slice2IconPowder
+	case economy.GoodCloth:
+		return resources.Slice2IconCloth
+	default:
+		return -1
+	}
+}
+
 func (gs *GameState) openDock(t *town.Town) {
 	gs.dockTown = t
 	gs.dockPage = dockPageMenu
@@ -145,6 +162,7 @@ func (gs *GameState) openDock(t *town.Town) {
 func (gs *GameState) closeDock() {
 	gs.dockTown = nil
 	gs.dockPage = dockPageMenu
+	gs.tavernRumor = ""
 	ViewType = world.ViewTypeMainMap
 	gs.hideOverlay()
 	gs.updatePanels(gs.currentExamineEntity())

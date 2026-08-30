@@ -48,6 +48,7 @@ type GameState struct {
 	hold           player.Hold
 	dockTown       *town.Town
 	dockPage       dockPage
+	tavernRumor    string
 	hailData       hail.Payload
 	overlayRoot    *fyne.Container
 	overlayPanel   *fyne.Container

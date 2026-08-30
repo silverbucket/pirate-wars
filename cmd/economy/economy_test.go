@@ -42,19 +42,71 @@ func TestCargoCapacityTwenty(t *testing.T) {
 func TestBuySellUpdatesGoldAndStock(t *testing.T) {
 	cfg := DefaultConfig()
 	market := NewTownMarket(cfg, nil)
-	market.stock[GoodRum] = 10
-	market.prices[GoodRum] = cfg.RumPrice
+	market.SetStock(GoodRum, 20, cfg)
 	cargo := NewCargoHold(cfg.CargoCapacity)
 	gold := cfg.StartingGold
+	buyPrice := market.BuyPrice(GoodRum)
 
-	bought := BuyFromTown(&market, &cargo, &gold, GoodRum, 3)
-	if bought != 3 || gold != cfg.StartingGold-3*cfg.RumPrice || market.Stock(GoodRum) != 7 {
+	bought := BuyFromTown(&market, &cargo, &gold, cfg, GoodRum, 3)
+	if bought != 3 || gold != cfg.StartingGold-3*buyPrice || market.Stock(GoodRum) != 17 {
 		t.Fatalf("buy mismatch: bought=%d gold=%d stock=%d", bought, gold, market.Stock(GoodRum))
 	}
 
-	sold := SellToTown(&market, &cargo, &gold, GoodRum, 2)
-	if sold != 2 || gold != cfg.StartingGold-1*cfg.RumPrice || market.Stock(GoodRum) != 9 {
+	sellPrice := market.SellPrice(GoodRum, cfg)
+	currentBuy := market.BuyPrice(GoodRum)
+	if sellPrice != currentBuy*cfg.SellPercent/100 {
+		t.Fatalf("sell price = %d, want %d (80%% of buy %d)", sellPrice, currentBuy*cfg.SellPercent/100, currentBuy)
+	}
+
+	sold := SellToTown(&market, &cargo, &gold, cfg, GoodRum, 2)
+	wantGold := cfg.StartingGold - 3*buyPrice + 2*sellPrice
+	if sold != 2 || gold != wantGold || market.Stock(GoodRum) != 19 {
 		t.Fatalf("sell mismatch: sold=%d gold=%d stock=%d", sold, gold, market.Stock(GoodRum))
+	}
+}
+
+func TestSameTownBuyThenSellLosesGold(t *testing.T) {
+	cfg := DefaultConfig()
+	market := NewTownMarket(cfg, nil)
+	market.SetStock(GoodRum, 20, cfg)
+	cargo := NewCargoHold(cfg.CargoCapacity)
+	gold := cfg.StartingGold
+	startGold := gold
+
+	buyPrice := market.BuyPrice(GoodRum)
+	if BuyFromTown(&market, &cargo, &gold, cfg, GoodRum, 3) != 3 {
+		t.Fatal("expected to buy 3 rum")
+	}
+	sellPrice := market.SellPrice(GoodRum, cfg)
+	if SellToTown(&market, &cargo, &gold, cfg, GoodRum, 3) != 3 {
+		t.Fatal("expected to sell 3 rum")
+	}
+	if gold >= startGold {
+		t.Fatalf("round-trip should lose gold: start=%d end=%d", startGold, gold)
+	}
+	expectedGold := startGold - 3*buyPrice + 3*sellPrice
+	if gold != expectedGold {
+		t.Fatalf("gold = %d, want %d after round-trip loss", gold, expectedGold)
+	}
+}
+
+func TestBuyPriceMovesWithStock(t *testing.T) {
+	cfg := DefaultConfig()
+	market := NewTownMarket(cfg, nil)
+	min, max := cfg.StockRange(GoodRum)
+
+	market.SetStock(GoodRum, min, cfg)
+	scarce := market.BuyPrice(GoodRum)
+	market.SetStock(GoodRum, max, cfg)
+	plenty := market.BuyPrice(GoodRum)
+
+	if scarce <= plenty {
+		t.Fatalf("scarce buy price %d should exceed plenty buy price %d", scarce, plenty)
+	}
+	wantScarce := BuyPriceAtStock(cfg, GoodRum, min, min, max)
+	wantPlenty := BuyPriceAtStock(cfg, GoodRum, max, min, max)
+	if scarce != wantScarce || plenty != wantPlenty {
+		t.Fatalf("prices scarce=%d plenty=%d, want %d and %d", scarce, plenty, wantScarce, wantPlenty)
 	}
 }
 
@@ -65,5 +117,11 @@ func TestLoadConfigTicksPerDay(t *testing.T) {
 	}
 	if cfg.StartingGold != 50 {
 		t.Fatalf("starting_gold = %d, want 50", cfg.StartingGold)
+	}
+	if cfg.SellPercent != 80 {
+		t.Fatalf("sell_percent = %d, want 80", cfg.SellPercent)
+	}
+	if cfg.PriceBandLowPercent != 80 || cfg.PriceBandHighPercent != 120 {
+		t.Fatalf("price bands = %d/%d, want 80/120", cfg.PriceBandLowPercent, cfg.PriceBandHighPercent)
 	}
 }

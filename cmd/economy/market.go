@@ -2,10 +2,10 @@ package economy
 
 import "math/rand"
 
-// TownMarket holds stock and buy/sell prices for a town.
+// TownMarket holds stock and buy prices for a town.
 type TownMarket struct {
 	stock  [3]int
-	prices [3]int
+	prices [3]int // buy prices, recalculated from stock
 }
 
 func NewTownMarket(cfg Config, rng *rand.Rand) TownMarket {
@@ -23,8 +23,8 @@ func NewTownMarket(cfg Config, rng *rand.Rand) TownMarket {
 			stock = min + rng.Intn(max-min+1)
 		}
 		m.stock[g] = stock
-		m.prices[g] = cfg.Price(g)
 	}
+	m.RecalcBuyPrices(cfg)
 	return m
 }
 
@@ -32,8 +32,35 @@ func (m *TownMarket) Stock(g Good) int {
 	return m.stock[g]
 }
 
-func (m *TownMarket) Price(g Good) int {
+// BuyPrice returns the current buy price (player buys from town).
+func (m *TownMarket) BuyPrice(g Good) int {
 	return m.prices[g]
+}
+
+// Price is an alias for BuyPrice.
+func (m *TownMarket) Price(g Good) int {
+	return m.BuyPrice(g)
+}
+
+// SellPrice returns what the town pays per unit when the player sells.
+func (m *TownMarket) SellPrice(g Good, cfg Config) int {
+	return SellPriceAtBuy(m.BuyPrice(g), cfg.SellPercent)
+}
+
+func (m *TownMarket) RecalcBuyPrices(cfg Config) {
+	for _, g := range AllGoods {
+		min, max := cfg.StockRange(g)
+		m.prices[g] = BuyPriceAtStock(cfg, g, m.stock[g], min, max)
+	}
+}
+
+// SetStock sets stock for a good and recalculates buy prices.
+func (m *TownMarket) SetStock(g Good, stock int, cfg Config) {
+	if stock < 0 {
+		stock = 0
+	}
+	m.stock[g] = stock
+	m.RecalcBuyPrices(cfg)
 }
 
 func (m *TownMarket) AddStock(g Good, amount int) {
@@ -59,11 +86,11 @@ func (m *TownMarket) RemoveStock(g Good, amount int) int {
 }
 
 // BuyFromTown moves good from town stock to player cargo; returns units bought.
-func BuyFromTown(market *TownMarket, cargo *CargoHold, gold *int, g Good, qty int) int {
+func BuyFromTown(market *TownMarket, cargo *CargoHold, gold *int, cfg Config, g Good, qty int) int {
 	if qty <= 0 || gold == nil {
 		return 0
 	}
-	price := market.Price(g)
+	price := market.BuyPrice(g)
 	if price <= 0 {
 		return 0
 	}
@@ -85,11 +112,12 @@ func BuyFromTown(market *TownMarket, cargo *CargoHold, gold *int, g Good, qty in
 	}
 	market.RemoveStock(g, added)
 	*gold -= added * price
+	market.RecalcBuyPrices(cfg)
 	return added
 }
 
 // SellToTown moves good from player cargo to town stock; returns units sold.
-func SellToTown(market *TownMarket, cargo *CargoHold, gold *int, g Good, qty int) int {
+func SellToTown(market *TownMarket, cargo *CargoHold, gold *int, cfg Config, g Good, qty int) int {
 	if qty <= 0 || gold == nil {
 		return 0
 	}
@@ -97,7 +125,9 @@ func SellToTown(market *TownMarket, cargo *CargoHold, gold *int, g Good, qty int
 	if removed <= 0 {
 		return 0
 	}
+	sellPrice := market.SellPrice(g, cfg)
 	market.AddStock(g, removed)
-	*gold += removed * market.Price(g)
+	*gold += removed * sellPrice
+	market.RecalcBuyPrices(cfg)
 	return removed
 }

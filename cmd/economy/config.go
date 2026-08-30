@@ -9,23 +9,26 @@ import (
 
 // Config holds tunable economy parameters loaded from economy.cfg.
 type Config struct {
-	TicksPerDay         int
-	StartingGold        int
-	CargoCapacity       int
-	RumPrice            int
-	PowderPrice         int
-	ClothPrice          int
-	RumStockMin         int
-	RumStockMax         int
-	PowderStockMin      int
-	PowderStockMax      int
-	ClothStockMin       int
-	ClothStockMax       int
-	SailUpgradeCost     int
+	TicksPerDay          int
+	StartingGold         int
+	CargoCapacity        int
+	RumPrice             int
+	PowderPrice          int
+	ClothPrice           int
+	RumStockMin          int
+	RumStockMax          int
+	PowderStockMin       int
+	PowderStockMax       int
+	ClothStockMin        int
+	ClothStockMax        int
+	SailUpgradeCost      int
 	SailUpgradeHullBonus float64
-	TraderCargoMin      int
-	TraderCargoMax      int
-	Rumors              []string
+	TraderCargoMin       int
+	TraderCargoMax       int
+	SellPercent          int
+	PriceBandLowPercent  int
+	PriceBandHighPercent int
+	ShortStockSlack      int
 }
 
 // DefaultConfig returns designer-approved defaults when economy.cfg is missing.
@@ -47,11 +50,10 @@ func DefaultConfig() Config {
 		SailUpgradeHullBonus: 0.10,
 		TraderCargoMin:       5,
 		TraderCargoMax:       15,
-		Rumors: []string{
-			"Sailors whisper of a hidden cove to the east.",
-			"Powder prices rise when the navy patrols near.",
-			"A merchant fleet is due at the next full moon.",
-		},
+		SellPercent:          80,
+		PriceBandLowPercent:  80,
+		PriceBandHighPercent: 120,
+		ShortStockSlack:      2,
 	}
 }
 
@@ -68,10 +70,6 @@ func LoadConfig(path string) Config {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		if strings.HasPrefix(line, "rumor=") {
-			cfg.Rumors = append(cfg.Rumors, strings.TrimPrefix(line, "rumor="))
 			continue
 		}
 		parts := strings.SplitN(line, "=", 2)
@@ -150,6 +148,22 @@ func applyConfigValue(cfg *Config, key, val string) {
 	case "trader_cargo_max":
 		if n, err := strconv.Atoi(val); err == nil && n > 0 {
 			cfg.TraderCargoMax = n
+		}
+	case "sell_percent":
+		if n, err := strconv.Atoi(val); err == nil && n > 0 && n <= 100 {
+			cfg.SellPercent = n
+		}
+	case "price_band_low_percent":
+		if n, err := strconv.Atoi(val); err == nil && n > 0 {
+			cfg.PriceBandLowPercent = n
+		}
+	case "price_band_high_percent":
+		if n, err := strconv.Atoi(val); err == nil && n > 0 {
+			cfg.PriceBandHighPercent = n
+		}
+	case "short_stock_slack":
+		if n, err := strconv.Atoi(val); err == nil && n >= 0 {
+			cfg.ShortStockSlack = n
 		}
 	}
 }

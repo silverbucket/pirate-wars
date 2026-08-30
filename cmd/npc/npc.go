@@ -53,11 +53,12 @@ func (n *Npc) TraderAmount() int {
 	return n.traderAmount
 }
 
-func (n *Npc) dumpCargoAtTown(t *town.Town) {
+func (n *Npc) dumpCargoAtTown(t *town.Town, cfg economy.Config) {
 	if n.traderAmount <= 0 || t == nil {
 		return
 	}
 	t.Market().AddStock(n.traderGood, n.traderAmount)
+	t.Market().RecalcBuyPrices(cfg)
 	if n.logger != nil {
 		n.logger.Infof("[%v] dumped %d %s at %s", n.GetID(), n.traderAmount, n.traderGood, t.GetName())
 	}
@@ -238,7 +239,7 @@ func (ns *Npcs) ResolveMovements(cfg sailing.Config, econCfg economy.Config, win
 		if targetTown.HeatMap.GetCost(npc.avatar.GetPos()) < 3 {
 			oldTown := npc.agenda.tadeRoute[npc.agenda.tradeTarget]
 			if live := towns.GetByID(oldTown.GetID()); live != nil {
-				npc.dumpCargoAtTown(live)
+				npc.dumpCargoAtTown(live, econCfg)
 			}
 			npc.agenda.tradeTarget = npc.agenda.tradeTarget ^ 1
 			npc.loadTraderCargo(econCfg)
@@ -296,6 +297,11 @@ func (ns *Npcs) GetByID(id string) *Npc {
 
 func (ns *Npcs) GetList() []Npc {
 	return ns.list
+}
+
+// TestNpcsWith returns an Npcs collection for unit tests.
+func TestNpcsWith(npcs ...Npc) *Npcs {
+	return &Npcs{list: npcs}
 }
 
 func (ns *Npcs) GetVisible(c common.Coordinates, vr window.Dimensions) Npcs {
