@@ -137,6 +137,8 @@ func (m *GameState) handleKeyPress(key *fyne.KeyEvent) {
 		return
 	}
 
+	previousView := ViewType
+
 	if ViewType == world.ViewTypeMainMap {
 		m.processInput(key, sailingKeyMap())
 	} else if ViewType == world.ViewTypeMiniMap {
@@ -149,6 +151,29 @@ func (m *GameState) handleKeyPress(key *fyne.KeyEvent) {
 		m.processInput(key, hailKeyMap())
 	}
 	m.syncMinimap()
+
+	// The action bar and overlay are otherwise only updated on the next tick, which
+	// would leave them showing the previous view's commands after a keyboard change.
+	if ViewType != previousView {
+		m.syncOverlay()
+	}
+	m.refreshActionBar()
+}
+
+// syncOverlay matches the modal overlay to the current view.
+func (m *GameState) syncOverlay() {
+	if ViewType == world.ViewTypeDock || ViewType == world.ViewTypeHail {
+		m.showOverlay()
+	} else {
+		m.hideOverlay()
+	}
+}
+
+func (m *GameState) refreshActionBar() {
+	m.updateActionBarIfNeeded()
+	if ActionMenu != nil {
+		fyne.Do(ActionMenu.Refresh)
+	}
 }
 
 func (m *GameState) processInput(key *fyne.KeyEvent, km KeyMap) {

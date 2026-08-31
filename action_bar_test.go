@@ -358,6 +358,68 @@ func TestDockKeyUsesCallbackGameState(t *testing.T) {
 	}
 }
 
+// TestKeyboardViewChangeUpdatesActionBar covers the bar going stale until the next tick
+// after a key changes the view.
+func TestKeyboardViewChangeUpdatesActionBar(t *testing.T) {
+	gs := initGameState(zap.NewNop().Sugar())
+	gs.window = test.NewWindow(nil)
+	gs.buildOverlayShell()
+
+	dockPos, ok := waterTileBesideTown(gs)
+	if !ok {
+		t.Skip("generated world has no water-adjacent town")
+	}
+	gs.player.SetPos(dockPos)
+
+	ViewType = world.ViewTypeMainMap
+	ActionMenu = nil
+	ActionMenu = gs.createActionMenu()
+
+	gs.handleKeyPress(&fyne.KeyEvent{Name: "Enter"})
+	if ViewType != world.ViewTypeDock {
+		t.Fatalf("Enter did not open dock, ViewType = %d", ViewType)
+	}
+	labels := actionBarButtonLabels(gs.actionBarItems)
+	if len(labels) != 1 || labels[0] != "Leave dock (Esc)" {
+		t.Fatalf("bar should show dock commands right after the key press, got %v", labels)
+	}
+	if ActionMenu.Objects[1] != gs.actionBarItems {
+		t.Fatal("rebuilt bar was not mounted into the action menu")
+	}
+
+	gs.handleKeyPress(&fyne.KeyEvent{Name: "Escape"})
+	if ViewType != world.ViewTypeMainMap {
+		t.Fatalf("Escape did not leave dock, ViewType = %d", ViewType)
+	}
+	labels = actionBarButtonLabels(gs.actionBarItems)
+	if len(labels) == 0 || !strings.HasPrefix(labels[0], "Dock") {
+		t.Fatalf("bar should show sailing commands right after leaving dock, got %v", labels)
+	}
+	if gs.overlayRoot != nil && !gs.overlayRoot.Hidden {
+		t.Fatal("overlay should be hidden after leaving dock with a key")
+	}
+}
+
+// TestActionBarWidgetsReusedAcrossKeyPresses keeps the signature cache doing its job:
+// repeated key presses that do not change the commands must not rebuild the bar.
+func TestActionBarWidgetsReusedAcrossKeyPresses(t *testing.T) {
+	gs := initGameState(zap.NewNop().Sugar())
+	gs.window = test.NewWindow(nil)
+	gs.buildOverlayShell()
+
+	ViewType = world.ViewTypeMainMap
+	ActionMenu = nil
+	ActionMenu = gs.createActionMenu()
+	first := gs.actionBarItems
+
+	for i := 0; i < 5; i++ {
+		gs.handleKeyPress(&fyne.KeyEvent{Name: "1"})
+		if gs.actionBarItems != first {
+			t.Fatalf("press %d rebuilt the action bar despite unchanged commands", i)
+		}
+	}
+}
+
 func waterTileBesideTown(gs *GameState) (common.Coordinates, bool) {
 	for _, tw := range gs.towns.GetTowns() {
 		for _, tp := range tw.GetPositions() {
