@@ -1,9 +1,11 @@
 package main
 
 import (
+	"image"
 	"strings"
 	"testing"
 
+	"pirate-wars/cmd/gfx"
 	"pirate-wars/cmd/world"
 )
 
@@ -107,6 +109,79 @@ func TestMerchantScreenFitsTheOverlay(t *testing.T) {
 			if !b.rect.In(panel) {
 				t.Fatalf("view %d: button %q at %v escapes panel %v", view, b.label, b.rect, panel)
 			}
+		}
+	}
+}
+
+// TestOverlayKeepsItsExitEvenWhenNothingFits covers a review finding.
+//
+// The row-fitting loop could return zero rows, which drops every button. The
+// keyboard still has Escape, but a pointer or touch screen has only the button —
+// so that case is a modal a touch-only player cannot dismiss.
+func TestOverlayKeepsItsExitEvenWhenNothingFits(t *testing.T) {
+	savedViewport, savedBar := viewportRect, actionBarRect
+	defer func() { viewportRect, actionBarRect = savedViewport, savedBar }()
+
+	// A region too short for even one row past the panel chrome.
+	viewportRect = image.Rect(0, 0, 854, 50)
+	actionBarRect = image.Rect(0, 50, 1024, 118)
+
+	ViewType = world.ViewTypeHail
+	gs := mainMapGameState()
+	screen := overlayScreen{
+		title: "Hail",
+		rows: []overlayRow{
+			{text: "line one"},
+			{text: "line two"},
+			{buttons: []overlayAction{{label: "Dismiss", do: func() {}}}},
+		},
+	}
+
+	_, rows := gs.overlayPanel(screen)
+	if len(rows) == 0 {
+		t.Fatal("an overlay must never render zero rows: that leaves no way out for a pointer")
+	}
+
+	_, buttons := gs.overlayLayout(screen)
+	found := false
+	for _, b := range buttons {
+		if b.label == "Dismiss" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("the exit button must survive any region size, got rows %v", rows)
+	}
+}
+
+// TestOverlayPanelHeightMatchesRenderedRows keeps the panel sized to what it
+// actually draws. The exit row is taller than the text row it replaces, so
+// counting the fitted rows rather than the rendered ones left buttons hanging
+// past the panel edge.
+func TestOverlayPanelHeightMatchesRenderedRows(t *testing.T) {
+	ViewType = world.ViewTypeHail
+	gs := mainMapGameState()
+
+	rows := make([]overlayRow, 0, 300)
+	for i := 0; i < 300; i++ {
+		rows = append(rows, overlayRow{text: "filler"})
+	}
+	rows = append(rows, overlayRow{buttons: []overlayAction{{label: "Dismiss", do: func() {}}}})
+	screen := overlayScreen{title: "Hail", rows: rows}
+
+	panel, rendered := gs.overlayPanel(screen)
+	want := overlayPadding*2 + gfx.LineHeight + overlayRowGap
+	for _, r := range rendered {
+		want += overlayRowHeight(r)
+	}
+	if panel.Dy() != want {
+		t.Fatalf("panel height %d does not match its %d rendered rows (%d)", panel.Dy(), len(rendered), want)
+	}
+
+	_, buttons := gs.overlayLayout(screen)
+	for _, b := range buttons {
+		if !b.rect.In(panel) {
+			t.Fatalf("button %q at %v escapes panel %v", b.label, b.rect, panel)
 		}
 	}
 }

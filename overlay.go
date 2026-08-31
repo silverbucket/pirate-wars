@@ -93,7 +93,7 @@ func (gs *GameState) overlayLayout(s overlayScreen) (image.Rectangle, []button) 
 	return panel, buttons
 }
 
-// overlayPanel sizes the panel and returns the leading rows that fit in it.
+// overlayPanel sizes the panel and returns the rows to render in it.
 func (gs *GameState) overlayPanel(s overlayScreen) (image.Rectangle, []overlayRow) {
 	region := overlayRegion()
 	maxHeight := region.Dy() - 40
@@ -108,12 +108,28 @@ func (gs *GameState) overlayPanel(s overlayScreen) (image.Rectangle, []overlayRo
 		height += overlayRowHeight(r)
 		fitted++
 	}
-	rows := s.rows[:fitted]
 
-	// A truncated screen still has to offer its way out, so the final row —
-	// always the dismiss button — replaces the last row that fit.
-	if fitted < len(s.rows) && fitted > 0 {
-		rows = append(append([]overlayRow{}, s.rows[:fitted-1]...), s.rows[len(s.rows)-1])
+	rows := s.rows[:fitted]
+	if fitted < len(s.rows) {
+		// A truncated screen still has to offer its way out. The exit is the
+		// last row on every screen built here, so it takes the place of the last
+		// row that fit — and when nothing fits at all it is rendered on its own.
+		// Overflowing the region by one row beats a modal that cannot be
+		// dismissed: the keyboard always has Escape, but a pointer or a touch
+		// screen only has this button.
+		keep := fitted - 1
+		if keep < 0 {
+			keep = 0
+		}
+		rows = append(append([]overlayRow{}, s.rows[:keep]...), s.rows[len(s.rows)-1])
+	}
+
+	// Height follows the rows actually rendered rather than the ones counted:
+	// swapping the exit row in changes the total, because a button row is taller
+	// than a text row.
+	height = chrome
+	for _, r := range rows {
+		height += overlayRowHeight(r)
 	}
 
 	panel := image.Rect(0, 0, overlayWidth, height).
@@ -124,7 +140,6 @@ func (gs *GameState) overlayPanel(s overlayScreen) (image.Rectangle, []overlayRo
 	return panel, rows
 }
 
-// currentOverlayScreen returns the modal panel for the current view.
 func (gs *GameState) currentOverlayScreen() overlayScreen {
 	switch ViewType {
 	case world.ViewTypeDock:
