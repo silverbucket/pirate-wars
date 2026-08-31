@@ -9,6 +9,7 @@ const (
 	SailFurled
 )
 
+// Label is the player-facing name of the sail state.
 func (s SailSetting) Label() string {
 	switch s {
 	case SailFull:
@@ -22,6 +23,7 @@ func (s SailSetting) Label() string {
 	}
 }
 
+// Next cycles full to half to furled and back to full.
 func (s SailSetting) Next() SailSetting {
 	switch s {
 	case SailFull:
@@ -54,6 +56,8 @@ func (s SailSetting) Less() SailSetting {
 	}
 }
 
+// SailMultiplier is the configured speed factor for a sail state. Furled is
+// zero: a furled ship does not move at all.
 func (cfg Config) SailMultiplier(s SailSetting) float64 {
 	switch s {
 	case SailFull:

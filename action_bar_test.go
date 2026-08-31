@@ -77,14 +77,71 @@ func TestActionBarHasNoDuplicateCommands(t *testing.T) {
 	}
 }
 
-func TestDockButtonHiddenWhenNotAdjacent(t *testing.T) {
+// TestDockButtonDisabledNotRemovedWhenNotAdjacent covers the bar staying still.
+// Dropping the button away from a town reflowed every button to its right, so the
+// row moved under the pointer as the player drifted past a coastline.
+func TestDockButtonDisabledNotRemovedWhenNotAdjacent(t *testing.T) {
 	ViewType = world.ViewTypeMainMap
 	gs := mainMapGameState()
+	gs.refreshActionBar()
 
-	for _, label := range gs.actionBarLabels() {
-		if strings.HasPrefix(label, "Dock") {
-			t.Fatalf("dock button should be hidden away from a town, got %q", label)
+	var dock *button
+	for i := range gs.buttons {
+		if strings.HasPrefix(gs.buttons[i].label, "Dock") {
+			dock = &gs.buttons[i]
 		}
+	}
+	if dock == nil {
+		t.Fatalf("dock button should keep its place on the bar, got %v", gs.actionBarLabels())
+	}
+	if dock.enabled {
+		t.Fatal("dock button should be disabled without an adjacent town")
+	}
+}
+
+// TestBarButtonPositionsDoNotMoveWithAvailability is the same guarantee measured:
+// the rectangles are identical whether or not a town is in reach.
+func TestBarButtonPositionsDoNotMoveWithAvailability(t *testing.T) {
+	ViewType = world.ViewTypeMainMap
+
+	away := mainMapGameState()
+	away.refreshActionBar()
+
+	beside := mainMapGameState()
+	beside.forceDockable = true
+	beside.refreshActionBar()
+
+	if len(away.buttons) != len(beside.buttons) {
+		t.Fatalf("bar has %d buttons away from a town and %d beside one",
+			len(away.buttons), len(beside.buttons))
+	}
+	for i := range away.buttons {
+		if away.buttons[i].rect != beside.buttons[i].rect {
+			t.Fatalf("button %q moved from %v to %v when a town came into reach",
+				away.buttons[i].label, away.buttons[i].rect, beside.buttons[i].rect)
+		}
+	}
+}
+
+// TestDisabledButtonTapExplainsItself checks a disabled command says why instead
+// of swallowing the click.
+func TestDisabledButtonTapExplainsItself(t *testing.T) {
+	ViewType = world.ViewTypeMainMap
+	gs := mainMapGameState()
+	gs.refreshActionBar()
+
+	for _, b := range gs.buttons {
+		if !strings.HasPrefix(b.label, "Dock") {
+			continue
+		}
+		center := b.rect.Min.Add(b.rect.Max).Div(2)
+		gs.tap(center.X, center.Y)
+	}
+	if got := gs.activeNotice(); !strings.Contains(got, "No town") {
+		t.Fatalf("tapping a disabled Dock should explain why, got %q", got)
+	}
+	if ViewType != world.ViewTypeMainMap {
+		t.Fatal("tapping a disabled Dock should not open the dock")
 	}
 }
 
@@ -110,11 +167,14 @@ func TestDockCommandLabelShowsBothKeys(t *testing.T) {
 	if !keys["Enter"] || !keys["O"] {
 		t.Fatalf("dock should be bound to Enter and O, got %v", dockItem.key)
 	}
-	if dockItem.barVisible == nil {
+	if dockItem.barEnabled == nil {
 		t.Fatal("dock button should be gated on town adjacency")
 	}
-	if dockItem.barVisible(mainMapGameState()) {
-		t.Fatal("dock button should not be visible without an adjacent town")
+	if dockItem.barEnabled(mainMapGameState()) {
+		t.Fatal("dock button should not be enabled without an adjacent town")
+	}
+	if dockItem.disabledReason == "" {
+		t.Fatal("a gated command needs a reason to show when it is run anyway")
 	}
 }
 
@@ -149,9 +209,30 @@ func TestAdminKeysVisibleOnBar(t *testing.T) {
 	gs := mainMapGameState()
 
 	text := actionBarText(gs)
-	for _, want := range []string{"Help (?)", "Quit (Ctrl+Q)"} {
+	for _, want := range []string{"Help (?/F1)", "Quit (Ctrl+Q)"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("action bar should list %q, got %q", want, text)
+		}
+	}
+}
+
+// TestEscapeBacksOutOfEveryScreen keeps the universal back key universal. Escape
+// used to work on the dock and hail overlays but not on the minimap or examine,
+// which bound Enter instead — the exact inverse.
+func TestEscapeBacksOutOfEveryScreen(t *testing.T) {
+	for _, view := range []int{
+		world.ViewTypeMiniMap,
+		world.ViewTypeExamine,
+		world.ViewTypeDock,
+		world.ViewTypeHail,
+		world.ViewTypeHelp,
+		world.ViewTypeQuitConfirm,
+	} {
+		ViewType = view
+		gs := mainMapGameState()
+		gs.handleKeyPress("Escape")
+		if ViewType != world.ViewTypeMainMap {
+			t.Fatalf("Escape from view %d left the player in view %d", view, ViewType)
 		}
 	}
 }
@@ -163,7 +244,7 @@ func TestOverlayActionBarLabels(t *testing.T) {
 	}{
 		{world.ViewTypeDock, "Leave dock (Esc)"},
 		{world.ViewTypeHail, "Dismiss (Enter/Esc/X)"},
-		{world.ViewTypeMiniMap, "Exit minimap (M/Enter)"},
+		{world.ViewTypeMiniMap, "Exit minimap (M/Enter/Esc)"},
 	}
 	for _, c := range cases {
 		ViewType = c.view
@@ -185,8 +266,8 @@ func TestOverlayActionBarLabels(t *testing.T) {
 // TestBarLabelListsEveryBinding covers commands bound to more than one key: the bar
 // must name them all rather than only the first.
 func TestBarLabelListsEveryBinding(t *testing.T) {
-	if got := barLabelFor(miniMapKeyMap(), "Exit minimap"); got != "Exit minimap (M/Enter)" {
-		t.Fatalf("exit minimap label = %q, want Exit minimap (M/Enter)", got)
+	if got := barLabelFor(miniMapKeyMap(), "Exit minimap"); got != "Exit minimap (M/Enter/Esc)" {
+		t.Fatalf("exit minimap label = %q, want Exit minimap (M/Enter/Esc)", got)
 	}
 
 	ViewType = world.ViewTypeMiniMap
@@ -208,7 +289,7 @@ func TestExamineActionBarLabelsIncludeKeys(t *testing.T) {
 	gs := mainMapGameState()
 
 	labels := gs.actionBarLabels()
-	for _, want := range []string{"Exit examine (X/Enter)", "Examine left (←/H/A)", "Examine right (→/L/D)"} {
+	for _, want := range []string{"Exit examine (X/Enter/Esc)", "Examine left (←/H/A)", "Examine right (→/L/D)"} {
 		found := false
 		for _, got := range labels {
 			if got == want {
@@ -245,8 +326,17 @@ func TestActionBarFitsActionMenuArea(t *testing.T) {
 		if width > actionBarRect.Dx() {
 			t.Fatalf("view %d: button row width %d exceeds bar %d", view, width, actionBarRect.Dx())
 		}
+		// buttonRow drops overflow silently, so a row that only just fits is a
+		// trap for the next command added. Require room for one more button.
+		if headroom := actionBarRect.Dx() - width; headroom < minBarHeadroom {
+			t.Fatalf("view %d: button row leaves only %dpx spare, want at least %dpx "+
+				"so the next command added does not vanish", view, headroom, minBarHeadroom)
+		}
 	}
 }
+
+// minBarHeadroom is roughly one more button's width.
+const minBarHeadroom = 120
 
 // TestActionBarButtonsAreLaidOut checks every bar command actually gets a hit
 // rectangle. Ebiten hit-tests these rects each frame, which is what removed the
@@ -404,7 +494,7 @@ func TestKeyboardViewChangeUpdatesActionBar(t *testing.T) {
 			barLabels = append(barLabels, b.label)
 		}
 	}
-	if len(barLabels) != 1 || barLabels[0] != "Leave dock (Esc)" {
+	if len(barLabels) == 0 || barLabels[0] != "Leave dock (Esc)" {
 		t.Fatalf("bar should show dock commands right after the key press, got %v", barLabels)
 	}
 

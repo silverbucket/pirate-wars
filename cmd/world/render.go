@@ -12,6 +12,14 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// pennantOffset lifts the wind pennant off the hull to the top-left of the
+// player's cell. Drawn centred it sits directly over the sail, in the same cream
+// and red as the sail art, and hides the pixels that tell the eight facings apart.
+const (
+	pennantOffsetX = -10
+	pennantOffsetY = -11
+)
+
 // Draw renders the 32px tilemap viewport centred on avatar into dst.
 func (world *MapView) Draw(
 	dst *ebiten.Image,
@@ -68,19 +76,25 @@ func (world *MapView) Draw(
 			if h.X >= 0 && common.CoordsMatch(pos, h) && highlight.IsHighlighted() && highlightVisible {
 				blit(dst, resources.GetExamineRingOverlay(window.CellSize), sx, sy)
 			}
-			if _, ok := ships[key]; ok {
-				blit(dst, resources.GetPennantOverlay(windFacing), sx, sy)
-			}
 			if wakeCells[key] {
 				blit(dst, resources.GetWakeOverlay(resources.CurrentWakeFrame()), sx, sy)
 			}
 			if common.CoordsMatch(pos, p) {
 				blit(dst, resources.GetPlayerMarkerOverlay(window.CellSize), sx, sy)
+				// The bow chevron is the player's heading readout on the map. It
+				// goes on last so nothing can cover it.
+				blit(dst, resources.GetBowMarkerOverlay(window.CellSize, avatar.GetFacing()), sx, sy)
+				// Wind is map-wide, so one pennant on the player's own masthead
+				// says everything a pennant on all 150 NPCs would. Offsetting it
+				// clear of the hull keeps it from reading as part of the sail and
+				// leaves the 8-way art unobscured.
+				blit(dst, resources.GetPennantOverlay(windFacing), sx+pennantOffsetX, sy+pennantOffsetY)
 			}
 		}
 	}
 }
 
+// blit draws a cached tile image at (x, y) through the Ebiten texture cache.
 func blit(dst *ebiten.Image, src image.Image, x, y float64) {
 	tex := gfx.Texture(src)
 	if tex == nil {

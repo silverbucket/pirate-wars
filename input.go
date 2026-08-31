@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
-	"pirate-wars/cmd/hail"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/user_action"
@@ -16,7 +14,6 @@ import (
 )
 
 var ExamineData = user_action.Examine()
-var Action = user_action.UserActionIdNone
 
 const KeyCatAdmin = 0
 
@@ -33,9 +30,15 @@ type keyItem struct {
 	// label is the action name shown on the action bar; the bound key is appended
 	// automatically so the bar doubles as the key cheat-sheet.
 	label string
-	// barVisible gates context-dependent commands such as dock.
-	barVisible func(gs *GameState) bool
-	exec       func(m *GameState)
+	// barEnabled gates context-dependent commands such as dock. A disabled
+	// command keeps its place on the bar and greys out, rather than vanishing:
+	// removing a button reflows every button to its right, so the bar shifted
+	// under the pointer whenever the player drifted past a town.
+	barEnabled func(gs *GameState) bool
+	// disabledReason is shown as a notice when the player runs the command
+	// anyway, so the key never fails silently.
+	disabledReason string
+	exec           func(m *GameState)
 }
 
 type KeyMap []keyItem
@@ -49,6 +52,7 @@ var keyDisplayNames = map[string]string{
 	"ctrl+q": "Ctrl+Q",
 }
 
+// keyDisplay renders a key name for the player, e.g. "Escape" as "Esc".
 func keyDisplay(key string) string {
 	if name, ok := keyDisplayNames[key]; ok {
 		return name
@@ -126,13 +130,12 @@ func (m *GameState) handleInput() {
 	m.handlePointer()
 }
 
+// handleKeyPress routes one key through the current view's key map.
 func (m *GameState) handleKeyPress(name string) {
 	if name == "F3" {
 		debugOverlayVisible = !debugOverlayVisible
 		return
 	}
-
-	previousView := ViewType
 
 	switch ViewType {
 	case world.ViewTypeMainMap:
@@ -145,13 +148,14 @@ func (m *GameState) handleKeyPress(name string) {
 		m.processInput(name, dockKeyMap())
 	case world.ViewTypeHail:
 		m.processInput(name, hailKeyMap())
+	case world.ViewTypeHelp:
+		m.processInput(name, helpKeyMap())
+	case world.ViewTypeQuitConfirm:
+		m.processInput(name, quitConfirmKeyMap())
 	}
 
 	// The bar and overlay would otherwise show the previous view's commands for
 	// the rest of this frame after a keyboard view change.
-	if ViewType != previousView {
-		m.minimapDirty = true
-	}
 	m.refreshActionBar()
 }
 
@@ -162,13 +166,21 @@ func (m *GameState) refreshActionBar() {
 	m.buttons = m.buildButtons()
 }
 
+// processInput runs the command bound to name, or reports why it cannot run.
 func (m *GameState) processInput(name string, km KeyMap) {
 	for _, e := range km {
 		for _, k := range e.key {
-			if name == k {
-				e.exec(m)
+			if name != k {
+				continue
+			}
+			if e.barEnabled != nil && !e.barEnabled(m) {
+				if e.disabledReason != "" {
+					m.setNotice(e.disabledReason)
+				}
 				return
 			}
+			e.exec(m)
+			return
 		}
 	}
 }
@@ -186,9 +198,16 @@ func (m *GameState) handlePointer() {
 	}
 }
 
+// tap runs the command under a pointer press, or explains a disabled one.
 func (m *GameState) tap(x, y int) {
 	for _, b := range m.buttons {
 		if x >= b.rect.Min.X && x < b.rect.Max.X && y >= b.rect.Min.Y && y < b.rect.Max.Y {
+			if !b.enabled {
+				if b.disabledReason != "" {
+					m.setNotice(b.disabledReason)
+				}
+				return
+			}
 			if b.action != nil {
 				b.action()
 			}
@@ -218,6 +237,7 @@ func pressedKeyNames() []string {
 	return names
 }
 
+// keyName maps an Ebiten key to the name used in the key map tables.
 func keyName(k ebiten.Key) string {
 	switch k {
 	case ebiten.KeyArrowLeft:
@@ -234,6 +254,8 @@ func keyName(k ebiten.Key) string {
 		return "Escape"
 	case ebiten.KeySlash:
 		return "?"
+	case ebiten.KeyF1:
+		return "F1"
 	case ebiten.KeyF3:
 		return "F3"
 	case ebiten.KeyDigit1, ebiten.KeyNumpad1:
@@ -249,42 +271,72 @@ func keyName(k ebiten.Key) string {
 	return ""
 }
 
+// keyQuit opens the confirmation rather than exiting. Nothing persists between
+// runs, so quitting is the most destructive key on the board.
 func keyQuit(m *GameState) {
-	os.Exit(0)
+	m.quitReturnView = ViewType
+	ViewType = world.ViewTypeQuitConfirm
+}
+
+// confirmQuit ends the game loop. Returning ebiten.Termination from Update lets
+// Ebiten shut the window down and the logger flush, which os.Exit skipped.
+func (gs *GameState) confirmQuit() {
+	gs.quitting = true
 }
 
 // The key maps are functions rather than package variables: a variable holding
 // handlers that reach the action bar, which reads the key maps back, is an
 // initialization cycle, and working around that meant routing handlers through a
 // global game state instead of the one they are called with.
+
+// quitItem is the Ctrl+Q entry shared by every view.
+func quitItem() keyItem {
+	return keyItem{
+		key:   []string{"ctrl+q"},
+		cat:   KeyCatAdmin,
+		label: "Quit",
+		exec:  keyQuit,
+	}
+}
+
+// miniMapKeyMap drives the world chart view.
 func miniMapKeyMap() KeyMap {
 	return KeyMap{
 		{
-			key:   []string{"M", "Enter"},
+			// Escape backs out of every screen, so it is bound here as well as on
+			// the modal overlays rather than only on some of them.
+			key:   []string{"M", "Enter", "Escape"},
 			cat:   KeyCatAux,
 			label: "Exit minimap",
 			exec: func(m *GameState) {
 				ViewType = world.ViewTypeMainMap
 			},
 		},
-		{
-			key:   []string{"ctrl+q"},
-			cat:   KeyCatAdmin,
-			label: "Quit",
-			exec:  keyQuit,
-		},
+		quitItem(),
 	}
 }
 
+// sailingKeyMap drives the main map: steering, sail, and the world commands.
 func sailingKeyMap() KeyMap {
 	return KeyMap{
 		{
-			key:        []string{"Enter", "O"},
-			label:      "Dock",
-			cat:        KeyCatAction,
-			barVisible: func(gs *GameState) bool { return gs.adjacentDockTown() != nil },
+			key:            []string{"Enter", "O"},
+			label:          "Dock",
+			cat:            KeyCatAction,
+			barEnabled:     func(gs *GameState) bool { return gs.adjacentDockTown() != nil },
+			disabledReason: "No town within reach. Sail alongside one first.",
 			exec: func(m *GameState) {
 				m.tryOpenDock()
+			},
+		},
+		{
+			key:            []string{"H"},
+			label:          "Hail",
+			cat:            KeyCatAction,
+			barEnabled:     func(gs *GameState) bool { return gs.hailTarget() != nil },
+			disabledReason: "No ship alongside to hail.",
+			exec: func(m *GameState) {
+				m.tryHailAdjacent()
 			},
 		},
 		{
@@ -324,19 +376,7 @@ func sailingKeyMap() KeyMap {
 			label: "Examine",
 			cat:   KeyCatAction,
 			exec: func(m *GameState) {
-				Action = user_action.UserActionIdExamine
-				npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
-				towns := m.towns.GetVisible(m.player.GetPos())
-				ExamineData = user_action.Examine()
-				if len(npcs.GetList()) > 0 || len(towns) > 0 {
-					ViewType = world.ViewTypeExamine
-					npcs.ForEach(func(n npc.Npc) {
-						ExamineData.AddItem(&n)
-					})
-					for i := range towns {
-						ExamineData.AddItem(&towns[i])
-					}
-				}
+				m.openExamine()
 			},
 		},
 		{
@@ -372,22 +412,55 @@ func sailingKeyMap() KeyMap {
 			},
 		},
 		{
-			key:   []string{"?"},
+			key:   []string{"?", "F1"},
 			label: "Help",
 			cat:   KeyCatAdmin,
 			exec: func(m *GameState) {
-				Action = user_action.UserActionIdHelp
+				ViewType = world.ViewTypeHelp
+			},
+		},
+		quitItem(),
+	}
+}
+
+// helpKeyMap drives the controls screen.
+func helpKeyMap() KeyMap {
+	return KeyMap{
+		{
+			key:   []string{"Escape", "Enter", "?", "F1"},
+			label: "Close help",
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				m.closeHelp()
+			},
+		},
+		quitItem(),
+	}
+}
+
+// quitConfirmKeyMap drives the "abandon the voyage?" guard on Ctrl+Q.
+func quitConfirmKeyMap() KeyMap {
+	return KeyMap{
+		{
+			key:   []string{"Escape", "N"},
+			label: "Keep sailing",
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				m.cancelQuit()
 			},
 		},
 		{
-			key:   []string{"ctrl+q"},
+			key:   []string{"Y"},
 			label: "Quit",
-			cat:   KeyCatAdmin,
-			exec:  keyQuit,
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				m.confirmQuit()
+			},
 		},
 	}
 }
 
+// hailKeyMap drives the hail overlay.
 func hailKeyMap() KeyMap {
 	return KeyMap{
 		{
@@ -395,19 +468,14 @@ func hailKeyMap() KeyMap {
 			label: "Dismiss",
 			cat:   KeyCatAction,
 			exec: func(m *GameState) {
-				m.hailData = hail.Payload{}
-				ViewType = world.ViewTypeMainMap
+				m.closeHail()
 			},
 		},
-		{
-			key:   []string{"ctrl+q"},
-			label: "Quit",
-			cat:   KeyCatAdmin,
-			exec:  keyQuit,
-		},
+		quitItem(),
 	}
 }
 
+// dockKeyMap drives the dock overlay and its pages.
 func dockKeyMap() KeyMap {
 	return KeyMap{
 		{
@@ -415,31 +483,22 @@ func dockKeyMap() KeyMap {
 			label: "Leave dock",
 			cat:   KeyCatAction,
 			exec: func(m *GameState) {
-				m.dockTown = nil
-				m.dockPage = dockPageMenu
-				m.tavernRumor = ""
-				ViewType = world.ViewTypeMainMap
+				m.closeDock()
 			},
 		},
-		{
-			key:   []string{"ctrl+q"},
-			label: "Quit",
-			cat:   KeyCatAdmin,
-			exec:  keyQuit,
-		},
+		quitItem(),
 	}
 }
 
+// examineKeyMap drives the examine view and its focus cycling.
 func examineKeyMap() KeyMap {
 	return KeyMap{
 		{
-			key:   []string{"X", "Enter"},
+			key:   []string{"X", "Enter", "Escape"},
 			label: "Exit examine",
 			cat:   KeyCatAction,
 			exec: func(m *GameState) {
-				Action = user_action.UserActionIdNone
-				ViewType = world.ViewTypeMainMap
-				ExamineData = user_action.Examine()
+				m.closeExamine()
 			},
 		},
 		{
@@ -458,13 +517,33 @@ func examineKeyMap() KeyMap {
 				ExamineData.FocusRight()
 			},
 		},
-		{
-			key:   []string{"ctrl+q"},
-			label: "Quit",
-			cat:   KeyCatAdmin,
-			exec:  keyQuit,
-		},
+		quitItem(),
 	}
+}
+
+// openExamine focuses the ships and towns in sight, or says why it cannot.
+func (m *GameState) openExamine() {
+	npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
+	towns := m.towns.GetVisible(m.player.GetPos())
+	if len(npcs.GetList()) == 0 && len(towns) == 0 {
+		m.setNotice("Nothing in sight to examine.")
+		return
+	}
+
+	ExamineData = user_action.Examine()
+	ViewType = world.ViewTypeExamine
+	npcs.ForEach(func(n npc.Npc) {
+		ExamineData.AddItem(&n)
+	})
+	for i := range towns {
+		ExamineData.AddItem(&towns[i])
+	}
+}
+
+// closeExamine drops the focus and returns to sailing.
+func (m *GameState) closeExamine() {
+	ViewType = world.ViewTypeMainMap
+	ExamineData = user_action.Examine()
 }
 
 // actionBarContext returns the bar title and the key map driving the current view.
@@ -478,6 +557,10 @@ func actionBarContext() (string, KeyMap) {
 		return "Dock", dockKeyMap()
 	case world.ViewTypeHail:
 		return "Hail", hailKeyMap()
+	case world.ViewTypeHelp:
+		return "Help", helpKeyMap()
+	case world.ViewTypeQuitConfirm:
+		return "Quit", quitConfirmKeyMap()
 	case world.ViewTypeMainMap:
 		return "Sailing", sailingKeyMap()
 	}

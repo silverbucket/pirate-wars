@@ -5,8 +5,11 @@ import (
 	"testing"
 
 	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/world"
+
+	"go.uber.org/zap"
 )
 
 // sailingRing is the octant order, clockwise = starboard.
@@ -20,6 +23,18 @@ func pressSailing(gs *GameState, key string) {
 	gs.handleKeyPress(key)
 }
 
+// tickHelm clears the per-tick steering ration, standing in for a sailing tick.
+// The helm answers once per tick, so a test that turns twice has to tick between.
+func tickHelm(gs *GameState) {
+	gs.turnedThisTick = false
+}
+
+// pressSailingAcrossTicks presses a key with a tick in front of it.
+func pressSailingAcrossTicks(gs *GameState, key string) {
+	tickHelm(gs)
+	pressSailing(gs, key)
+}
+
 // TestTackStarboardWalksRingClockwise checks D turns one octant to starboard all
 // the way around, wrapping NW → N.
 func TestTackStarboardWalksRingClockwise(t *testing.T) {
@@ -27,7 +42,7 @@ func TestTackStarboardWalksRingClockwise(t *testing.T) {
 	gs.player.SetHeading(common.FacingN)
 
 	for i := 1; i <= len(sailingRing); i++ {
-		pressSailing(gs, "D")
+		pressSailingAcrossTicks(gs, "D")
 		want := sailingRing[i%len(sailingRing)]
 		if got := gs.player.GetFacing(); got != want {
 			t.Fatalf("press %d: facing = %s, want %s",
@@ -46,7 +61,7 @@ func TestTackPortWalksRingAnticlockwise(t *testing.T) {
 	gs.player.SetHeading(common.FacingN)
 
 	for i := 1; i <= len(sailingRing); i++ {
-		pressSailing(gs, "A")
+		pressSailingAcrossTicks(gs, "A")
 		want := sailingRing[(len(sailingRing)-i)%len(sailingRing)]
 		if got := gs.player.GetFacing(); got != want {
 			t.Fatalf("press %d: facing = %s, want %s",
@@ -63,13 +78,13 @@ func TestTackFromNorth(t *testing.T) {
 	gs := mainMapGameState()
 
 	gs.player.SetHeading(common.FacingN)
-	pressSailing(gs, "D")
+	pressSailingAcrossTicks(gs, "D")
 	if got := gs.player.GetFacing(); got != common.FacingNE {
 		t.Fatalf("D from N = %s, want NE", common.FacingLabel(got))
 	}
 
 	gs.player.SetHeading(common.FacingN)
-	pressSailing(gs, "A")
+	pressSailingAcrossTicks(gs, "A")
 	if got := gs.player.GetFacing(); got != common.FacingNW {
 		t.Fatalf("A from N = %s, want NW", common.FacingLabel(got))
 	}
@@ -123,16 +138,20 @@ func TestSailKeysDoNotChangeHeading(t *testing.T) {
 func TestTackKeysDoNotChangeSail(t *testing.T) {
 	gs := mainMapGameState()
 	gs.player.SetSail(sailing.SailHalf)
-	pressSailing(gs, "A")
-	pressSailing(gs, "D")
+	pressSailingAcrossTicks(gs, "A")
+	pressSailingAcrossTicks(gs, "D")
 	if got := gs.player.GetSail(); got != sailing.SailHalf {
 		t.Fatalf("tack keys changed sail to %s", got.Label())
 	}
 }
 
 // TestHeadingSnapBindingsGone checks the old compass keys no longer steer.
+//
+// H is on this list as a former heading key but is bound again, to Hail, so it
+// is checked for steering only. The rest must be unbound outright.
 func TestHeadingSnapBindingsGone(t *testing.T) {
 	dropped := []string{"Q", "E", "Z", "C", "Y", "U", "B", "N", "H", "J", "K", "L", "Left", "Right", "Up", "Down"}
+	reboundElsewhere := map[string]bool{"H": true}
 
 	bound := map[string]string{}
 	for _, item := range sailingKeyMap() {
@@ -141,6 +160,9 @@ func TestHeadingSnapBindingsGone(t *testing.T) {
 		}
 	}
 	for _, key := range dropped {
+		if reboundElsewhere[key] {
+			continue
+		}
 		if label, ok := bound[key]; ok {
 			t.Fatalf("sailing key %q should be unbound, still runs %q", key, label)
 		}
@@ -149,11 +171,143 @@ func TestHeadingSnapBindingsGone(t *testing.T) {
 	gs := mainMapGameState()
 	for _, key := range dropped {
 		gs.player.SetHeading(common.FacingN)
+		tickHelm(gs)
 		pressSailing(gs, key)
 		if got := gs.player.GetFacing(); got != common.FacingN {
 			t.Fatalf("%q still set a heading: %s", key, common.FacingLabel(got))
 		}
 	}
+}
+
+// TestHelmAnswersOncePerTick is the cost that makes the wind model matter.
+//
+// Keys are read at the render rate and ticks are 250ms apart, so without a
+// ration the player could spin through all eight octants between two ticks at no
+// cost — and the choice between a slow close-hauled line and a longer fast reach
+// never arises if the best heading is always one free keypress away.
+func TestHelmAnswersOncePerTick(t *testing.T) {
+	gs := mainMapGameState()
+	gs.player.SetHeading(common.FacingN)
+
+	tickHelm(gs)
+	pressSailing(gs, "D")
+	pressSailing(gs, "D")
+	pressSailing(gs, "D")
+	if got := gs.player.GetFacing(); got != common.FacingNE {
+		t.Fatalf("three tacks inside one tick turned to %s, want one octant to NE",
+			common.FacingLabel(got))
+	}
+
+	tickHelm(gs)
+	pressSailing(gs, "D")
+	if got := gs.player.GetFacing(); got != common.FacingE {
+		t.Fatalf("the helm should answer again on the next tick, got %s",
+			common.FacingLabel(got))
+	}
+}
+
+// TestSailTrimIsNotRationed keeps the ration on the helm alone: trimming sail is
+// not steering, and clamping it would make W/S feel unresponsive.
+func TestSailTrimIsNotRationed(t *testing.T) {
+	gs := mainMapGameState()
+	gs.player.SetSail(sailing.SailFurled)
+
+	tickHelm(gs)
+	pressSailing(gs, "W")
+	pressSailing(gs, "W")
+	if got := gs.player.GetSail(); got != sailing.SailFull {
+		t.Fatalf("two W presses in one tick should reach full sail, got %s", got.Label())
+	}
+}
+
+// TestHelpScreenOpensAndExplainsRelativeSteering covers the key that used to do
+// nothing: "?" set a package variable no code ever read, while the action bar
+// advertised it. The screen has to carry what the bar cannot — that A and D turn
+// relative to the heading, and that furled sail is a dead stop.
+func TestHelpScreenOpensAndExplainsRelativeSteering(t *testing.T) {
+	gs := mainMapGameState()
+	gs.sailingCfg = sailing.DefaultConfig()
+
+	pressSailing(gs, "?")
+	if ViewType != world.ViewTypeHelp {
+		t.Fatalf("? should open the help screen, ViewType = %d", ViewType)
+	}
+
+	var text strings.Builder
+	screen := gs.helpOverlayScreen()
+	text.WriteString(screen.title)
+	for _, r := range screen.rows {
+		text.WriteString(" " + r.text)
+	}
+	body := text.String()
+
+	for _, want := range []string{"relative", "Furled", "A / D", "W / S"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("help screen should explain %q, got:\n%s", want, body)
+		}
+	}
+
+	gs.handleKeyPress("Escape")
+	if ViewType != world.ViewTypeMainMap {
+		t.Fatalf("Escape should close help, ViewType = %d", ViewType)
+	}
+}
+
+// TestQuitAsksFirst covers the most destructive key on the board. Nothing is
+// saved between runs, and Ctrl+Q used to call os.Exit straight from the handler.
+func TestQuitAsksFirst(t *testing.T) {
+	gs := mainMapGameState()
+
+	pressSailing(gs, "ctrl+q")
+	if ViewType != world.ViewTypeQuitConfirm {
+		t.Fatalf("Ctrl+Q should ask before quitting, ViewType = %d", ViewType)
+	}
+	if gs.quitting {
+		t.Fatal("Ctrl+Q alone should not end the run")
+	}
+
+	gs.handleKeyPress("N")
+	if ViewType != world.ViewTypeMainMap || gs.quitting {
+		t.Fatal("declining should return to sailing")
+	}
+
+	pressSailing(gs, "ctrl+q")
+	gs.handleKeyPress("Y")
+	if !gs.quitting {
+		t.Fatal("confirming should end the run")
+	}
+}
+
+// TestExamineWithNothingInSightSaysSo covers a command that used to fail in
+// silence, which leaves the player unable to tell a broken key from an unmet
+// condition.
+func TestExamineWithNothingInSightSaysSo(t *testing.T) {
+	gs := initGameState(zap.NewNop().Sugar())
+	gs.npcs = npc.TestNpcsWith()
+	ViewType = world.ViewTypeMainMap
+
+	gs.player.SetPos(emptyOceanAwayFromTowns(gs))
+	gs.handleKeyPress("X")
+
+	if ViewType == world.ViewTypeExamine {
+		t.Fatal("examine should not open with nothing in sight")
+	}
+	if got := gs.activeNotice(); !strings.Contains(got, "Nothing in sight") {
+		t.Fatalf("examine with nothing in sight should say so, got %q", got)
+	}
+}
+
+// emptyOceanAwayFromTowns finds navigable water with no town in view.
+func emptyOceanAwayFromTowns(gs *GameState) common.Coordinates {
+	for x := 1; x < 200; x++ {
+		for y := 1; y < 200; y++ {
+			c := common.Coordinates{X: x, Y: y}
+			if gs.world.IsPassableByBoat(c) && len(gs.towns.GetVisible(c)) == 0 {
+				return c
+			}
+		}
+	}
+	return gs.player.GetPos()
 }
 
 // TestSailPresetsStillJump keeps the cheap 1/2/3 shortcuts working.

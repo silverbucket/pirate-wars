@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"unicode/utf8"
 
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/gfx"
@@ -20,6 +21,7 @@ type overlayAction struct {
 type overlayRow struct {
 	text    string
 	dim     bool
+	heading bool
 	buttons []overlayAction
 }
 
@@ -34,6 +36,20 @@ const (
 	overlayRowGap  = 6
 )
 
+// overlayRowHeight is the vertical space one row occupies, gap included.
+// overlayRegion is the area a modal panel may use: the map viewport, stopping
+// above the action bar. The scrim is scoped to the same rectangle so the bar
+// stays readable behind an open overlay — its keys are still live — and so does
+// the side panel, which is where the gold and cargo a player is trading against
+// are shown.
+func overlayRegion() image.Rectangle {
+	r := viewportRect
+	if r.Max.Y > actionBarRect.Min.Y {
+		r.Max.Y = actionBarRect.Min.Y
+	}
+	return r
+}
+
 func overlayRowHeight(r overlayRow) int {
 	h := gfx.LineHeight
 	if len(r.buttons) > 0 && buttonHeight > h {
@@ -42,25 +58,20 @@ func overlayRowHeight(r overlayRow) int {
 	return h + overlayRowGap
 }
 
-// overlayLayout returns the panel rect and the tap targets for the current screen.
+// overlayLayout returns the panel rect, the rows that fit inside it, and the tap
+// targets for those rows.
+//
+// The panel height is clamped to the viewport. Laying out every row regardless
+// put text and live tap targets below the panel, over the scrim and the action
+// bar, for any screen taller than the clamp — a long hail, or the merchant list
+// on a small window. Rows past the clamp are dropped from both the drawing and
+// the hit testing, so what is clickable is always what is visible.
 func (gs *GameState) overlayLayout(s overlayScreen) (image.Rectangle, []button) {
-	height := overlayPadding*2 + gfx.LineHeight + overlayRowGap
-	for _, r := range s.rows {
-		height += overlayRowHeight(r)
-	}
-	if max := viewportRect.Dy() - 40; height > max {
-		height = max
-	}
-
-	panel := image.Rect(0, 0, overlayWidth, height).
-		Add(image.Point{
-			X: viewportRect.Min.X + (viewportRect.Dx()-overlayWidth)/2,
-			Y: viewportRect.Min.Y + (viewportRect.Dy()-height)/2,
-		})
+	panel, rows := gs.overlayPanel(s)
 
 	var buttons []button
 	y := panel.Min.Y + overlayPadding + gfx.LineHeight + overlayRowGap
-	for _, r := range s.rows {
+	for _, r := range rows {
 		x := panel.Max.X - overlayPadding
 		// Buttons are laid out right to left so labels keep a stable left margin.
 		for i := len(r.buttons) - 1; i >= 0; i-- {
@@ -74,7 +85,7 @@ func (gs *GameState) overlayLayout(s overlayScreen) (image.Rectangle, []button) 
 				// Button-only rows are centred.
 				rect = image.Rect(panel.Min.X+(panel.Dx()-w)/2, y, panel.Min.X+(panel.Dx()+w)/2, y+buttonHeight)
 			}
-			buttons = append(buttons, button{label: b.label, rect: rect, action: b.do})
+			buttons = append(buttons, button{label: b.label, rect: rect, enabled: true, action: b.do})
 			x -= w + buttonGap
 		}
 		y += overlayRowHeight(r)
@@ -82,35 +93,76 @@ func (gs *GameState) overlayLayout(s overlayScreen) (image.Rectangle, []button) 
 	return panel, buttons
 }
 
+// overlayPanel sizes the panel and returns the leading rows that fit in it.
+func (gs *GameState) overlayPanel(s overlayScreen) (image.Rectangle, []overlayRow) {
+	region := overlayRegion()
+	maxHeight := region.Dy() - 40
+	chrome := overlayPadding*2 + gfx.LineHeight + overlayRowGap
+
+	height := chrome
+	fitted := 0
+	for _, r := range s.rows {
+		if height+overlayRowHeight(r) > maxHeight {
+			break
+		}
+		height += overlayRowHeight(r)
+		fitted++
+	}
+	rows := s.rows[:fitted]
+
+	// A truncated screen still has to offer its way out, so the final row —
+	// always the dismiss button — replaces the last row that fit.
+	if fitted < len(s.rows) && fitted > 0 {
+		rows = append(append([]overlayRow{}, s.rows[:fitted-1]...), s.rows[len(s.rows)-1])
+	}
+
+	panel := image.Rect(0, 0, overlayWidth, height).
+		Add(image.Point{
+			X: region.Min.X + (region.Dx()-overlayWidth)/2,
+			Y: region.Min.Y + (region.Dy()-height)/2,
+		})
+	return panel, rows
+}
+
+// currentOverlayScreen returns the modal panel for the current view.
 func (gs *GameState) currentOverlayScreen() overlayScreen {
 	switch ViewType {
 	case world.ViewTypeDock:
 		return gs.dockOverlayScreen()
 	case world.ViewTypeHail:
 		return gs.hailOverlayScreen()
+	case world.ViewTypeHelp:
+		return gs.helpOverlayScreen()
+	case world.ViewTypeQuitConfirm:
+		return gs.quitConfirmScreen()
 	default:
 		return overlayScreen{}
 	}
 }
 
+// drawOverlay paints the scrim, the panel, and the rows that fit inside it.
 func (gs *GameState) drawOverlay(screen *ebiten.Image) {
 	s := gs.currentOverlayScreen()
 	if s.title == "" && len(s.rows) == 0 {
 		return
 	}
-	fillRect(screen, viewportRect, colorScrim)
+	fillRect(screen, overlayRegion(), colorScrim)
 
-	panel, buttons := gs.overlayLayout(s)
+	panel, rows := gs.overlayPanel(s)
+	_, buttons := gs.overlayLayout(s)
 	fillRect(screen, panel, colorPanel)
 	strokeRect(screen, panel, colorPanelEdge)
 
 	drawText(screen, s.title, panel.Min.X+overlayPadding, panel.Min.Y+overlayPadding, colorHeading)
 
 	y := panel.Min.Y + overlayPadding + gfx.LineHeight + overlayRowGap
-	for _, r := range s.rows {
+	for _, r := range rows {
 		if r.text != "" {
 			c := colorText
-			if r.dim {
+			switch {
+			case r.heading:
+				c = colorHeading
+			case r.dim:
 				c = colorTextDim
 			}
 			drawText(screen, r.text, panel.Min.X+overlayPadding, y+(overlayRowHeight(r)-overlayRowGap-gfx.LineHeight)/2, c)
@@ -123,6 +175,7 @@ func (gs *GameState) drawOverlay(screen *ebiten.Image) {
 	}
 }
 
+// hailOverlayScreen shows what a hailed ship has to say.
 func (gs *GameState) hailOverlayScreen() overlayScreen {
 	rows := []overlayRow{}
 	for _, line := range wrapText(gs.hailData.Text(), 70) {
@@ -134,6 +187,7 @@ func (gs *GameState) hailOverlayScreen() overlayScreen {
 	return overlayScreen{title: "Hail", rows: rows}
 }
 
+// currentExamineEntity is the focused entity while examining, else an empty one.
 func (gs *GameState) currentExamineEntity() entities.ViewableEntity {
 	if ViewType == world.ViewTypeExamine {
 		return ExamineData.GetFocusedEntity()
@@ -142,6 +196,8 @@ func (gs *GameState) currentExamineEntity() entities.ViewableEntity {
 }
 
 // wrapText breaks s into lines of at most width characters on word boundaries.
+// Widths count runes, not bytes: measuring with len() wrapped any line holding a
+// non-ASCII character early, and town and captain names are generated text.
 func wrapText(s string, width int) []string {
 	var lines []string
 	line := ""
@@ -152,7 +208,7 @@ func wrapText(s string, width int) []string {
 			line = ""
 		case line == "":
 			line = word
-		case len(line)+1+len(word) <= width:
+		case utf8.RuneCountInString(line)+1+utf8.RuneCountInString(word) <= width:
 			line += " " + word
 		default:
 			lines = append(lines, line)
@@ -168,6 +224,7 @@ func wrapText(s string, width int) []string {
 	return lines
 }
 
+// splitWords breaks s on whitespace, keeping newlines as their own tokens.
 func splitWords(s string) []string {
 	var words []string
 	cur := ""

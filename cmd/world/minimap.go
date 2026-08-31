@@ -1,7 +1,6 @@
 package world
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -11,6 +10,7 @@ import (
 	"pirate-wars/cmd/window"
 )
 
+// generateMinimapImage rasterises the whole world once, at world init.
 func (world *MapView) generateMinimapImage() {
 	world.logger.Info("Generating minimap")
 	cols := common.WorldCols
@@ -21,27 +21,37 @@ func (world *MapView) generateMinimapImage() {
 	world.minimap = world.createRawMapImage(cellWidth, cellHeight, cols, rows, window.MiniMapArea.Width, window.MiniMapArea.Height)
 }
 
+// createRawMapImage paints one pixel block per world cell, coloured by terrain.
 func (world *MapView) createRawMapImage(cellWidth, cellHeight float32, cols, rows int, imageWidth, imageHeight int) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, imageWidth, imageHeight))
-
-	fmt.Print(".")
-	count := 0
 
 	for r := 0; r < rows; r++ {
 		for c := 0; c < cols; c++ {
 			for y := int(float32(r) * cellHeight); y < int(float32(r+1)*cellHeight); y++ {
 				for x := int(float32(c) * cellWidth); x < int(float32(c+1)*cellWidth); x++ {
 					img.Set(x, y, terrain.GetColor(world.terrain.Cells[c][r]))
-					count++
-					if count%2000 == 0 {
-						fmt.Print(".")
-					}
 				}
 			}
 		}
 	}
-	fmt.Println("done")
 	return img
+}
+
+// MinimapBase returns the cached terrain raster, without any markers on it.
+//
+// The markers are drawn over this on the GPU each frame instead of being baked
+// in. The old path copied the whole 700x700 image and re-uploaded it as a
+// texture on every tick — four times a second while the map is open — to move
+// one dot by less than three pixels.
+func (world *MapView) MinimapBase() *image.RGBA {
+	return world.minimap
+}
+
+// MinimapCellSize returns the minimap pixels per world cell, so callers can place
+// markers and the viewport outline in the same space as the raster.
+func (world *MapView) MinimapCellSize() (float32, float32) {
+	return float32(window.MiniMapArea.Width) / float32(common.WorldCols),
+		float32(window.MiniMapArea.Height) / float32(common.WorldRows)
 }
 
 // MinimapImage renders the whole-world minimap with player and town markers.

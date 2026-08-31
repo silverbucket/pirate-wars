@@ -29,8 +29,10 @@ var SidePanel Dimensions = Dimensions{
 	Height: Window.Height,
 }
 
+// ActionMenu is the command bar strip along the bottom. It spans the whole
+// window width so the row has room for every view's commands.
 var ActionMenu Dimensions = Dimensions{
-	Width:  Window.Width - SidePanel.Width,
+	Width:  Window.Width,
 	Height: 68,
 }
 

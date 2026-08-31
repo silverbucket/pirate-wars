@@ -30,6 +30,43 @@ func ClassifyPointOfSail(heading, windFacing common.Facing) PointOfSail {
 	}
 }
 
+// Label returns the sailor's name for the point of sail, for the HUD.
+func (p PointOfSail) Label() string {
+	switch p {
+	case PointRun:
+		return "Running"
+	case PointBroad:
+		return "Broad reach"
+	case PointBeam:
+		return "Beam reach"
+	case PointClose:
+		return "Close hauled"
+	case PointIrons:
+		return "In irons"
+	default:
+		return "?"
+	}
+}
+
+// ShortLabel is the HUD form of Label, kept narrow enough for the side panel.
+func (p PointOfSail) ShortLabel() string {
+	switch p {
+	case PointRun:
+		return "Run"
+	case PointBroad:
+		return "Broad"
+	case PointBeam:
+		return "Beam"
+	case PointClose:
+		return "Close"
+	case PointIrons:
+		return "Irons"
+	default:
+		return "?"
+	}
+}
+
+// PointOfSailMultiplier returns the configured speed multiplier for a point of sail.
 func (cfg Config) PointOfSailMultiplier(pos PointOfSail) float64 {
 	switch pos {
 	case PointRun:

@@ -26,9 +26,9 @@ func playpassCfg(t *testing.T) sailing.Config {
 func alwaysPassable(common.Coordinates) bool { return true }
 
 type tickSim struct {
-	cfg      sailing.Config
-	wind     *sailing.Wind
-	avatar   entities.Avatar
+	cfg       sailing.Config
+	wind      *sailing.Wind
+	avatar    entities.Avatar
 	occupancy sailing.Occupancy
 }
 
@@ -185,7 +185,18 @@ func TestPlayPassSailingLoop(t *testing.T) {
 	// Q5: HUD Speed/Wind match live sailing state (not placeholders like speed=5).
 	hudSim := newTickSim(cfg, wind, common.Coordinates{X: 20, Y: 20}, common.FacingE)
 	liveSpeed, _ := hudSim.playerTick()
-	hudText := shipStatusText(hudSim.avatar.GetLastSpeed(), hudSim.wind, "06:00", 50, 0, 20)
+	hudPoint := sailing.ClassifyPointOfSail(hudSim.avatar.GetFacing(), hudSim.wind.Facing)
+	hudText := shipStatusText(shipStatus{
+		Heading:       hudSim.avatar.GetFacing(),
+		Sail:          hudSim.avatar.GetSail(),
+		Wind:          hudSim.wind,
+		Point:         hudPoint,
+		PointMult:     cfg.PointOfSailMultiplier(hudPoint),
+		Speed:         hudSim.avatar.GetLastSpeed(),
+		TimeOfDay:     "06:00",
+		Gold:          50,
+		CargoCapacity: 20,
+	})
 	hudSpeed, ok := parseHUDSpeed(hudText)
 	if !ok {
 		t.Fatal("Q5: could not parse HUD Speed")

@@ -22,6 +22,12 @@ const ViewTypeExamine = 3
 const ViewTypeDock = 4
 const ViewTypeHail = 5
 
+// ViewTypeHelp is the controls and sailing-model screen behind "?".
+const ViewTypeHelp = 6
+
+// ViewTypeQuitConfirm guards Ctrl+Q, which otherwise ends the voyage instantly.
+const ViewTypeQuitConfirm = 7
+
 type Props struct {
 	scale       float64
 	lacunarity  float64

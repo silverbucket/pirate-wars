@@ -21,6 +21,7 @@ const (
 	dockPageShipwright
 )
 
+// dockOverlayScreen routes to the current page of the dock.
 func (gs *GameState) dockOverlayScreen() overlayScreen {
 	if gs.dockTown == nil {
 		return overlayScreen{
@@ -43,6 +44,7 @@ func (gs *GameState) dockOverlayScreen() overlayScreen {
 	}
 }
 
+// dockMenuScreen is the dock landing page.
 func (gs *GameState) dockMenuScreen() overlayScreen {
 	return overlayScreen{
 		title: fmt.Sprintf("Dock - %s", gs.dockTown.GetName()),
@@ -55,6 +57,7 @@ func (gs *GameState) dockMenuScreen() overlayScreen {
 	}
 }
 
+// dockMerchantScreen lists the town market with a buy and sell button per good.
 func (gs *GameState) dockMerchantScreen(t *town.Town) overlayScreen {
 	market := t.Market()
 	rows := []overlayRow{
@@ -83,6 +86,7 @@ func (gs *GameState) dockMerchantScreen(t *town.Town) overlayScreen {
 	return overlayScreen{title: fmt.Sprintf("Merchant - %s", t.GetName()), rows: rows}
 }
 
+// dockTavernScreen shows the rumour picked up on entering the tavern.
 func (gs *GameState) dockTavernScreen() overlayScreen {
 	rumor := gs.tavernRumor
 	if rumor == "" {
@@ -96,6 +100,7 @@ func (gs *GameState) dockTavernScreen() overlayScreen {
 	return overlayScreen{title: "Tavern", rows: rows}
 }
 
+// dockShipwrightScreen offers the one-time hull speed refit.
 func (gs *GameState) dockShipwrightScreen() overlayScreen {
 	status := fmt.Sprintf("Fine sails - %d gold (+%.2f hull speed, once)",
 		gs.economyCfg.SailUpgradeCost, gs.economyCfg.SailUpgradeHullBonus)
@@ -111,6 +116,7 @@ func (gs *GameState) dockShipwrightScreen() overlayScreen {
 	return overlayScreen{title: "Shipwright", rows: rows}
 }
 
+// buyFineSails applies the shipwright refit if it is affordable and unfitted.
 func (gs *GameState) buyFineSails() {
 	if gs.hold.FineSailsPurchased || gs.hold.Gold < gs.economyCfg.SailUpgradeCost {
 		return
@@ -120,10 +126,12 @@ func (gs *GameState) buyFineSails() {
 	gs.sailingCfg.HullSpeed += gs.economyCfg.SailUpgradeHullBonus
 }
 
+// openDockPage switches which dock page is showing.
 func (gs *GameState) openDockPage(p dockPage) {
 	gs.dockPage = p
 }
 
+// openTavern picks a fresh rumour and shows the tavern page.
 func (gs *GameState) openTavern() {
 	gs.tavernRumor = tavern.PickRumor(gs.economyCfg, gs.npcs, gs.towns, int(gs.clock.CurrentTick()))
 	gs.dockPage = dockPageTavern
@@ -132,18 +140,26 @@ func (gs *GameState) openTavern() {
 // adjacentDockTown returns the dockable town next to the player, tolerating a
 // partially built game state (no player or world yet).
 func (gs *GameState) adjacentDockTown() *town.Town {
-	if gs == nil || gs.player == nil || gs.world == nil {
+	if gs == nil || gs.player == nil {
+		return nil
+	}
+	if gs.forceDockable {
+		return &town.Town{}
+	}
+	if gs.world == nil {
 		return nil
 	}
 	return dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns)
 }
 
+// enterDock opens the dock overlay for a town.
 func (gs *GameState) enterDock(t *town.Town) {
 	gs.dockTown = t
 	gs.dockPage = dockPageMenu
 	ViewType = world.ViewTypeDock
 }
 
+// tryOpenDock docks at the adjacent town, reporting whether it found one.
 func (gs *GameState) tryOpenDock() bool {
 	if ViewType != world.ViewTypeMainMap {
 		return false
@@ -172,10 +188,12 @@ func openDockIfAdjacent(gs *GameState, pos common.Coordinates, bw interface {
 	return true
 }
 
+// openDock enters the dock for an already-resolved town.
 func (gs *GameState) openDock(t *town.Town) {
 	gs.enterDock(t)
 }
 
+// closeDock leaves the dock and clears its per-visit state.
 func (gs *GameState) closeDock() {
 	gs.dockTown = nil
 	gs.dockPage = dockPageMenu
@@ -183,11 +201,13 @@ func (gs *GameState) closeDock() {
 	ViewType = world.ViewTypeMainMap
 }
 
+// openHail shows a hail payload over the map.
 func (gs *GameState) openHail(payload hail.Payload) {
 	gs.hailData = payload
 	ViewType = world.ViewTypeHail
 }
 
+// closeHail dismisses the hail and returns to sailing.
 func (gs *GameState) closeHail() {
 	gs.hailData = hail.Payload{}
 	ViewType = world.ViewTypeMainMap

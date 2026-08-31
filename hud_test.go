@@ -1,48 +1,108 @@
 package main
 
 import (
-	"pirate-wars/cmd/entities"
-	"pirate-wars/cmd/sailing"
 	"strings"
 	"testing"
+
+	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/sailing"
 )
 
-func defaultHUDArgs() (float64, *sailing.Wind, string, int, int, int) {
-	wind := sailing.NewWind(sailing.DefaultConfig())
-	return 0.55, wind, "12:00", 50, 0, 20
+func testShipStatus() shipStatus {
+	cfg := sailing.DefaultConfig()
+	wind := sailing.NewFixedWind(cfg, common.FacingN, 2)
+	heading := common.FacingN
+	point := sailing.ClassifyPointOfSail(heading, wind.Facing)
+	return shipStatus{
+		Heading:       heading,
+		Sail:          sailing.SailFull,
+		Wind:          wind,
+		Point:         point,
+		PointMult:     cfg.PointOfSailMultiplier(point),
+		Speed:         0.55,
+		TimeOfDay:     "12:00",
+		Gold:          50,
+		CargoTotal:    0,
+		CargoCapacity: 20,
+	}
 }
 
 func TestShipStatusTextSpeedTwoDecimals(t *testing.T) {
-	speed, wind, tod, gold, cargo, cap := defaultHUDArgs()
-	text := shipStatusText(speed, wind, tod, gold, cargo, cap)
-	if !strings.Contains(text, "Speed: 0.55") {
+	text := shipStatusText(testShipStatus())
+	if !strings.Contains(text, "Speed") || !strings.Contains(text, "0.55") {
 		t.Fatalf("speed should display two decimals honestly, got:\n%s", text)
 	}
-	if strings.Contains(text, "Speed: 0.6") {
+	if strings.Contains(text, "0.6\n") {
 		t.Fatal("speed must not round 0.55 up to 0.6")
 	}
 }
 
-func TestShipStatusTextUsesGalleonSpelling(t *testing.T) {
-	speed, wind, tod, gold, cargo, cap := defaultHUDArgs()
-	speed = 2.5
-	text := shipStatusText(speed, wind, tod, gold, cargo, cap)
-	if strings.Contains(text, "Galeon") {
-		t.Fatal("ship status should use Galleon spelling")
+// TestShipStatusReportsTheSpeedInputs is the headline contract of the WASD
+// change. Steering became relative, so heading, sail and point of sail stopped
+// being inferable from the last key pressed and have to be on screen — they are
+// what turn the Speed number from a mystery into a decision.
+func TestShipStatusReportsTheSpeedInputs(t *testing.T) {
+	text := shipStatusText(testShipStatus())
+	for _, field := range []string{"Heading", "Sail", "Wind", "Point", "Speed", "Time", "Cargo", "Gold"} {
+		if !strings.Contains(text, field) {
+			t.Fatalf("ship status should include %s, got:\n%s", field, text)
+		}
 	}
 	if !strings.Contains(text, "Galleon") {
 		t.Fatal("ship status should include Galleon")
 	}
-	if strings.Contains(text, "Postion") {
-		t.Fatal("ship status should not include misspelled Postion")
+	if strings.Contains(text, "Galeon") || strings.Contains(text, "Postion") {
+		t.Fatal("ship status should not contain the old misspellings")
 	}
 	if strings.Contains(text, "{") {
 		t.Fatal("ship status should not include raw coordinates")
 	}
-	for _, field := range []string{"Time:", "Health:", "Speed:", "Wind:", "Cargo:", "Gold:"} {
-		if !strings.Contains(text, field) {
-			t.Fatalf("ship status should include %s", field)
+}
+
+// TestShipStatusDropsThePlaceholderHealth removes a stat that was a constant.
+func TestShipStatusDropsThePlaceholderHealth(t *testing.T) {
+	if strings.Contains(shipStatusText(testShipStatus()), "Health") {
+		t.Fatal("Health was always 100; a stat that never changes is not status")
+	}
+}
+
+// TestFurledSailIsFlaggedNotJustReported covers the S trap: sail_furled is a 0.0
+// multiplier, so two taps of the natural "slow down" key stop the ship dead. The
+// panel has to name the cause, not just print Speed 0.00.
+func TestFurledSailIsFlaggedNotJustReported(t *testing.T) {
+	s := testShipStatus()
+	s.Sail = sailing.SailFurled
+	s.Speed = 0
+
+	lines := s.statusLines()
+	var sail statusLine
+	for _, l := range lines {
+		if l.label == "Sail" {
+			sail = l
 		}
+	}
+	if !sail.warn {
+		t.Fatal("furled sail should be flagged as the reason the ship is stopped")
+	}
+	if reason := s.stallReason(); !strings.Contains(reason, "W") {
+		t.Fatalf("stall reason should name the key that fixes it, got %q", reason)
+	}
+}
+
+// TestInIronsIsExplained covers the other dead stop: pointing into the wind.
+func TestInIronsIsExplained(t *testing.T) {
+	cfg := sailing.DefaultConfig()
+	wind := sailing.NewFixedWind(cfg, common.FacingN, 2)
+	s := testShipStatus()
+	s.Heading = common.OppositeFacing(wind.Facing)
+	s.Point = sailing.ClassifyPointOfSail(s.Heading, wind.Facing)
+
+	if s.Point != sailing.PointIrons {
+		t.Fatalf("heading opposite the wind should be in irons, got %s", s.Point.Label())
+	}
+	if reason := s.stallReason(); !strings.Contains(reason, "irons") {
+		t.Fatalf("in irons should be explained, got %q", reason)
 	}
 }
 

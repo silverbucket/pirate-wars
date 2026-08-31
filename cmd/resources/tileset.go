@@ -48,7 +48,6 @@ func getTileByRegion(idx int) image.Image {
 	// Get the tile coordinates from the mapping
 	tileCoords, ok := TileMapping[idx]
 	if !ok {
-		fmt.Printf("No mapping found for ship type %v, using default\n", idx)
 		tileCoords = TileMapping[common.ShipWhite]
 	}
 
@@ -56,7 +55,6 @@ func getTileByRegion(idx int) image.Image {
 	if cached, ok := tileCache[idx]; ok {
 		return cached
 	}
-	fmt.Printf("Getting tile %v at coordinates (%d,%d)\n", idx, tileCoords.X, tileCoords.Y)
 
 	tileset := getTileset()
 
@@ -107,7 +105,9 @@ func extractTileAt(col, row int) image.Image {
 		return nil
 	}
 
-	regionKey := col*1000 + row
+	// Bit-packed so the key cannot collide however the tileset grows; col*1000+row
+	// carried a silent "fewer than 1000 rows" assumption.
+	regionKey := col<<32 | row
 	if cached, ok := regionTileCache[regionKey]; ok {
 		return cached
 	}
@@ -221,10 +221,8 @@ func getTileset() image.Image {
 		var err error
 		tilesetCache, err = loadTilesetImage()
 		if err != nil {
-			fmt.Printf("Error loading tileset: %v\n", err)
 			return image.NewRGBA(image.Rect(0, 0, TileSize, TileSize))
 		}
-		fmt.Printf("Loaded tileset image with bounds: %v\n", tilesetCache.Bounds())
 	}
 	return tilesetCache
 }
