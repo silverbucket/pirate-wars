@@ -2,21 +2,18 @@ package main
 
 import (
 	"fmt"
-	"image/color"
 	"os"
+	"strings"
+
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/hail"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/user_action"
 	"pirate-wars/cmd/world"
-	"strings"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 var ExamineData = user_action.Examine()
@@ -99,7 +96,7 @@ func (km KeyMap) legend() string {
 
 	sections := []string{}
 	if len(headings) > 0 {
-		sections = append(sections, "Heading "+strings.Join(headings, "  "))
+		sections = append(sections, "Heading "+strings.Join(headings, " "))
 	}
 	if len(admin) > 0 {
 		sections = append(sections, strings.Join(admin, "  "))
@@ -118,72 +115,135 @@ func barLabelFor(km KeyMap, label string) string {
 	return label
 }
 
-func (m *GameState) syncMinimap() {
-	if ViewType == world.ViewTypeMiniMap {
-		var viewable entities.ViewableEntities
-		for _, t := range m.towns.GetTowns() {
-			viewable = append(viewable, &t)
-		}
-		m.world.ShowMinimapPopup(m.player.GetPos(), viewable, m.window)
-	} else {
-		m.world.HideMinimapPopup()
+// handleInput dispatches this frame's key presses and pointer taps.
+func (m *GameState) handleInput() {
+	for _, name := range pressedKeyNames() {
+		m.handleKeyPress(name)
 	}
+	m.handlePointer()
 }
 
-func (m *GameState) handleKeyPress(key *fyne.KeyEvent) {
-	if string(key.Name) == "F3" {
+func (m *GameState) handleKeyPress(name string) {
+	if name == "F3" {
 		debugOverlayVisible = !debugOverlayVisible
-		m.updateDebugOverlay()
 		return
 	}
 
 	previousView := ViewType
 
-	if ViewType == world.ViewTypeMainMap {
-		m.processInput(key, sailingKeyMap())
-	} else if ViewType == world.ViewTypeMiniMap {
-		m.processInput(key, miniMapKeyMap())
-	} else if ViewType == world.ViewTypeExamine {
-		m.processInput(key, examineKeyMap())
-	} else if ViewType == world.ViewTypeDock {
-		m.processInput(key, dockKeyMap())
-	} else if ViewType == world.ViewTypeHail {
-		m.processInput(key, hailKeyMap())
+	switch ViewType {
+	case world.ViewTypeMainMap:
+		m.processInput(name, sailingKeyMap())
+	case world.ViewTypeMiniMap:
+		m.processInput(name, miniMapKeyMap())
+	case world.ViewTypeExamine:
+		m.processInput(name, examineKeyMap())
+	case world.ViewTypeDock:
+		m.processInput(name, dockKeyMap())
+	case world.ViewTypeHail:
+		m.processInput(name, hailKeyMap())
 	}
-	m.syncMinimap()
 
-	// The action bar and overlay are otherwise only updated on the next tick, which
-	// would leave them showing the previous view's commands after a keyboard change.
+	// The bar and overlay would otherwise show the previous view's commands for
+	// the rest of this frame after a keyboard view change.
 	if ViewType != previousView {
-		m.syncOverlay()
+		m.minimapDirty = true
 	}
 	m.refreshActionBar()
 }
 
-// syncOverlay matches the modal overlay to the current view.
-func (m *GameState) syncOverlay() {
-	if ViewType == world.ViewTypeDock || ViewType == world.ViewTypeHail {
-		m.showOverlay()
-	} else {
-		m.hideOverlay()
-	}
-}
-
+// refreshActionBar rebuilds the tap targets for the current view. Ebiten hit-tests
+// these rectangles every frame, so rebuilding cannot orphan a live button the way
+// swapping Fyne widgets under the pointer did.
 func (m *GameState) refreshActionBar() {
-	m.updateActionBarIfNeeded()
-	if ActionMenu != nil {
-		fyne.Do(ActionMenu.Refresh)
-	}
+	m.buttons = m.buildButtons()
 }
 
-func (m *GameState) processInput(key *fyne.KeyEvent, km KeyMap) {
+func (m *GameState) processInput(name string, km KeyMap) {
 	for _, e := range km {
 		for _, k := range e.key {
-			if string(key.Name) == k {
+			if name == k {
 				e.exec(m)
+				return
 			}
 		}
 	}
+}
+
+// handlePointer resolves mouse clicks and touch taps against the current buttons.
+func (m *GameState) handlePointer() {
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		x, y := ebiten.CursorPosition()
+		m.tap(x, y)
+		return
+	}
+	for _, id := range inpututil.AppendJustPressedTouchIDs(nil) {
+		x, y := ebiten.TouchPosition(id)
+		m.tap(x, y)
+	}
+}
+
+func (m *GameState) tap(x, y int) {
+	for _, b := range m.buttons {
+		if x >= b.rect.Min.X && x < b.rect.Max.X && y >= b.rect.Min.Y && y < b.rect.Max.Y {
+			if b.action != nil {
+				b.action()
+			}
+			m.refreshActionBar()
+			return
+		}
+	}
+}
+
+// pressedKeyNames maps this frame's just-pressed Ebiten keys to the key names
+// used by the KeyMap tables.
+func pressedKeyNames() []string {
+	ctrl := ebiten.IsKeyPressed(ebiten.KeyControlLeft) || ebiten.IsKeyPressed(ebiten.KeyControlRight)
+
+	var names []string
+	for _, k := range inpututil.AppendJustPressedKeys(nil) {
+		if ctrl {
+			if k == ebiten.KeyQ {
+				names = append(names, "ctrl+q")
+			}
+			continue
+		}
+		if name := keyName(k); name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func keyName(k ebiten.Key) string {
+	switch k {
+	case ebiten.KeyArrowLeft:
+		return "Left"
+	case ebiten.KeyArrowRight:
+		return "Right"
+	case ebiten.KeyArrowUp:
+		return "Up"
+	case ebiten.KeyArrowDown:
+		return "Down"
+	case ebiten.KeyEnter, ebiten.KeyNumpadEnter:
+		return "Enter"
+	case ebiten.KeyEscape:
+		return "Escape"
+	case ebiten.KeySlash:
+		return "?"
+	case ebiten.KeyF3:
+		return "F3"
+	case ebiten.KeyDigit1, ebiten.KeyNumpad1:
+		return "1"
+	case ebiten.KeyDigit2, ebiten.KeyNumpad2:
+		return "2"
+	case ebiten.KeyDigit3, ebiten.KeyNumpad3:
+		return "3"
+	}
+	if k >= ebiten.KeyA && k <= ebiten.KeyZ {
+		return string(rune('A' + int(k-ebiten.KeyA)))
+	}
+	return ""
 }
 
 func keyQuit(m *GameState) {
@@ -374,7 +434,6 @@ func hailKeyMap() KeyMap {
 			exec: func(m *GameState) {
 				m.hailData = hail.Payload{}
 				ViewType = world.ViewTypeMainMap
-				m.hideOverlay()
 			},
 		},
 		{
@@ -397,7 +456,6 @@ func dockKeyMap() KeyMap {
 				m.dockPage = dockPageMenu
 				m.tavernRumor = ""
 				ViewType = world.ViewTypeMainMap
-				m.hideOverlay()
 			},
 		},
 		{
@@ -461,48 +519,4 @@ func actionBarContext() (string, KeyMap) {
 		return "Sailing", sailingKeyMap()
 	}
 	return "", nil
-}
-
-// ActionItems builds the bottom bar as a row of buttons, one per available command
-// and each labelled with its key, above a legend line listing the view name plus the
-// heading and admin keys that have no button of their own. Every binding is visible.
-func (gs *GameState) ActionItems() *fyne.Container {
-	title, keyMap := actionBarContext()
-
-	buttons := []fyne.CanvasObject{}
-	for _, k := range keyMap {
-		item := k
-		if !item.isBarButton() {
-			continue
-		}
-		if item.barVisible != nil && !item.barVisible(gs) {
-			continue
-		}
-		buttons = append(buttons, widget.NewButton(item.barLabel(), func() {
-			item.exec(gs)
-			gs.syncMinimap()
-		}))
-	}
-
-	caption := title
-	if legend := keyMap.legend(); legend != "" {
-		if caption != "" {
-			caption += "   ·   "
-		}
-		caption += legend
-	}
-
-	rows := []fyne.CanvasObject{container.NewHBox(buttons...)}
-	if caption != "" {
-		rows = append(rows, actionBarCaption(caption))
-	}
-	return container.NewVBox(rows...)
-}
-
-// actionBarCaption renders the legend line. canvas.Text is used instead of a Label
-// so the legend and the button row both fit the action menu height.
-func actionBarCaption(text string) *canvas.Text {
-	caption := canvas.NewText(text, color.RGBA{R: 200, G: 200, B: 200, A: 255})
-	caption.TextSize = 13
-	return caption
 }

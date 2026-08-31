@@ -3,7 +3,7 @@
 
 .PHONY: assets
 assets:
-	fyne bundle --package resources -o cmd/resources/resources.go assets/pirate-wars-tileset.png
+	go run ./scripts/bundle-tileset assets/pirate-wars-tileset.png cmd/resources/resources.go
 
 .PHONY: test
 test:

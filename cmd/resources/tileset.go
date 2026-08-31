@@ -39,6 +39,7 @@ var (
 	tilesetCache          image.Image
 	tileCache             = make(map[int]image.Image)
 	shipTileCache         = make(map[int]image.Image)
+	regionTileCache       = make(map[int]image.Image)
 	highlightOverlayCache = make(map[int]image.Image)
 	playerMarkerCache     = make(map[int]image.Image)
 )
@@ -99,9 +100,16 @@ func tileRegionInBounds(col, row int) bool {
 	return srcX+TileSize <= bounds.Dx() && srcY+TileSize <= bounds.Dy() && srcX >= 0 && srcY >= 0
 }
 
+// extractTileAt memoizes tiles so callers can rely on stable image identity
+// (the Ebiten texture cache keys on it).
 func extractTileAt(col, row int) image.Image {
 	if !tileRegionInBounds(col, row) {
 		return nil
+	}
+
+	regionKey := col*1000 + row
+	if cached, ok := regionTileCache[regionKey]; ok {
+		return cached
 	}
 
 	tileset := getTileset()
@@ -115,6 +123,7 @@ func extractTileAt(col, row int) image.Image {
 		}
 	}
 
+	regionTileCache[regionKey] = tileImg
 	return tileImg
 }
 
@@ -166,7 +175,7 @@ func GetTerrainTile(tt common.TerrainType) image.Image {
 // loadTilesetImage loads the tileset image from the bundled resources
 func loadTilesetImage() (image.Image, error) {
 	// Get the tileset data from the bundled resource
-	tilesetData := resourcePirateWarsTilesetPng.StaticContent
+	tilesetData := tilesetPNGData
 
 	// Decode the PNG data into an image
 	img, err := png.Decode(bytes.NewReader(tilesetData))

@@ -6,62 +6,29 @@ import (
 
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
-	"pirate-wars/cmd/window"
+	"pirate-wars/cmd/gfx"
 	"pirate-wars/cmd/world"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 	"go.uber.org/zap"
 )
-
-func actionBarButtonLabels(bar *fyne.Container) []string {
-	labels := []string{}
-	walkActionBar(bar, func(obj fyne.CanvasObject) {
-		if btn, ok := obj.(*widget.Button); ok {
-			labels = append(labels, btn.Text)
-		}
-	})
-	return labels
-}
-
-func actionBarText(bar *fyne.Container) string {
-	parts := []string{}
-	walkActionBar(bar, func(obj fyne.CanvasObject) {
-		switch w := obj.(type) {
-		case *widget.Button:
-			parts = append(parts, w.Text)
-		case *widget.Label:
-			parts = append(parts, w.Text)
-		case *canvas.Text:
-			parts = append(parts, w.Text)
-		}
-	})
-	return strings.Join(parts, " | ")
-}
-
-func walkActionBar(obj fyne.CanvasObject, visit func(fyne.CanvasObject)) {
-	if c, ok := obj.(*fyne.Container); ok {
-		for _, child := range c.Objects {
-			walkActionBar(child, visit)
-		}
-		return
-	}
-	visit(obj)
-}
 
 func mainMapGameState() *GameState {
 	avatar := entities.CreateAvatar(common.Coordinates{X: 5, Y: 5}, common.ShipWhite, entities.ColorPossibilities[0])
 	return &GameState{player: &avatar}
 }
 
+// actionBarText is the whole bar as read by a player: the legend line plus every
+// button label.
+func actionBarText(gs *GameState) string {
+	parts := append([]string{gs.actionBarCaption()}, gs.actionBarLabels()...)
+	return strings.Join(parts, " | ")
+}
+
 func TestSailingActionBarLabelsIncludeKeys(t *testing.T) {
 	ViewType = world.ViewTypeMainMap
-	ActionMenu = nil
 	gs := mainMapGameState()
 
-	labels := actionBarButtonLabels(gs.ActionItems())
+	labels := gs.actionBarLabels()
 	want := []string{
 		"Full sail (1)",
 		"Half sail (2)",
@@ -97,11 +64,10 @@ func TestActionBarHasNoDuplicateCommands(t *testing.T) {
 		world.ViewTypeMiniMap,
 	} {
 		ViewType = view
-		ActionMenu = nil
 		gs := mainMapGameState()
 
 		seen := map[string]int{}
-		for _, label := range actionBarButtonLabels(gs.ActionItems()) {
+		for _, label := range gs.actionBarLabels() {
 			action := strings.SplitN(label, " (", 2)[0]
 			seen[action]++
 			if seen[action] > 1 {
@@ -113,10 +79,9 @@ func TestActionBarHasNoDuplicateCommands(t *testing.T) {
 
 func TestDockButtonHiddenWhenNotAdjacent(t *testing.T) {
 	ViewType = world.ViewTypeMainMap
-	ActionMenu = nil
 	gs := mainMapGameState()
 
-	for _, label := range actionBarButtonLabels(gs.ActionItems()) {
+	for _, label := range gs.actionBarLabels() {
 		if strings.HasPrefix(label, "Dock") {
 			t.Fatalf("dock button should be hidden away from a town, got %q", label)
 		}
@@ -157,10 +122,9 @@ func TestDockCommandLabelShowsBothKeys(t *testing.T) {
 // rather than hidden behind a help screen.
 func TestHeadingKeysVisibleOnBar(t *testing.T) {
 	ViewType = world.ViewTypeMainMap
-	ActionMenu = nil
 	gs := mainMapGameState()
 
-	text := actionBarText(gs.ActionItems())
+	text := actionBarText(gs)
 	if !strings.Contains(text, "Heading") {
 		t.Fatalf("action bar should show a heading legend, got %q", text)
 	}
@@ -178,10 +142,9 @@ func TestHeadingKeysVisibleOnBar(t *testing.T) {
 
 func TestAdminKeysVisibleOnBar(t *testing.T) {
 	ViewType = world.ViewTypeMainMap
-	ActionMenu = nil
 	gs := mainMapGameState()
 
-	text := actionBarText(gs.ActionItems())
+	text := actionBarText(gs)
 	for _, want := range []string{"Help (?)", "Quit (Ctrl+Q)"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("action bar should list %q, got %q", want, text)
@@ -200,10 +163,9 @@ func TestOverlayActionBarLabels(t *testing.T) {
 	}
 	for _, c := range cases {
 		ViewType = c.view
-		ActionMenu = nil
 		gs := mainMapGameState()
 
-		labels := actionBarButtonLabels(gs.ActionItems())
+		labels := gs.actionBarLabels()
 		found := false
 		for _, label := range labels {
 			if label == c.want {
@@ -224,11 +186,10 @@ func TestBarLabelListsEveryBinding(t *testing.T) {
 	}
 
 	ViewType = world.ViewTypeMiniMap
-	ActionMenu = nil
 	gs := mainMapGameState()
 
 	var label string
-	for _, l := range actionBarButtonLabels(gs.ActionItems()) {
+	for _, l := range gs.actionBarLabels() {
 		if strings.HasPrefix(l, "Exit minimap") {
 			label = l
 		}
@@ -240,10 +201,9 @@ func TestBarLabelListsEveryBinding(t *testing.T) {
 
 func TestExamineActionBarLabelsIncludeKeys(t *testing.T) {
 	ViewType = world.ViewTypeExamine
-	ActionMenu = nil
 	gs := mainMapGameState()
 
-	labels := actionBarButtonLabels(gs.ActionItems())
+	labels := gs.actionBarLabels()
 	for _, want := range []string{"Exit examine (X/Enter)", "Examine left (←/H/A)", "Examine right (→/L/D)"} {
 		found := false
 		for _, got := range labels {
@@ -257,8 +217,8 @@ func TestExamineActionBarLabelsIncludeKeys(t *testing.T) {
 	}
 }
 
-// TestActionBarFitsActionMenuArea keeps the cheat-sheet bar inside its allotted space
-// so no button or key hint gets clipped.
+// TestActionBarFitsActionMenuArea keeps the cheat-sheet bar inside its allotted
+// space so no button or key hint gets clipped.
 func TestActionBarFitsActionMenuArea(t *testing.T) {
 	for _, view := range []int{
 		world.ViewTypeMainMap,
@@ -268,16 +228,78 @@ func TestActionBarFitsActionMenuArea(t *testing.T) {
 		world.ViewTypeExamine,
 	} {
 		ViewType = view
-		ActionMenu = nil
 		gs := mainMapGameState()
 
-		min := gs.ActionItems().MinSize()
-		if min.Width > float32(window.ActionMenu.Width) {
-			t.Fatalf("view %d: action bar width %.0f exceeds area %d", view, min.Width, window.ActionMenu.Width)
+		if w := gfx.TextWidth(gs.actionBarCaption()); w > actionBarRect.Dx() {
+			t.Fatalf("view %d: legend width %d exceeds bar %d", view, w, actionBarRect.Dx())
 		}
-		if min.Height > float32(window.ActionMenu.Height) {
-			t.Fatalf("view %d: action bar height %.0f exceeds area %d", view, min.Height, window.ActionMenu.Height)
+
+		width := buttonGap
+		for _, label := range gs.actionBarLabels() {
+			width += gfx.TextWidth(label) + buttonPadding*2 + buttonGap
 		}
+		if width > actionBarRect.Dx() {
+			t.Fatalf("view %d: button row width %d exceeds bar %d", view, width, actionBarRect.Dx())
+		}
+	}
+}
+
+// TestActionBarButtonsAreLaidOut checks every bar command actually gets a hit
+// rectangle. Ebiten hit-tests these rects each frame, which is what removed the
+// Fyne widget-rebuild click bug.
+func TestActionBarButtonsAreLaidOut(t *testing.T) {
+	ViewType = world.ViewTypeMainMap
+	gs := mainMapGameState()
+	gs.refreshActionBar()
+
+	labels := gs.actionBarLabels()
+	if len(gs.buttons) != len(labels) {
+		t.Fatalf("laid out %d buttons for %d bar commands", len(gs.buttons), len(labels))
+	}
+	for i, b := range gs.buttons {
+		if b.label != labels[i] {
+			t.Fatalf("button %d label = %q, want %q", i, b.label, labels[i])
+		}
+		if b.rect.Dx() <= 0 || b.rect.Dy() <= 0 {
+			t.Fatalf("button %q has empty rect %v", b.label, b.rect)
+		}
+		if !b.rect.Overlaps(actionBarRect) {
+			t.Fatalf("button %q rect %v is outside the action bar %v", b.label, b.rect, actionBarRect)
+		}
+	}
+}
+
+// TestTapRunsButtonAction covers the click path end to end: a tap inside a button
+// rect runs that command on the game state the button was built for.
+func TestTapRunsButtonAction(t *testing.T) {
+	gs := initGameState(zap.NewNop().Sugar())
+
+	dockPos, ok := waterTileBesideTown(gs)
+	if !ok {
+		t.Skip("generated world has no water-adjacent town")
+	}
+	gs.player.SetPos(dockPos)
+	ViewType = world.ViewTypeMainMap
+	gs.refreshActionBar()
+
+	var dockBtn *button
+	for i := range gs.buttons {
+		if strings.HasPrefix(gs.buttons[i].label, "Dock") {
+			dockBtn = &gs.buttons[i]
+		}
+	}
+	if dockBtn == nil {
+		t.Fatalf("no dock button beside a town, got %v", gs.actionBarLabels())
+	}
+
+	center := dockBtn.rect.Min.Add(dockBtn.rect.Max).Div(2)
+	gs.tap(center.X, center.Y)
+
+	if ViewType != world.ViewTypeDock {
+		t.Fatalf("tapping Dock did not open the dock, ViewType = %d", ViewType)
+	}
+	if gs.dockTown == nil {
+		t.Fatal("tapping Dock did not set dockTown on the state the button was built for")
 	}
 }
 
@@ -294,10 +316,7 @@ func TestDockButtonAndKeyOnGeneratedWorld(t *testing.T) {
 	gs.player.SetPos(dockPos)
 
 	ViewType = world.ViewTypeMainMap
-	ActionMenu = nil
-	gs.createActionMenu()
-
-	labels := actionBarButtonLabels(gs.actionBarItems)
+	labels := gs.actionBarLabels()
 	dockButtons := 0
 	for _, label := range labels {
 		if strings.HasPrefix(label, "Dock") {
@@ -310,13 +329,16 @@ func TestDockButtonAndKeyOnGeneratedWorld(t *testing.T) {
 	if dockButtons != 1 {
 		t.Fatalf("want exactly one dock button, got %d in %v", dockButtons, labels)
 	}
-	if w := gs.actionBarItems.MinSize().Width; w > float32(window.ActionMenu.Width) {
-		t.Fatalf("action bar width %.0f exceeds area %d with dock button", w, window.ActionMenu.Width)
+
+	width := buttonGap
+	for _, label := range labels {
+		width += gfx.TextWidth(label) + buttonPadding*2 + buttonGap
+	}
+	if width > actionBarRect.Dx() {
+		t.Fatalf("action bar width %d exceeds area %d with dock button", width, actionBarRect.Dx())
 	}
 
-	gs.window = test.NewWindow(nil)
-	gs.buildOverlayShell()
-	gs.handleKeyPress(&fyne.KeyEvent{Name: "Enter"})
+	gs.handleKeyPress("Enter")
 	if ViewType != world.ViewTypeDock {
 		t.Fatalf("dock key did not open the dock overlay, ViewType = %d", ViewType)
 	}
@@ -329,8 +351,6 @@ func TestDockButtonAndKeyOnGeneratedWorld(t *testing.T) {
 // is invoked with rather than a package-level reference.
 func TestDockKeyUsesCallbackGameState(t *testing.T) {
 	gs := initGameState(zap.NewNop().Sugar())
-	gs.window = test.NewWindow(nil)
-	gs.buildOverlayShell()
 
 	dockPos, ok := waterTileBesideTown(gs)
 	if !ok {
@@ -339,15 +359,13 @@ func TestDockKeyUsesCallbackGameState(t *testing.T) {
 	gs.player.SetPos(dockPos)
 
 	other := mainMapGameState()
-	ViewType = world.ViewTypeMainMap
-	ActionMenu = nil
 
 	for _, key := range []string{"Enter", "O"} {
 		ViewType = world.ViewTypeMainMap
 		gs.dockTown = nil
 		other.dockTown = nil
 
-		gs.handleKeyPress(&fyne.KeyEvent{Name: fyne.KeyName(key)})
+		gs.handleKeyPress(key)
 
 		if gs.dockTown == nil {
 			t.Fatalf("%s did not dock the game state it was called with", key)
@@ -358,12 +376,10 @@ func TestDockKeyUsesCallbackGameState(t *testing.T) {
 	}
 }
 
-// TestKeyboardViewChangeUpdatesActionBar covers the bar going stale until the next tick
-// after a key changes the view.
+// TestKeyboardViewChangeUpdatesActionBar covers the bar going stale until the next
+// tick after a key changes the view.
 func TestKeyboardViewChangeUpdatesActionBar(t *testing.T) {
 	gs := initGameState(zap.NewNop().Sugar())
-	gs.window = test.NewWindow(nil)
-	gs.buildOverlayShell()
 
 	dockPos, ok := waterTileBesideTown(gs)
 	if !ok {
@@ -372,51 +388,31 @@ func TestKeyboardViewChangeUpdatesActionBar(t *testing.T) {
 	gs.player.SetPos(dockPos)
 
 	ViewType = world.ViewTypeMainMap
-	ActionMenu = nil
-	ActionMenu = gs.createActionMenu()
+	gs.refreshActionBar()
 
-	gs.handleKeyPress(&fyne.KeyEvent{Name: "Enter"})
+	gs.handleKeyPress("Enter")
 	if ViewType != world.ViewTypeDock {
 		t.Fatalf("Enter did not open dock, ViewType = %d", ViewType)
 	}
-	labels := actionBarButtonLabels(gs.actionBarItems)
-	if len(labels) != 1 || labels[0] != "Leave dock (Esc)" {
-		t.Fatalf("bar should show dock commands right after the key press, got %v", labels)
+	barLabels := []string{}
+	for _, b := range gs.buttons {
+		if b.rect.Overlaps(actionBarRect) {
+			barLabels = append(barLabels, b.label)
+		}
 	}
-	if ActionMenu.Objects[1] != gs.actionBarItems {
-		t.Fatal("rebuilt bar was not mounted into the action menu")
+	if len(barLabels) != 1 || barLabels[0] != "Leave dock (Esc)" {
+		t.Fatalf("bar should show dock commands right after the key press, got %v", barLabels)
 	}
 
-	gs.handleKeyPress(&fyne.KeyEvent{Name: "Escape"})
+	gs.handleKeyPress("Escape")
 	if ViewType != world.ViewTypeMainMap {
 		t.Fatalf("Escape did not leave dock, ViewType = %d", ViewType)
 	}
-	labels = actionBarButtonLabels(gs.actionBarItems)
-	if len(labels) == 0 || !strings.HasPrefix(labels[0], "Dock") {
+	if labels := gs.actionBarLabels(); len(labels) == 0 || !strings.HasPrefix(labels[0], "Dock") {
 		t.Fatalf("bar should show sailing commands right after leaving dock, got %v", labels)
 	}
-	if gs.overlayRoot != nil && !gs.overlayRoot.Hidden {
-		t.Fatal("overlay should be hidden after leaving dock with a key")
-	}
-}
-
-// TestActionBarWidgetsReusedAcrossKeyPresses keeps the signature cache doing its job:
-// repeated key presses that do not change the commands must not rebuild the bar.
-func TestActionBarWidgetsReusedAcrossKeyPresses(t *testing.T) {
-	gs := initGameState(zap.NewNop().Sugar())
-	gs.window = test.NewWindow(nil)
-	gs.buildOverlayShell()
-
-	ViewType = world.ViewTypeMainMap
-	ActionMenu = nil
-	ActionMenu = gs.createActionMenu()
-	first := gs.actionBarItems
-
-	for i := 0; i < 5; i++ {
-		gs.handleKeyPress(&fyne.KeyEvent{Name: "1"})
-		if gs.actionBarItems != first {
-			t.Fatalf("press %d rebuilt the action bar despite unchanged commands", i)
-		}
+	if gs.currentOverlayScreen().title != "" {
+		t.Fatal("overlay should be gone after leaving dock with a key")
 	}
 }
 

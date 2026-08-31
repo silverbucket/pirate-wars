@@ -50,7 +50,7 @@ func (m *GameState) resolvePlayerMovement(occupancy sailing.Occupancy) {
 		m.player.GetFacing(),
 		m.player.GetID(),
 		occupancy,
-		m.world.IsPassableByBoat,
+		m.sailingWorld.IsPassableByBoat,
 	)
 	if moved {
 		m.player.SetPos(newPos)

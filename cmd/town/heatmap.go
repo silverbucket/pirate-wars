@@ -22,11 +22,36 @@ type HeatMap struct {
 	grid [][]HeatMapCost
 }
 
+// newHeatMap allocates a fully unprocessed cost grid for the whole world.
+// Every Town must own one before NPC pathing reads it.
+func newHeatMap() HeatMap {
+	grid := make([][]HeatMapCost, common.WorldRows)
+	for i := range grid {
+		grid[i] = make([]HeatMapCost, common.WorldCols)
+		for j := range grid[i] {
+			grid[i][j] = HeatmapUnprocessed
+		}
+	}
+	return HeatMap{grid: grid}
+}
+
+func (h *HeatMap) inBounds(c common.Coordinates) bool {
+	return h != nil && c.X >= 0 && c.X < len(h.grid) && c.Y >= 0 && c.Y < len(h.grid[c.X])
+}
+
 func (h *HeatMap) SetCost(c common.Coordinates, v HeatMapCost) {
+	if !h.inBounds(c) {
+		return
+	}
 	h.grid[c.X][c.Y] = v
 }
 
+// GetCost reports the movement cost at c. Cells outside an allocated grid read
+// as unreachable so callers never index into an empty heatmap.
 func (h *HeatMap) GetCost(c common.Coordinates) HeatMapCost {
+	if !h.inBounds(c) {
+		return MaxMovementCost
+	}
 	return h.grid[c.X][c.Y]
 }
 
