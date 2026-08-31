@@ -59,16 +59,27 @@ func (m *GameState) resolvePlayerMovement(occupancy sailing.Occupancy) {
 	}
 }
 
-func setPlayerHeading(m *GameState, d common.Coordinates) {
-	if f, ok := common.FacingFromDirection(d); ok {
-		m.player.SetHeading(f)
-	}
+// tackPlayerPort turns the ship one octant to port. The player steers by tacking
+// relative to the current heading, not by pointing at a compass direction.
+func tackPlayerPort(m *GameState) {
+	m.player.SetHeading(common.TackPort(m.player.GetFacing()))
+}
+
+// tackPlayerStarboard turns the ship one octant to starboard.
+func tackPlayerStarboard(m *GameState) {
+	m.player.SetHeading(common.TackStarboard(m.player.GetFacing()))
 }
 
 func setPlayerSail(m *GameState, sail sailing.SailSetting) {
 	m.player.SetSail(sail)
 }
 
-func cyclePlayerSail(m *GameState) {
-	m.player.SetSail(m.player.GetSail().Next())
+// trimPlayerSailMore sets one step more canvas, clamped at full.
+func trimPlayerSailMore(m *GameState) {
+	m.player.SetSail(m.player.GetSail().More())
+}
+
+// trimPlayerSailLess sets one step less canvas, clamped at furled.
+func trimPlayerSailLess(m *GameState) {
+	m.player.SetSail(m.player.GetSail().Less())
 }

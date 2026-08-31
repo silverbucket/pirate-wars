@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/hail"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/sailing"
@@ -20,7 +19,11 @@ var ExamineData = user_action.Examine()
 var Action = user_action.UserActionIdNone
 
 const KeyCatAdmin = 0
-const KeyCatNav = 1
+
+// KeyCatSailPreset marks the 1/2/3 shortcuts that jump straight to a sail state.
+// They live on the bar legend rather than getting a button each, so the bar stays
+// narrow now that W/S are the primary sail controls.
+const KeyCatSailPreset = 1
 const KeyCatAction = 3
 const KeyCatAux = 4
 
@@ -71,32 +74,32 @@ func (k keyItem) barLabel() string {
 	return fmt.Sprintf("%s (%s)", k.label, k.keyList())
 }
 
-// isBarButton reports whether the command gets its own button. Heading and admin
-// keys are listed in the bar legend instead, to keep the bar from growing too wide.
+// isBarButton reports whether the command gets its own button. Sail presets and
+// admin keys are listed in the bar legend instead, to keep the bar from growing
+// too wide.
 func (k keyItem) isBarButton() bool {
-	return k.label != "" && k.cat != KeyCatNav && k.cat != KeyCatAdmin
+	return k.label != "" && k.cat != KeyCatSailPreset && k.cat != KeyCatAdmin
 }
 
-// legend lists the commands that have no button of their own: heading keys and
-// admin keys. It stays on one line so the bar fits the action menu area.
+// legend lists the commands that have no button of their own: the sail presets and
+// the admin keys. It stays on one line so the bar fits the action menu area.
 func (km KeyMap) legend() string {
-	var headings, admin []string
+	var presets, admin []string
 	for _, k := range km {
 		if k.label == "" {
 			continue
 		}
 		switch k.cat {
-		case KeyCatNav:
-			dir := strings.TrimPrefix(k.label, "Heading ")
-			headings = append(headings, fmt.Sprintf("%s:%s", dir, k.keyList()))
+		case KeyCatSailPreset:
+			presets = append(presets, k.barLabel())
 		case KeyCatAdmin:
 			admin = append(admin, k.barLabel())
 		}
 	}
 
 	sections := []string{}
-	if len(headings) > 0 {
-		sections = append(sections, "Heading "+strings.Join(headings, " "))
+	if len(presets) > 0 {
+		sections = append(sections, "Sail "+strings.Join(presets, "  "))
 	}
 	if len(admin) > 0 {
 		sections = append(sections, strings.Join(admin, "  "))
@@ -285,35 +288,35 @@ func sailingKeyMap() KeyMap {
 			},
 		},
 		{
-			key:   []string{"1"},
-			label: "Full sail",
+			key:   []string{"W"},
+			label: "More sail",
 			cat:   KeyCatAction,
 			exec: func(m *GameState) {
-				setPlayerSail(m, sailing.SailFull)
+				trimPlayerSailMore(m)
 			},
 		},
 		{
-			key:   []string{"2"},
-			label: "Half sail",
+			key:   []string{"S"},
+			label: "Less sail",
 			cat:   KeyCatAction,
 			exec: func(m *GameState) {
-				setPlayerSail(m, sailing.SailHalf)
+				trimPlayerSailLess(m)
 			},
 		},
 		{
-			key:   []string{"3"},
-			label: "Furled",
+			key:   []string{"A"},
+			label: "Tack port",
 			cat:   KeyCatAction,
 			exec: func(m *GameState) {
-				setPlayerSail(m, sailing.SailFurled)
+				tackPlayerPort(m)
 			},
 		},
 		{
-			key:   []string{"V"},
-			label: "Cycle sail",
+			key:   []string{"D"},
+			label: "Tack starboard",
 			cat:   KeyCatAction,
 			exec: func(m *GameState) {
-				cyclePlayerSail(m)
+				tackPlayerStarboard(m)
 			},
 		},
 		{
@@ -345,67 +348,27 @@ func sailingKeyMap() KeyMap {
 			},
 		},
 		{
-			key:   []string{"Up", "K", "W"},
-			label: "Heading N",
-			cat:   KeyCatNav,
+			key:   []string{"1"},
+			label: "Full",
+			cat:   KeyCatSailPreset,
 			exec: func(m *GameState) {
-				setPlayerHeading(m, common.Coordinates{X: 0, Y: -1})
+				setPlayerSail(m, sailing.SailFull)
 			},
 		},
 		{
-			key:   []string{"Down", "J", "S"},
-			label: "Heading S",
-			cat:   KeyCatNav,
+			key:   []string{"2"},
+			label: "Half",
+			cat:   KeyCatSailPreset,
 			exec: func(m *GameState) {
-				setPlayerHeading(m, common.Coordinates{X: 0, Y: 1})
+				setPlayerSail(m, sailing.SailHalf)
 			},
 		},
 		{
-			key:   []string{"Left", "H", "A"},
-			label: "Heading W",
-			cat:   KeyCatNav,
+			key:   []string{"3"},
+			label: "Furled",
+			cat:   KeyCatSailPreset,
 			exec: func(m *GameState) {
-				setPlayerHeading(m, common.Coordinates{X: -1, Y: 0})
-			},
-		},
-		{
-			key:   []string{"Right", "L", "D"},
-			label: "Heading E",
-			cat:   KeyCatNav,
-			exec: func(m *GameState) {
-				setPlayerHeading(m, common.Coordinates{X: 1, Y: 0})
-			},
-		},
-		{
-			key:   []string{"Q", "Y"},
-			label: "Heading NW",
-			cat:   KeyCatNav,
-			exec: func(m *GameState) {
-				setPlayerHeading(m, common.Coordinates{X: -1, Y: -1})
-			},
-		},
-		{
-			key:   []string{"E", "U"},
-			label: "Heading NE",
-			cat:   KeyCatNav,
-			exec: func(m *GameState) {
-				setPlayerHeading(m, common.Coordinates{X: 1, Y: -1})
-			},
-		},
-		{
-			key:   []string{"Z", "B"},
-			label: "Heading SW",
-			cat:   KeyCatNav,
-			exec: func(m *GameState) {
-				setPlayerHeading(m, common.Coordinates{X: -1, Y: 1})
-			},
-		},
-		{
-			key:   []string{"C", "N"},
-			label: "Heading SE",
-			cat:   KeyCatNav,
-			exec: func(m *GameState) {
-				setPlayerHeading(m, common.Coordinates{X: 1, Y: 1})
+				setPlayerSail(m, sailing.SailFurled)
 			},
 		},
 		{

@@ -196,3 +196,27 @@ func TestRunFreshWindDoesNotStepEveryTick(t *testing.T) {
 		t.Fatalf("run+fresh tick speed = %v, want < 1 so accumulation gates steps", tickSpeed)
 	}
 }
+
+// TestSailMoreLessClamp locks the W/S sail stepping: one state at a time, no wrap
+// past full or furled.
+func TestSailMoreLessClamp(t *testing.T) {
+	if got := SailFurled.More(); got != SailHalf {
+		t.Fatalf("more from furled = %s, want Half", got.Label())
+	}
+	if got := SailHalf.More(); got != SailFull {
+		t.Fatalf("more from half = %s, want Full", got.Label())
+	}
+	if got := SailFull.More(); got != SailFull {
+		t.Fatalf("more from full should clamp, got %s", got.Label())
+	}
+
+	if got := SailFull.Less(); got != SailHalf {
+		t.Fatalf("less from full = %s, want Half", got.Label())
+	}
+	if got := SailHalf.Less(); got != SailFurled {
+		t.Fatalf("less from half = %s, want Furled", got.Label())
+	}
+	if got := SailFurled.Less(); got != SailFurled {
+		t.Fatalf("less from furled should clamp, got %s", got.Label())
+	}
+}

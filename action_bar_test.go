@@ -30,10 +30,10 @@ func TestSailingActionBarLabelsIncludeKeys(t *testing.T) {
 
 	labels := gs.actionBarLabels()
 	want := []string{
-		"Full sail (1)",
-		"Half sail (2)",
-		"Furled (3)",
-		"Cycle sail (V)",
+		"More sail (W)",
+		"Less sail (S)",
+		"Tack port (A)",
+		"Tack starboard (D)",
 		"Examine (X)",
 		"Minimap (M)",
 	}
@@ -118,25 +118,29 @@ func TestDockCommandLabelShowsBothKeys(t *testing.T) {
 	}
 }
 
-// TestHeadingKeysVisibleOnBar keeps WASD and the bound diagonals on the bar legend
-// rather than hidden behind a help screen.
-func TestHeadingKeysVisibleOnBar(t *testing.T) {
+// TestSailingControlKeysVisibleOnBar keeps the WASD steering and sail keys on the
+// bar rather than hidden behind a help screen, and keeps the old compass-direction
+// heading legend from coming back now that W means sail, not north.
+func TestSailingControlKeysVisibleOnBar(t *testing.T) {
 	ViewType = world.ViewTypeMainMap
 	gs := mainMapGameState()
 
 	text := actionBarText(gs)
-	if !strings.Contains(text, "Heading") {
-		t.Fatalf("action bar should show a heading legend, got %q", text)
-	}
-	for _, key := range []string{"W", "A", "S", "D", "Q", "E", "Z", "C"} {
-		if !strings.Contains(text, key) {
-			t.Fatalf("heading legend should show key %q, got %q", key, text)
+	for _, want := range []string{"Tack port (A)", "Tack starboard (D)", "More sail (W)", "Less sail (S)"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("action bar should show %q, got %q", want, text)
 		}
 	}
-	for _, dir := range []string{"N", "S", "E", "W", "NW", "NE", "SW", "SE"} {
-		if !strings.Contains(text, dir) {
-			t.Fatalf("heading legend should show direction %q, got %q", dir, text)
+	if strings.Contains(text, "Heading") {
+		t.Fatalf("compass heading legend should be gone, got %q", text)
+	}
+	for _, gone := range []string{"N:", "NE:", "SW:"} {
+		if strings.Contains(text, gone) {
+			t.Fatalf("action bar should not list compass heading %q, got %q", gone, text)
 		}
+	}
+	if !strings.Contains(text, "Sail Full (1)") {
+		t.Fatalf("sail presets should stay on the legend, got %q", text)
 	}
 }
 
