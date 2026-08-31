@@ -35,7 +35,7 @@ func TestPennantIndexFromFacing(t *testing.T) {
 		t.Skip("sailing visuals tileset not present")
 	}
 	cases := []struct {
-		facing       common.Facing
+		facing           common.Facing
 		wantCol, wantRow int
 	}{
 		{common.FacingN, PennantNCol, PennantRow},

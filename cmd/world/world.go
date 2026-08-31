@@ -47,6 +47,9 @@ type MapView struct {
 	terrain      *terrain.Terrain
 	minimap      *image.RGBA
 	overlayItems []OverlayItems
+	// glides is renderer-only smoothing state: each ship's on-screen position
+	// chasing its logical cell. See visualPos in render.go.
+	glides map[string]*glideState
 }
 
 type MinimapOverlay struct {

@@ -2,9 +2,9 @@ package window
 
 import "testing"
 
-func TestViewportTileCountsAtCellSize32(t *testing.T) {
-	if CellSize != 32 {
-		t.Fatalf("CellSize = %d, want 32", CellSize)
+func TestViewportTileCountsAtCellSize64(t *testing.T) {
+	if CellSize != 64 {
+		t.Fatalf("CellSize = %d, want 64", CellSize)
 	}
 
 	expectedCols := viewPortWidth / CellSize
@@ -16,12 +16,12 @@ func TestViewportTileCountsAtCellSize32(t *testing.T) {
 		t.Fatalf("viewport rows = %d, want %d", ViewPort.Region.Rows, expectedRows)
 	}
 
-	// Roughly 24x18 tiles visible after sidebar and action menu.
-	if ViewPort.Region.Cols < 22 || ViewPort.Region.Cols > 28 {
-		t.Fatalf("viewport cols = %d, want roughly 24", ViewPort.Region.Cols)
+	// Roughly 17x11 tiles visible after sidebar and action menu.
+	if ViewPort.Region.Cols < 15 || ViewPort.Region.Cols > 19 {
+		t.Fatalf("viewport cols = %d, want roughly 17", ViewPort.Region.Cols)
 	}
-	if ViewPort.Region.Rows < 16 || ViewPort.Region.Rows > 24 {
-		t.Fatalf("viewport rows = %d, want roughly 18", ViewPort.Region.Rows)
+	if ViewPort.Region.Rows < 9 || ViewPort.Region.Rows > 13 {
+		t.Fatalf("viewport rows = %d, want roughly 11", ViewPort.Region.Rows)
 	}
 }
 

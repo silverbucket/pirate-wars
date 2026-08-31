@@ -2,8 +2,11 @@
 .DEFAULT_GOAL := build
 
 .PHONY: assets
+# STYLE grades the sheet; see scripts/build-tileset64 (none|harbor|retro|chart).
+STYLE ?= harbor
 assets:
-	go run ./scripts/bundle-tileset assets/pirate-wars-tileset.png cmd/resources/resources.go
+	go run ./scripts/build-tileset64 -style $(STYLE)
+	go run ./scripts/bundle-tileset assets/pirate-wars-tileset-64.png cmd/resources/resources.go
 
 .PHONY: icons
 icons:

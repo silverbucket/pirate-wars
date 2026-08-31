@@ -28,16 +28,16 @@ type Agenda struct {
 }
 
 type Npc struct {
-	id            string
-	name          string
-	eType         string
-	flag          string
-	ship          common.ShipType
-	logger        *zap.SugaredLogger
-	avatar        entities.Avatar
-	agenda        Agenda
-	traderGood    economy.Good
-	traderAmount  int
+	id           string
+	name         string
+	eType        string
+	flag         string
+	ship         common.ShipType
+	logger       *zap.SugaredLogger
+	avatar       entities.Avatar
+	agenda       Agenda
+	traderGood   economy.Good
+	traderAmount int
 }
 
 type Npcs struct {
@@ -126,6 +126,10 @@ func (n *Npc) GetID() string {
 
 func (n *Npc) GetTileImage() image.Image {
 	return n.avatar.GetTileImage()
+}
+
+func (n *Npc) GetTileImageFacing(f common.Facing) image.Image {
+	return n.avatar.GetTileImageFacing(f)
 }
 
 func (n *Npc) GetViewableRange() window.Dimensions {
@@ -217,6 +221,10 @@ func (n *Npc) MovedThisTick() bool {
 	return n.avatar.MovedThisTick()
 }
 
+func (n *Npc) GetLastSpeed() float64 {
+	return n.avatar.GetLastSpeed()
+}
+
 func (n *Npc) ClearMovedFlag() {
 	n.avatar.ClearMovedFlag()
 }
@@ -272,6 +280,7 @@ func (ns *Npcs) ResolveMovements(cfg sailing.Config, econCfg economy.Config, win
 		}
 
 		speed := cfg.EffectiveSpeed(npc.avatar.GetFacing(), npc.avatar.GetSail(), wind)
+		npc.avatar.SetLastSpeed(speed)
 		if !npc.avatar.AccumulateSpeed(speed) {
 			continue
 		}

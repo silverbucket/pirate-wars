@@ -60,9 +60,18 @@ func PickCoastTile(neighbors WaterNeighbors) (col, row int, ok bool) {
 
 // GetCoastTile returns the coast tile image for the given neighbors, or nil.
 func GetCoastTile(neighbors WaterNeighbors) image.Image {
+	return GetCoastTileFrame(neighbors, 0)
+}
+
+// GetCoastTileFrame returns a frame of the animated shoreline: odd frames use
+// the phase-shifted waterline rows, so the foam laps against the sand.
+func GetCoastTileFrame(neighbors WaterNeighbors, frame int) image.Image {
 	col, row, ok := PickCoastTile(neighbors)
 	if !ok {
 		return nil
+	}
+	if frame%2 != 0 && HasAnimatedCoastTileset() {
+		row += CoastFrameRowStride
 	}
 	return extractTileAt(col, row)
 }

@@ -100,7 +100,8 @@ func TestTileCacheKeyIsArchitectureIndependent(t *testing.T) {
 	for col := 0; col < 6; col++ {
 		for row := 0; row < 14; row++ {
 			tile := extractTileAt(col, row)
-			if tile == nil {
+			if tile == nil || isTileNearlyEmpty(tile) {
+				// Unused sheet cells are legitimately identical blanks.
 				continue
 			}
 			var sb []byte
