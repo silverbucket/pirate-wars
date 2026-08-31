@@ -1,40 +1,78 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512">
   <title>Pirate Wars</title>
-  <desc>Jolly Roger: a bone-white skull over crossed bones on a black roundel.</desc>
+  <desc>A Jolly Roger in the splash screen's palette: ink-drawn skull in a slate bandana over crossed bones, on aged parchment.</desc>
   <defs>
-    <!-- One horizontal bone centred on the origin; used twice, rotated. -->
+    <radialGradient id="parchment" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#f4e8c9"/>
+      <stop offset="0.65" stop-color="#e7d3a3"/>
+      <stop offset="1" stop-color="#c8a86c"/>
+    </radialGradient>
+    <filter id="grain" x="0" y="0" width="1" height="1">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7"/>
+      <feColorMatrix values="0 0 0 0 0.35  0 0 0 0 0.25  0 0 0 0 0.12  0 0 0 0.22 0"/>
+    </filter>
+    <clipPath id="disc"><circle cx="256" cy="256" r="252"/></clipPath>
+    <!-- one bone, horizontal, centred on the origin -->
     <g id="bone">
-      <line x1="-150" y1="0" x2="150" y2="0" stroke="#f4efe2" stroke-width="36" stroke-linecap="round"/>
-      <circle cx="-150" cy="-20" r="24" fill="#f4efe2"/>
-      <circle cx="-150" cy="20" r="24" fill="#f4efe2"/>
-      <circle cx="150" cy="-20" r="24" fill="#f4efe2"/>
-      <circle cx="150" cy="20" r="24" fill="#f4efe2"/>
+      <!-- outline pass, then a fill-only pass so the ink hugs the union -->
+      <g stroke="#4a2f18" stroke-width="7" fill="#eddcb2">
+        <rect x="-150" y="-17" width="300" height="34" rx="17"/>
+        <circle cx="-150" cy="-21" r="24"/><circle cx="-150" cy="21" r="24"/>
+        <circle cx="150" cy="-21" r="24"/><circle cx="150" cy="21" r="24"/>
+      </g>
+      <g stroke="none" fill="#eddcb2">
+        <rect x="-150" y="-17" width="300" height="34" rx="17"/>
+        <circle cx="-150" cy="-21" r="24"/><circle cx="-150" cy="21" r="24"/>
+        <circle cx="150" cy="-21" r="24"/><circle cx="150" cy="21" r="24"/>
+      </g>
     </g>
   </defs>
 
-  <!-- Flag -->
-  <circle cx="256" cy="256" r="252" fill="#141414"/>
+  <!-- parchment roundel -->
+  <circle cx="256" cy="256" r="252" fill="url(#parchment)"/>
+  <rect width="512" height="512" filter="url(#grain)" clip-path="url(#disc)"/>
+  <circle cx="256" cy="256" r="236" fill="none" stroke="#4b4a68" stroke-width="14"/>
+  <circle cx="256" cy="256" r="225" fill="none" stroke="#c98f2a" stroke-width="3"/>
 
-  <!-- Crossed bones: the X sits just under the jaw, ends peek out past the cheeks -->
-  <use xlink:href="#bone" href="#bone" transform="translate(256 352) rotate(32)"/>
-  <use xlink:href="#bone" href="#bone" transform="translate(256 352) rotate(-32)"/>
+  <g transform="translate(256 228) scale(0.82) translate(-256 -256)" stroke="#4a2f18" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+    <!-- crossed bones -->
+    <use xlink:href="#bone" href="#bone" transform="translate(256 392) rotate(36)"/>
+    <use xlink:href="#bone" href="#bone" transform="translate(256 392) rotate(-36)"/>
 
-  <!-- Skull, centred on the vertical axis above the crossing -->
-  <g fill="#f4efe2">
-    <circle cx="256" cy="178" r="106"/>
-    <rect x="206" y="246" width="100" height="76" rx="22"/>
-  </g>
+    <!-- skull -->
+    <path fill="#f7efdb" d="M256 78
+      C336 78 392 132 392 208
+      C392 232 384 250 370 262
+      C378 272 380 286 372 298
+      C362 306 348 306 340 300
+      L334 344
+      C334 366 318 380 296 384
+      L216 384
+      C194 380 178 366 178 344
+      L172 300
+      C164 306 150 306 140 298
+      C132 286 134 272 142 262
+      C128 250 120 232 120 208
+      C120 132 176 78 256 78 Z"/>
+    <!-- gum line and teeth -->
+    <path fill="none" d="M196 346 L316 346 M220 346 L220 382 M238 346 L238 382 M256 346 L256 382 M274 346 L274 382 M292 346 L292 382"/>
+    <!-- engraver's hatching under the cheekbones -->
+    <path fill="none" stroke-width="4" opacity="0.55" d="M152 280 L166 292 M158 268 L176 284 M360 280 L346 292 M354 268 L336 284"/>
+    <!-- eyes and nose -->
+    <g fill="#2b1a0c" stroke="none">
+      <ellipse cx="212" cy="234" rx="40" ry="46" transform="rotate(-14 212 234)"/>
+      <ellipse cx="300" cy="234" rx="40" ry="46" transform="rotate(14 300 234)"/>
+      <path d="M256 266 L238 306 Q256 316 274 306 Z"/>
+    </g>
 
-  <!-- Face, cut in the flag colour -->
-  <g fill="#141414">
-    <ellipse cx="218" cy="184" rx="32" ry="38" transform="rotate(-12 218 184)"/>
-    <ellipse cx="294" cy="184" rx="32" ry="38" transform="rotate(12 294 184)"/>
-    <path d="M256 216 L240 250 Q256 259 272 250 Z"/>
-  </g>
-  <g stroke="#141414" stroke-width="8" stroke-linecap="round">
-    <line x1="229" y1="282" x2="229" y2="314"/>
-    <line x1="247" y1="282" x2="247" y2="314"/>
-    <line x1="265" y1="282" x2="265" y2="314"/>
-    <line x1="283" y1="282" x2="283" y2="314"/>
+    <!-- slate bandana, ochre trim, knotted at the right temple -->
+    <path fill="#4b4a68" d="M120 208 C120 132 176 78 256 78 C336 78 392 132 392 208 C360 186 312 178 256 178 C200 178 152 186 120 208 Z"/>
+    <path fill="none" stroke="#d9a83e" stroke-width="5" d="M126 198 C158 180 206 172 256 172 C306 172 354 180 386 198"/>
+    <path fill="#4b4a68" d="M386 194 C420 176 452 184 476 168 C458 198 432 208 402 216 Z"/>
+    <path fill="#4b4a68" d="M390 206 C420 210 442 234 470 230 C444 246 416 244 396 226 Z"/>
+    <circle cx="391" cy="204" r="15" fill="#4b4a68"/>
+
+    <!-- gold hoop earring -->
+    <circle cx="116" cy="278" r="13" fill="none" stroke="#d9a83e" stroke-width="6"/>
   </g>
 </svg>
