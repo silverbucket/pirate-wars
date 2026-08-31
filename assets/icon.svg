@@ -28,15 +28,15 @@
       <stop offset="1" stop-color="#cfb27c"/>
     </linearGradient>
     <g id="femur">
-      <path fill="url(#shaft)" stroke="#4a2f18" stroke-width="7" stroke-linejoin="round" d="
+      <path fill="url(#shaft)" stroke="#4a2f18" stroke-width="5" stroke-linejoin="round" d="
         M-128 -14 C-80 -9 80 -9 128 -14
         C136 -30 158 -36 168 -22 C176 -8 164 4 152 2
         C166 8 172 28 156 34 C142 38 132 26 128 14
         C80 9 -80 9 -128 14
         C-134 28 -150 38 -162 32 C-174 24 -166 6 -152 2
         C-168 -2 -182 -20 -170 -34 C-158 -44 -136 -32 -128 -14 Z"/>
-      <path fill="none" stroke="#fbf5e6" stroke-width="3" stroke-linecap="round" opacity="0.9" d="M-112 -5 C-70 -1 70 -1 112 -5"/>
-      <path fill="none" stroke="#4a2f18" stroke-width="3" stroke-linecap="round" opacity="0.5" d="M-140 16 L-130 22 M146 12 L138 20"/>
+      <path fill="none" stroke="#fbf5e6" stroke-width="2.2" stroke-linecap="round" opacity="0.9" d="M-112 -5 C-70 -1 70 -1 112 -5"/>
+      <path fill="none" stroke="#4a2f18" stroke-width="2.2" stroke-linecap="round" opacity="0.5" d="M-140 16 L-130 22 M146 12 L138 20"/>
     </g>
     <path id="skull" d="M256 76 C320 76 372 110 384 168 C390 200 380 222 372 234 C380 244 384 262 378 278 C372 292 360 300 344 300 C336 312 330 326 324 340 L322 378 C322 400 300 416 256 416 C212 416 190 400 190 378 L188 340 C182 326 176 312 168 300 C152 300 140 292 134 278 C128 262 132 244 140 234 C132 222 122 200 128 168 C140 110 192 76 256 76 Z"/>
     <clipPath id="jaw"><use xlink:href="#skull" href="#skull"/></clipPath>
@@ -48,10 +48,10 @@
   <circle cx="256" cy="256" r="236" fill="none" stroke="#4b4a68" stroke-width="14"/>
   <circle cx="256" cy="256" r="225" fill="none" stroke="#c98f2a" stroke-width="3"/>
 
-  <g transform="translate(256 215) scale(0.8) translate(-256 -256)" stroke="#4a2f18" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
-    <!-- crossed femurs, mirrored about the axis: heads tucked behind the skull, condyles showing below -->
-    <use xlink:href="#femur" href="#femur" transform="translate(256 420) rotate(36)"/>
-    <use xlink:href="#femur" href="#femur" transform="translate(256 420) scale(-1 1) rotate(36)"/>
+  <g transform="translate(256 264.8) scale(0.876) translate(-256 -256)" stroke="#4a2f18" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <!-- crossed femurs, mirrored about the axis and crossing behind the skull's centre -->
+    <use xlink:href="#femur" href="#femur" transform="translate(256 246) rotate(40) scale(1.35)"/>
+    <use xlink:href="#femur" href="#femur" transform="translate(256 246) scale(-1 1) rotate(40) scale(1.35)"/>
 
     <!-- cranium, cheekbones, maxilla and mandible in one outline -->
     <use xlink:href="#skull" href="#skull" fill="url(#bone)"/>
