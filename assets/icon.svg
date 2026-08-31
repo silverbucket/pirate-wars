@@ -20,18 +20,23 @@
       <feColorMatrix values="0 0 0 0 0.35  0 0 0 0 0.25  0 0 0 0 0.12  0 0 0 0.22 0"/>
     </filter>
     <clipPath id="disc"><circle cx="256" cy="256" r="252"/></clipPath>
-    <!-- one bone, horizontal, centred on the origin: an outline pass under a fill pass so the ink hugs the union -->
-    <g id="crossbone">
-      <g stroke="#4a2f18" stroke-width="7" fill="#eddcb2">
-        <rect x="-140" y="-16" width="280" height="32" rx="16"/>
-        <circle cx="-140" cy="-20" r="23"/><circle cx="-140" cy="20" r="23"/>
-        <circle cx="140" cy="-20" r="23"/><circle cx="140" cy="20" r="23"/>
-      </g>
-      <g stroke="none" fill="#eddcb2">
-        <rect x="-140" y="-16" width="280" height="32" rx="16"/>
-        <circle cx="-140" cy="-20" r="23"/><circle cx="-140" cy="20" r="23"/>
-        <circle cx="140" cy="-20" r="23"/><circle cx="140" cy="20" r="23"/>
-      </g>
+    <!-- one femur, horizontal, centred on the origin: head and neck on the left, condyles on the right,
+         shaft pinched toward the middle. Shaded across the shaft so it reads as a cylinder. -->
+    <linearGradient id="shaft" gradientUnits="userSpaceOnUse" x1="0" y1="-36" x2="0" y2="36">
+      <stop offset="0" stop-color="#f6ecd3"/>
+      <stop offset="0.55" stop-color="#e9d8ad"/>
+      <stop offset="1" stop-color="#cfb27c"/>
+    </linearGradient>
+    <g id="femur">
+      <path fill="url(#shaft)" stroke="#4a2f18" stroke-width="7" stroke-linejoin="round" d="
+        M-128 -14 C-80 -9 80 -9 128 -14
+        C136 -30 158 -36 168 -22 C176 -8 164 4 152 2
+        C166 8 172 28 156 34 C142 38 132 26 128 14
+        C80 9 -80 9 -128 14
+        C-134 28 -150 38 -162 32 C-174 24 -166 6 -152 2
+        C-168 -2 -182 -20 -170 -34 C-158 -44 -136 -32 -128 -14 Z"/>
+      <path fill="none" stroke="#fbf5e6" stroke-width="3" stroke-linecap="round" opacity="0.9" d="M-112 -5 C-70 -1 70 -1 112 -5"/>
+      <path fill="none" stroke="#4a2f18" stroke-width="3" stroke-linecap="round" opacity="0.5" d="M-140 16 L-130 22 M146 12 L138 20"/>
     </g>
     <path id="skull" d="M256 76 C320 76 372 110 384 168 C390 200 380 222 372 234 C380 244 384 262 378 278 C372 292 360 300 344 300 C336 312 330 326 324 340 L322 378 C322 400 300 416 256 416 C212 416 190 400 190 378 L188 340 C182 326 176 312 168 300 C152 300 140 292 134 278 C128 262 132 244 140 234 C132 222 122 200 128 168 C140 110 192 76 256 76 Z"/>
     <clipPath id="jaw"><use xlink:href="#skull" href="#skull"/></clipPath>
@@ -44,9 +49,9 @@
   <circle cx="256" cy="256" r="225" fill="none" stroke="#c98f2a" stroke-width="3"/>
 
   <g transform="translate(256 232) scale(0.78) translate(-256 -256)" stroke="#4a2f18" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
-    <!-- crossed bones -->
-    <use xlink:href="#crossbone" href="#crossbone" transform="translate(256 420) rotate(36)"/>
-    <use xlink:href="#crossbone" href="#crossbone" transform="translate(256 420) rotate(-36)"/>
+    <!-- crossed femurs, mirrored about the axis: heads tucked behind the skull, condyles showing below -->
+    <use xlink:href="#femur" href="#femur" transform="translate(256 420) rotate(36)"/>
+    <use xlink:href="#femur" href="#femur" transform="translate(256 420) scale(-1 1) rotate(36)"/>
 
     <!-- cranium, cheekbones, maxilla and mandible in one outline -->
     <use xlink:href="#skull" href="#skull" fill="url(#bone)"/>
