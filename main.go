@@ -258,7 +258,6 @@ func main() {
 
 			gameState = initGameState(logger)
 			gameState.window = w
-			gameStateRef = gameState
 			mainContent := gameState.world.GetViewPort()
 			SidePanel = gameState.createSidePanel()
 			ActionMenu = gameState.createActionMenu()

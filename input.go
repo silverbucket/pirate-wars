@@ -21,7 +21,6 @@ import (
 
 var ExamineData = user_action.Examine()
 var Action = user_action.UserActionIdNone
-var gameStateRef *GameState
 
 const KeyCatAdmin = 0
 const KeyCatNav = 1
@@ -139,15 +138,15 @@ func (m *GameState) handleKeyPress(key *fyne.KeyEvent) {
 	}
 
 	if ViewType == world.ViewTypeMainMap {
-		m.processInput(key, sailingKeyMap)
+		m.processInput(key, sailingKeyMap())
 	} else if ViewType == world.ViewTypeMiniMap {
-		m.processInput(key, miniMapKeyMap)
+		m.processInput(key, miniMapKeyMap())
 	} else if ViewType == world.ViewTypeExamine {
-		m.processInput(key, examineKeyMap)
+		m.processInput(key, examineKeyMap())
 	} else if ViewType == world.ViewTypeDock {
-		m.processInput(key, dockKeyMap)
+		m.processInput(key, dockKeyMap())
 	} else if ViewType == world.ViewTypeHail {
-		m.processInput(key, hailKeyMap)
+		m.processInput(key, hailKeyMap())
 	}
 	m.syncMinimap()
 }
@@ -166,279 +165,275 @@ func keyQuit(m *GameState) {
 	os.Exit(0)
 }
 
-var miniMapKeyMap = KeyMap{
-	{
-		key:   []string{"M", "Enter"},
-		cat:   KeyCatAux,
-		label: "Exit minimap",
-		exec: func(m *GameState) {
-			ViewType = world.ViewTypeMainMap
+// The key maps are functions rather than package variables: a variable holding
+// handlers that reach the action bar, which reads the key maps back, is an
+// initialization cycle, and working around that meant routing handlers through a
+// global game state instead of the one they are called with.
+func miniMapKeyMap() KeyMap {
+	return KeyMap{
+		{
+			key:   []string{"M", "Enter"},
+			cat:   KeyCatAux,
+			label: "Exit minimap",
+			exec: func(m *GameState) {
+				ViewType = world.ViewTypeMainMap
+			},
 		},
-	},
-	{
-		key:   []string{"ctrl+q"},
-		cat:   KeyCatAdmin,
-		label: "Quit",
-		exec:  keyQuit,
-	},
-}
-
-// dockKeyHandler is assigned in init to break the package initialization cycle
-// between sailingKeyMap and the dock overlay, which rebuilds the action bar.
-var dockKeyHandler func()
-
-func init() {
-	dockKeyHandler = func() {
-		if gameStateRef != nil {
-			gameStateRef.tryOpenDock()
-		}
+		{
+			key:   []string{"ctrl+q"},
+			cat:   KeyCatAdmin,
+			label: "Quit",
+			exec:  keyQuit,
+		},
 	}
 }
 
-var sailingKeyMap = KeyMap{
-	{
-		key:        []string{"Enter", "O"},
-		label:      "Dock",
-		cat:        KeyCatAction,
-		barVisible: func(gs *GameState) bool { return gs.adjacentDockTown() != nil },
-		exec: func(m *GameState) {
-			if dockKeyHandler != nil {
-				dockKeyHandler()
-			}
+func sailingKeyMap() KeyMap {
+	return KeyMap{
+		{
+			key:        []string{"Enter", "O"},
+			label:      "Dock",
+			cat:        KeyCatAction,
+			barVisible: func(gs *GameState) bool { return gs.adjacentDockTown() != nil },
+			exec: func(m *GameState) {
+				m.tryOpenDock()
+			},
 		},
-	},
-	{
-		key:   []string{"1"},
-		label: "Full sail",
-		cat:   KeyCatAction,
-		exec: func(m *GameState) {
-			setPlayerSail(m, sailing.SailFull)
+		{
+			key:   []string{"1"},
+			label: "Full sail",
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				setPlayerSail(m, sailing.SailFull)
+			},
 		},
-	},
-	{
-		key:   []string{"2"},
-		label: "Half sail",
-		cat:   KeyCatAction,
-		exec: func(m *GameState) {
-			setPlayerSail(m, sailing.SailHalf)
+		{
+			key:   []string{"2"},
+			label: "Half sail",
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				setPlayerSail(m, sailing.SailHalf)
+			},
 		},
-	},
-	{
-		key:   []string{"3"},
-		label: "Furled",
-		cat:   KeyCatAction,
-		exec: func(m *GameState) {
-			setPlayerSail(m, sailing.SailFurled)
+		{
+			key:   []string{"3"},
+			label: "Furled",
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				setPlayerSail(m, sailing.SailFurled)
+			},
 		},
-	},
-	{
-		key:   []string{"V"},
-		label: "Cycle sail",
-		cat:   KeyCatAction,
-		exec: func(m *GameState) {
-			cyclePlayerSail(m)
+		{
+			key:   []string{"V"},
+			label: "Cycle sail",
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				cyclePlayerSail(m)
+			},
 		},
-	},
-	{
-		key:   []string{"X"},
-		label: "Examine",
-		cat:   KeyCatAction,
-		exec: func(m *GameState) {
-			Action = user_action.UserActionIdExamine
-			npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
-			towns := m.towns.GetVisible(m.player.GetPos())
-			ExamineData = user_action.Examine()
-			if len(npcs.GetList()) > 0 || len(towns) > 0 {
-				ViewType = world.ViewTypeExamine
-				npcs.ForEach(func(n npc.Npc) {
-					ExamineData.AddItem(&n)
-				})
-				for i := range towns {
-					ExamineData.AddItem(&towns[i])
+		{
+			key:   []string{"X"},
+			label: "Examine",
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				Action = user_action.UserActionIdExamine
+				npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
+				towns := m.towns.GetVisible(m.player.GetPos())
+				ExamineData = user_action.Examine()
+				if len(npcs.GetList()) > 0 || len(towns) > 0 {
+					ViewType = world.ViewTypeExamine
+					npcs.ForEach(func(n npc.Npc) {
+						ExamineData.AddItem(&n)
+					})
+					for i := range towns {
+						ExamineData.AddItem(&towns[i])
+					}
 				}
-			}
+			},
 		},
-	},
-	{
-		key:   []string{"M"},
-		label: "Minimap",
-		cat:   KeyCatAux,
-		exec: func(m *GameState) {
-			ViewType = world.ViewTypeMiniMap
+		{
+			key:   []string{"M"},
+			label: "Minimap",
+			cat:   KeyCatAux,
+			exec: func(m *GameState) {
+				ViewType = world.ViewTypeMiniMap
+			},
 		},
-	},
-	{
-		key:   []string{"Up", "K", "W"},
-		label: "Heading N",
-		cat:   KeyCatNav,
-		exec: func(m *GameState) {
-			setPlayerHeading(m, common.Coordinates{X: 0, Y: -1})
+		{
+			key:   []string{"Up", "K", "W"},
+			label: "Heading N",
+			cat:   KeyCatNav,
+			exec: func(m *GameState) {
+				setPlayerHeading(m, common.Coordinates{X: 0, Y: -1})
+			},
 		},
-	},
-	{
-		key:   []string{"Down", "J", "S"},
-		label: "Heading S",
-		cat:   KeyCatNav,
-		exec: func(m *GameState) {
-			setPlayerHeading(m, common.Coordinates{X: 0, Y: 1})
+		{
+			key:   []string{"Down", "J", "S"},
+			label: "Heading S",
+			cat:   KeyCatNav,
+			exec: func(m *GameState) {
+				setPlayerHeading(m, common.Coordinates{X: 0, Y: 1})
+			},
 		},
-	},
-	{
-		key:   []string{"Left", "H", "A"},
-		label: "Heading W",
-		cat:   KeyCatNav,
-		exec: func(m *GameState) {
-			setPlayerHeading(m, common.Coordinates{X: -1, Y: 0})
+		{
+			key:   []string{"Left", "H", "A"},
+			label: "Heading W",
+			cat:   KeyCatNav,
+			exec: func(m *GameState) {
+				setPlayerHeading(m, common.Coordinates{X: -1, Y: 0})
+			},
 		},
-	},
-	{
-		key:   []string{"Right", "L", "D"},
-		label: "Heading E",
-		cat:   KeyCatNav,
-		exec: func(m *GameState) {
-			setPlayerHeading(m, common.Coordinates{X: 1, Y: 0})
+		{
+			key:   []string{"Right", "L", "D"},
+			label: "Heading E",
+			cat:   KeyCatNav,
+			exec: func(m *GameState) {
+				setPlayerHeading(m, common.Coordinates{X: 1, Y: 0})
+			},
 		},
-	},
-	{
-		key:   []string{"Q", "Y"},
-		label: "Heading NW",
-		cat:   KeyCatNav,
-		exec: func(m *GameState) {
-			setPlayerHeading(m, common.Coordinates{X: -1, Y: -1})
+		{
+			key:   []string{"Q", "Y"},
+			label: "Heading NW",
+			cat:   KeyCatNav,
+			exec: func(m *GameState) {
+				setPlayerHeading(m, common.Coordinates{X: -1, Y: -1})
+			},
 		},
-	},
-	{
-		key:   []string{"E", "U"},
-		label: "Heading NE",
-		cat:   KeyCatNav,
-		exec: func(m *GameState) {
-			setPlayerHeading(m, common.Coordinates{X: 1, Y: -1})
+		{
+			key:   []string{"E", "U"},
+			label: "Heading NE",
+			cat:   KeyCatNav,
+			exec: func(m *GameState) {
+				setPlayerHeading(m, common.Coordinates{X: 1, Y: -1})
+			},
 		},
-	},
-	{
-		key:   []string{"Z", "B"},
-		label: "Heading SW",
-		cat:   KeyCatNav,
-		exec: func(m *GameState) {
-			setPlayerHeading(m, common.Coordinates{X: -1, Y: 1})
+		{
+			key:   []string{"Z", "B"},
+			label: "Heading SW",
+			cat:   KeyCatNav,
+			exec: func(m *GameState) {
+				setPlayerHeading(m, common.Coordinates{X: -1, Y: 1})
+			},
 		},
-	},
-	{
-		key:   []string{"C", "N"},
-		label: "Heading SE",
-		cat:   KeyCatNav,
-		exec: func(m *GameState) {
-			setPlayerHeading(m, common.Coordinates{X: 1, Y: 1})
+		{
+			key:   []string{"C", "N"},
+			label: "Heading SE",
+			cat:   KeyCatNav,
+			exec: func(m *GameState) {
+				setPlayerHeading(m, common.Coordinates{X: 1, Y: 1})
+			},
 		},
-	},
-	{
-		key:   []string{"?"},
-		label: "Help",
-		cat:   KeyCatAdmin,
-		exec: func(m *GameState) {
-			Action = user_action.UserActionIdHelp
+		{
+			key:   []string{"?"},
+			label: "Help",
+			cat:   KeyCatAdmin,
+			exec: func(m *GameState) {
+				Action = user_action.UserActionIdHelp
+			},
 		},
-	},
-	{
-		key:   []string{"ctrl+q"},
-		label: "Quit",
-		cat:   KeyCatAdmin,
-		exec:  keyQuit,
-	},
+		{
+			key:   []string{"ctrl+q"},
+			label: "Quit",
+			cat:   KeyCatAdmin,
+			exec:  keyQuit,
+		},
+	}
 }
 
-var hailKeyMap = KeyMap{
-	{
-		key:   []string{"Enter", "Escape", "X"},
-		label: "Dismiss",
-		cat:   KeyCatAction,
-		exec: func(m *GameState) {
-			if gameStateRef != nil {
-				gameStateRef.hailData = hail.Payload{}
+func hailKeyMap() KeyMap {
+	return KeyMap{
+		{
+			key:   []string{"Enter", "Escape", "X"},
+			label: "Dismiss",
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				m.hailData = hail.Payload{}
 				ViewType = world.ViewTypeMainMap
-				gameStateRef.hideOverlay()
-			}
+				m.hideOverlay()
+			},
 		},
-	},
-	{
-		key:   []string{"ctrl+q"},
-		label: "Quit",
-		cat:   KeyCatAdmin,
-		exec:  keyQuit,
-	},
+		{
+			key:   []string{"ctrl+q"},
+			label: "Quit",
+			cat:   KeyCatAdmin,
+			exec:  keyQuit,
+		},
+	}
 }
 
-var dockKeyMap = KeyMap{
-	{
-		key:   []string{"Escape"},
-		label: "Leave dock",
-		cat:   KeyCatAction,
-		exec: func(m *GameState) {
-			if gameStateRef != nil {
-				gameStateRef.dockTown = nil
-				gameStateRef.dockPage = dockPageMenu
-				gameStateRef.tavernRumor = ""
+func dockKeyMap() KeyMap {
+	return KeyMap{
+		{
+			key:   []string{"Escape"},
+			label: "Leave dock",
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				m.dockTown = nil
+				m.dockPage = dockPageMenu
+				m.tavernRumor = ""
 				ViewType = world.ViewTypeMainMap
-				gameStateRef.hideOverlay()
-			}
+				m.hideOverlay()
+			},
 		},
-	},
-	{
-		key:   []string{"ctrl+q"},
-		label: "Quit",
-		cat:   KeyCatAdmin,
-		exec:  keyQuit,
-	},
+		{
+			key:   []string{"ctrl+q"},
+			label: "Quit",
+			cat:   KeyCatAdmin,
+			exec:  keyQuit,
+		},
+	}
 }
 
-var examineKeyMap = KeyMap{
-	{
-		key:   []string{"X", "Enter"},
-		label: "Exit examine",
-		cat:   KeyCatAction,
-		exec: func(m *GameState) {
-			Action = user_action.UserActionIdNone
-			ViewType = world.ViewTypeMainMap
-			ExamineData = user_action.Examine()
+func examineKeyMap() KeyMap {
+	return KeyMap{
+		{
+			key:   []string{"X", "Enter"},
+			label: "Exit examine",
+			cat:   KeyCatAction,
+			exec: func(m *GameState) {
+				Action = user_action.UserActionIdNone
+				ViewType = world.ViewTypeMainMap
+				ExamineData = user_action.Examine()
+			},
 		},
-	},
-	{
-		key:   []string{"Left", "H", "A"},
-		label: "Examine left",
-		cat:   KeyCatAux,
-		exec: func(m *GameState) {
-			ExamineData.FocusLeft()
+		{
+			key:   []string{"Left", "H", "A"},
+			label: "Examine left",
+			cat:   KeyCatAux,
+			exec: func(m *GameState) {
+				ExamineData.FocusLeft()
+			},
 		},
-	},
-	{
-		key:   []string{"Right", "L", "D"},
-		label: "Examine right",
-		cat:   KeyCatAux,
-		exec: func(m *GameState) {
-			ExamineData.FocusRight()
+		{
+			key:   []string{"Right", "L", "D"},
+			label: "Examine right",
+			cat:   KeyCatAux,
+			exec: func(m *GameState) {
+				ExamineData.FocusRight()
+			},
 		},
-	},
-	{
-		key:   []string{"ctrl+q"},
-		label: "Quit",
-		cat:   KeyCatAdmin,
-		exec:  keyQuit,
-	},
+		{
+			key:   []string{"ctrl+q"},
+			label: "Quit",
+			cat:   KeyCatAdmin,
+			exec:  keyQuit,
+		},
+	}
 }
 
 // actionBarContext returns the bar title and the key map driving the current view.
 func actionBarContext() (string, KeyMap) {
 	switch ViewType {
 	case world.ViewTypeExamine:
-		return examineActionBarLabel(ExamineData.GetFocusedEntity()), examineKeyMap
+		return examineActionBarLabel(ExamineData.GetFocusedEntity()), examineKeyMap()
 	case world.ViewTypeMiniMap:
-		return "MiniMap", miniMapKeyMap
+		return "MiniMap", miniMapKeyMap()
 	case world.ViewTypeDock:
-		return "Dock", dockKeyMap
+		return "Dock", dockKeyMap()
 	case world.ViewTypeHail:
-		return "Hail", hailKeyMap
+		return "Hail", hailKeyMap()
 	case world.ViewTypeMainMap:
-		return "Sailing", sailingKeyMap
+		return "Sailing", sailingKeyMap()
 	}
 	return "", nil
 }

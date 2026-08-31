@@ -56,7 +56,7 @@ func (gs *GameState) dockMenuContent() fyne.CanvasObject {
 		gs.dockPage = dockPageShipwright
 		gs.refreshOverlay()
 	})
-	closeBtn := widget.NewButton(barLabelFor(dockKeyMap, "Leave dock"), func() {
+	closeBtn := widget.NewButton(barLabelFor(dockKeyMap(), "Leave dock"), func() {
 		gs.closeDock()
 	})
 	return container.NewVBox(title, merchant, tavern, shipwright, closeBtn)

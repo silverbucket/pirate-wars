@@ -49,7 +49,7 @@ func TestOpenDockFromAdjacentWater(t *testing.T) {
 
 func TestDockKeyMapped(t *testing.T) {
 	found := false
-	for _, item := range sailingKeyMap {
+	for _, item := range sailingKeyMap() {
 		for _, k := range item.key {
 			if k == "Enter" || k == "O" {
 				found = true

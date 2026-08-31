@@ -11,6 +11,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 	"go.uber.org/zap"
 )
@@ -123,10 +124,11 @@ func TestDockButtonHiddenWhenNotAdjacent(t *testing.T) {
 }
 
 func TestDockCommandLabelShowsBothKeys(t *testing.T) {
+	sailing := sailingKeyMap()
 	var dockItem *keyItem
-	for i := range sailingKeyMap {
-		if sailingKeyMap[i].label == "Dock" {
-			dockItem = &sailingKeyMap[i]
+	for i := range sailing {
+		if sailing[i].label == "Dock" {
+			dockItem = &sailing[i]
 		}
 	}
 	if dockItem == nil {
@@ -217,7 +219,7 @@ func TestOverlayActionBarLabels(t *testing.T) {
 // TestBarLabelListsEveryBinding covers commands bound to more than one key: the bar
 // must name them all rather than only the first.
 func TestBarLabelListsEveryBinding(t *testing.T) {
-	if got := barLabelFor(miniMapKeyMap, "Exit minimap"); got != "Exit minimap (M/Enter)" {
+	if got := barLabelFor(miniMapKeyMap(), "Exit minimap"); got != "Exit minimap (M/Enter)" {
 		t.Fatalf("exit minimap label = %q, want Exit minimap (M/Enter)", got)
 	}
 
@@ -285,27 +287,11 @@ func TestActionBarFitsActionMenuArea(t *testing.T) {
 func TestDockButtonAndKeyOnGeneratedWorld(t *testing.T) {
 	gs := initGameState(zap.NewNop().Sugar())
 
-	docked := false
-	for _, tw := range gs.towns.GetTowns() {
-		for _, tp := range tw.GetPositions() {
-			for _, adj := range gs.world.GetAdjacentCoords(tp) {
-				if gs.world.IsPassableByBoat(adj) {
-					gs.player.SetPos(adj)
-					docked = true
-					break
-				}
-			}
-			if docked {
-				break
-			}
-		}
-		if docked {
-			break
-		}
-	}
-	if !docked {
+	dockPos, ok := waterTileBesideTown(gs)
+	if !ok {
 		t.Skip("generated world has no water-adjacent town")
 	}
+	gs.player.SetPos(dockPos)
 
 	ViewType = world.ViewTypeMainMap
 	ActionMenu = nil
@@ -328,26 +314,73 @@ func TestDockButtonAndKeyOnGeneratedWorld(t *testing.T) {
 		t.Fatalf("action bar width %.0f exceeds area %d with dock button", w, window.ActionMenu.Width)
 	}
 
-	gameStateRef = gs
-	dockKeyHandler()
+	gs.window = test.NewWindow(nil)
+	gs.buildOverlayShell()
+	gs.handleKeyPress(&fyne.KeyEvent{Name: "Enter"})
 	if ViewType != world.ViewTypeDock {
 		t.Fatalf("dock key did not open the dock overlay, ViewType = %d", ViewType)
 	}
 	if gs.dockTown == nil {
-		t.Fatal("dock key did not set dockTown")
+		t.Fatal("dock key did not set dockTown on the game state it was called with")
 	}
+}
+
+// TestDockKeyUsesCallbackGameState checks the Enter/O handler acts on the GameState it
+// is invoked with rather than a package-level reference.
+func TestDockKeyUsesCallbackGameState(t *testing.T) {
+	gs := initGameState(zap.NewNop().Sugar())
+	gs.window = test.NewWindow(nil)
+	gs.buildOverlayShell()
+
+	dockPos, ok := waterTileBesideTown(gs)
+	if !ok {
+		t.Skip("generated world has no water-adjacent town")
+	}
+	gs.player.SetPos(dockPos)
+
+	other := mainMapGameState()
+	ViewType = world.ViewTypeMainMap
+	ActionMenu = nil
+
+	for _, key := range []string{"Enter", "O"} {
+		ViewType = world.ViewTypeMainMap
+		gs.dockTown = nil
+		other.dockTown = nil
+
+		gs.handleKeyPress(&fyne.KeyEvent{Name: fyne.KeyName(key)})
+
+		if gs.dockTown == nil {
+			t.Fatalf("%s did not dock the game state it was called with", key)
+		}
+		if other.dockTown != nil {
+			t.Fatalf("%s docked an unrelated game state", key)
+		}
+	}
+}
+
+func waterTileBesideTown(gs *GameState) (common.Coordinates, bool) {
+	for _, tw := range gs.towns.GetTowns() {
+		for _, tp := range tw.GetPositions() {
+			for _, adj := range gs.world.GetAdjacentCoords(tp) {
+				if gs.world.IsPassableByBoat(adj) {
+					return adj, true
+				}
+			}
+		}
+	}
+	return common.Coordinates{}, false
 }
 
 // TestOverlayButtonsMatchBarLabels keeps overlay buttons in sync with the key maps
 // so a key hint never drifts from its binding.
 func TestOverlayButtonsMatchBarLabels(t *testing.T) {
-	if got := barLabelFor(dockKeyMap, "Leave dock"); got != "Leave dock (Esc)" {
+	if got := barLabelFor(dockKeyMap(), "Leave dock"); got != "Leave dock (Esc)" {
 		t.Fatalf("dock overlay label = %q", got)
 	}
-	if got := barLabelFor(hailKeyMap, "Dismiss"); got != "Dismiss (Enter/Esc/X)" {
+	if got := barLabelFor(hailKeyMap(), "Dismiss"); got != "Dismiss (Enter/Esc/X)" {
 		t.Fatalf("hail overlay label = %q", got)
 	}
-	if got := barLabelFor(dockKeyMap, "Back"); got != "Back" {
+	if got := barLabelFor(dockKeyMap(), "Back"); got != "Back" {
 		t.Fatalf("unbound action should keep a plain label, got %q", got)
 	}
 }
