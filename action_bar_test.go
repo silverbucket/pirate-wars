@@ -194,7 +194,7 @@ func TestOverlayActionBarLabels(t *testing.T) {
 	}{
 		{world.ViewTypeDock, "Leave dock (Esc)"},
 		{world.ViewTypeHail, "Dismiss (Enter/Esc/X)"},
-		{world.ViewTypeMiniMap, "Exit minimap (M)"},
+		{world.ViewTypeMiniMap, "Exit minimap (M/Enter)"},
 	}
 	for _, c := range cases {
 		ViewType = c.view
@@ -211,6 +211,28 @@ func TestOverlayActionBarLabels(t *testing.T) {
 		if !found {
 			t.Fatalf("view %d: expected button %q, got %v", c.view, c.want, labels)
 		}
+	}
+}
+
+// TestBarLabelListsEveryBinding covers commands bound to more than one key: the bar
+// must name them all rather than only the first.
+func TestBarLabelListsEveryBinding(t *testing.T) {
+	if got := barLabelFor(miniMapKeyMap, "Exit minimap"); got != "Exit minimap (M/Enter)" {
+		t.Fatalf("exit minimap label = %q, want Exit minimap (M/Enter)", got)
+	}
+
+	ViewType = world.ViewTypeMiniMap
+	ActionMenu = nil
+	gs := mainMapGameState()
+
+	var label string
+	for _, l := range actionBarButtonLabels(gs.ActionItems()) {
+		if strings.HasPrefix(l, "Exit minimap") {
+			label = l
+		}
+	}
+	if !strings.Contains(label, "M") || !strings.Contains(label, "Enter") {
+		t.Fatalf("exit minimap button %q should show both M and Enter", label)
 	}
 }
 

@@ -34,9 +34,6 @@ type keyItem struct {
 	// label is the action name shown on the action bar; the bound key is appended
 	// automatically so the bar doubles as the key cheat-sheet.
 	label string
-	// keyHint overrides the displayed binding when more than the primary key is
-	// worth showing (e.g. "Enter/O" for dock).
-	keyHint string
 	// barVisible gates context-dependent commands such as dock.
 	barVisible func(gs *GameState) bool
 	exec       func(m *GameState)
@@ -69,16 +66,13 @@ func (k keyItem) keyList() string {
 	return strings.Join(shown, "/")
 }
 
-// barLabel is the action bar button text, e.g. "Full sail (1)".
+// barLabel is the action bar button text, e.g. "Full sail (1)". Every binding is
+// listed so no way of running the command is hidden from the player.
 func (k keyItem) barLabel() string {
-	hint := k.keyHint
-	if hint == "" && len(k.key) > 0 {
-		hint = keyDisplay(k.key[0])
-	}
-	if hint == "" {
+	if len(k.key) == 0 {
 		return k.label
 	}
-	return fmt.Sprintf("%s (%s)", k.label, hint)
+	return fmt.Sprintf("%s (%s)", k.label, k.keyList())
 }
 
 // isBarButton reports whether the command gets its own button. Heading and admin
@@ -205,7 +199,6 @@ var sailingKeyMap = KeyMap{
 	{
 		key:        []string{"Enter", "O"},
 		label:      "Dock",
-		keyHint:    "Enter/O",
 		cat:        KeyCatAction,
 		barVisible: func(gs *GameState) bool { return gs.adjacentDockTown() != nil },
 		exec: func(m *GameState) {
@@ -356,10 +349,9 @@ var sailingKeyMap = KeyMap{
 
 var hailKeyMap = KeyMap{
 	{
-		key:     []string{"Enter", "Escape", "X"},
-		label:   "Dismiss",
-		keyHint: "Enter/Esc/X",
-		cat:     KeyCatAction,
+		key:   []string{"Enter", "Escape", "X"},
+		label: "Dismiss",
+		cat:   KeyCatAction,
 		exec: func(m *GameState) {
 			if gameStateRef != nil {
 				gameStateRef.hailData = hail.Payload{}
@@ -401,10 +393,9 @@ var dockKeyMap = KeyMap{
 
 var examineKeyMap = KeyMap{
 	{
-		key:     []string{"X", "Enter"},
-		label:   "Exit examine",
-		keyHint: "X/Enter",
-		cat:     KeyCatAction,
+		key:   []string{"X", "Enter"},
+		label: "Exit examine",
+		cat:   KeyCatAction,
 		exec: func(m *GameState) {
 			Action = user_action.UserActionIdNone
 			ViewType = world.ViewTypeMainMap
@@ -412,19 +403,17 @@ var examineKeyMap = KeyMap{
 		},
 	},
 	{
-		key:     []string{"Left", "H", "A"},
-		label:   "Examine left",
-		keyHint: "←/H/A",
-		cat:     KeyCatAux,
+		key:   []string{"Left", "H", "A"},
+		label: "Examine left",
+		cat:   KeyCatAux,
 		exec: func(m *GameState) {
 			ExamineData.FocusLeft()
 		},
 	},
 	{
-		key:     []string{"Right", "L", "D"},
-		label:   "Examine right",
-		keyHint: "→/L/D",
-		cat:     KeyCatAux,
+		key:   []string{"Right", "L", "D"},
+		label: "Examine right",
+		cat:   KeyCatAux,
 		exec: func(m *GameState) {
 			ExamineData.FocusRight()
 		},
