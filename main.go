@@ -10,7 +10,6 @@ import (
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/gfx"
 	"pirate-wars/cmd/hail"
-	"pirate-wars/cmd/harbor"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/player"
 	"pirate-wars/cmd/sailing"
@@ -55,10 +54,6 @@ type GameState struct {
 	tavernRumor string
 	hailData    hail.Payload
 
-	harborRenderer *harbor.Renderer
-	harborWorld    *harbor.World
-	sailingWorld   *combinedWorld
-
 	buttons      []button
 	startedAt    time.Time
 	lastTickAt   time.Time
@@ -83,24 +78,7 @@ func initGameState(logger *zap.SugaredLogger) *GameState {
 	gs.world = world.Init(gs.logger)
 	gs.towns = town.Init(gs.world, gs.logger, economyCfg)
 	gs.npcs = npc.Init(gs.towns, gs.world, gs.logger, economyCfg)
-
-	// Harbor art is optional. Without the verified PNGs the harbor world stays
-	// nil and the game runs on the 32px tilemap.
-	if assets, err := harbor.LoadAssets(""); err == nil {
-		mask := harbor.NewMask(assets.Mask)
-		gs.harborWorld = harbor.NewWorld(mask)
-		gs.harborRenderer = harbor.NewRenderer(assets, mask)
-		gs.logger.Info("Harbor region loaded (painted backdrop + mask)")
-	} else {
-		gs.logger.Warnf("Harbor assets unavailable, using tilemap: %v", err)
-	}
-
-	gs.sailingWorld = newCombinedWorld(gs.world, gs.harborWorld)
-	if gs.harborWorld != nil {
-		gs.player = player.Create(gs.world, gs.harborWorld)
-	} else {
-		gs.player = player.Create(gs.world, nil)
-	}
+	gs.player = player.Create(gs.world)
 	gs.initialized = true
 	return &gs
 }
@@ -129,10 +107,6 @@ func (gs *GameState) visibleNPCs() []entities.AvatarReadOnly {
 		visible = append(visible, &list[i])
 	}
 	return visible
-}
-
-func (gs *GameState) inPaintedHarbor() bool {
-	return gs.harborRenderer != nil && harbor.InRegion(gs.player.GetPos())
 }
 
 // Update implements ebiten.Game.
@@ -167,11 +141,7 @@ func (gs *GameState) Draw(screen *ebiten.Image) {
 
 	viewport := screen.SubImage(viewportRect).(*ebiten.Image)
 	highlight := ExamineData.GetFocusedEntity()
-	if gs.inPaintedHarbor() {
-		gs.harborRenderer.Draw(viewport, gs.player, gs.visibleNPCs())
-	} else {
-		gs.world.Draw(viewport, gs.player, gs.visibleNPCs(), highlight, gs.wind.Facing)
-	}
+	gs.world.Draw(viewport, gs.player, gs.visibleNPCs(), highlight, gs.wind.Facing)
 
 	gs.drawSidePanel(screen, highlight)
 	gs.drawActionBar(screen)

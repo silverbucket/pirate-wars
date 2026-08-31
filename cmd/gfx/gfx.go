@@ -14,7 +14,7 @@ var textureCache = map[image.Image]*ebiten.Image{}
 
 // Texture returns the Ebiten texture for img, uploading it on first use.
 // Callers must pass cached (pointer-stable) images; the tile caches in
-// cmd/resources and cmd/harbor guarantee this.
+// cmd/resources guarantee this.
 func Texture(img image.Image) *ebiten.Image {
 	if img == nil {
 		return nil

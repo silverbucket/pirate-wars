@@ -6,7 +6,6 @@ import (
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/entities"
-	"pirate-wars/cmd/harbor"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/world"
 )
@@ -14,13 +13,6 @@ import (
 type testBoatWorld map[int]bool
 
 func (s testBoatWorld) IsPassableByBoat(pos common.Coordinates) bool {
-	return s[common.CoordToKey(pos)]
-}
-
-// testHarborDock reports a single cell as green parking water.
-type testHarborDock map[int]bool
-
-func (s testHarborDock) IsDock(pos common.Coordinates) bool {
 	return s[common.CoordToKey(pos)]
 }
 
@@ -42,7 +34,7 @@ func TestOpenDockFromAdjacentWater(t *testing.T) {
 	ViewType = world.ViewTypeMainMap
 	gs := testGameStateAt(waterPos, towns)
 
-	if !openDockIfAdjacent(gs, waterPos, bw, towns, nil) {
+	if !openDockIfAdjacent(gs, waterPos, bw, towns) {
 		t.Fatal("expected dock to open from adjacent water")
 	}
 	if ViewType != world.ViewTypeDock {
@@ -79,7 +71,7 @@ func TestCannotDockFromLand(t *testing.T) {
 	ViewType = world.ViewTypeMainMap
 	gs := testGameStateAt(landPos, towns)
 
-	if openDockIfAdjacent(gs, landPos, bw, towns, nil) {
+	if openDockIfAdjacent(gs, landPos, bw, towns) {
 		t.Fatal("should not open dock from land tile")
 	}
 	if ViewType != world.ViewTypeMainMap {
@@ -87,46 +79,5 @@ func TestCannotDockFromLand(t *testing.T) {
 	}
 	if gs.dockTown != nil {
 		t.Fatal("dockTown should remain nil on land")
-	}
-}
-
-// TestDockOnGreenParkingWater is the harbor rule: the ship docks when it is ON
-// green, with no adjacent town required.
-func TestDockOnGreenParkingWater(t *testing.T) {
-	cfg := economy.DefaultConfig()
-	greenPos := harbor.TownPos
-	towns := town.TestHarborTowns(town.NewTownForTest(greenPos, cfg))
-	bw := testBoatWorld{common.CoordToKey(greenPos): true}
-	green := testHarborDock{common.CoordToKey(greenPos): true}
-
-	ViewType = world.ViewTypeMainMap
-	gs := testGameStateAt(greenPos, towns)
-
-	if !openDockIfAdjacent(gs, greenPos, bw, towns, green) {
-		t.Fatal("expected dock to open on green parking water")
-	}
-	if gs.dockTown == nil {
-		t.Fatal("dockTown should be the harbor settlement")
-	}
-}
-
-// TestNoDockOnHarborBlueWater keeps adjacent-blue from opening the dock inside the
-// painted harbor: only green parking water docks.
-func TestNoDockOnHarborBlueWater(t *testing.T) {
-	cfg := economy.DefaultConfig()
-	greenPos := harbor.TownPos
-	bluePos := common.Coordinates{X: greenPos.X + 4, Y: greenPos.Y + 4}
-	towns := town.TestHarborTowns(town.NewTownForTest(greenPos, cfg))
-	bw := testBoatWorld{common.CoordToKey(bluePos): true}
-	green := testHarborDock{common.CoordToKey(greenPos): true}
-
-	ViewType = world.ViewTypeMainMap
-	gs := testGameStateAt(bluePos, towns)
-
-	if openDockIfAdjacent(gs, bluePos, bw, towns, green) {
-		t.Fatal("blue harbor water should not open the dock")
-	}
-	if gs.dockTown != nil {
-		t.Fatal("dockTown should remain nil on blue water")
 	}
 }

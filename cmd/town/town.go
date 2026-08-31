@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/economy"
-	"pirate-wars/cmd/harbor"
 	"pirate-wars/cmd/resources"
 	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
@@ -17,9 +16,8 @@ import (
 )
 
 type Towns struct {
-	logger     *zap.SugaredLogger
-	list       []Town
-	harborTown *Town
+	logger *zap.SugaredLogger
+	list   []Town
 }
 
 type Town struct {
@@ -33,8 +31,6 @@ type Town struct {
 	blink       bool
 	alternate   bool
 }
-
-var townList []Town
 
 func (t *Town) GetID() string {
 	return t.id
@@ -124,18 +120,29 @@ func (t *Town) MakeGhostTown(world *world.MapView) {
 }
 
 func (ts *Towns) CreateTown(c common.Coordinates, world *world.MapView, cfg economy.Config) Town {
+	var heatMap = make([][]HeatMapCost, common.WorldRows)
+
+	for i := range heatMap {
+		heatMap[i] = make([]HeatMapCost, common.WorldCols)
+		for j := range heatMap[i] {
+			heatMap[i][j] = -1
+		}
+	}
+
 	town := Town{
 		id:          common.GenID(c),
 		pos:         []common.Coordinates{c},
 		terrainType: common.TerrainTypeTown,
 		logger:      ts.logger,
 		color:       color.RGBA{189, 55, 31, 255},
-		HeatMap:     newHeatMap(),
-		market:      economy.NewTownMarket(cfg, rand.New(rand.NewSource(int64(c.X*1000+c.Y)))),
+		HeatMap: HeatMap{
+			grid: heatMap,
+		},
+		market: economy.NewTownMarket(cfg, rand.New(rand.NewSource(int64(c.X*1000+c.Y)))),
 	}
 
 	world.SetPositionType(c, common.TerrainTypeTown)
-	town.HeatMap.SetCost(c, 0)
+	heatMap[c.X][c.Y] = 0
 
 	// grow towns
 	for _, a := range world.GetAdjacentCoords(c) {
@@ -152,6 +159,9 @@ func (ts *Towns) CreateTown(c common.Coordinates, world *world.MapView, cfg econ
 
 func (ts *Towns) initializeTowns(fn func() common.Coordinates, world *world.MapView, cfg economy.Config) []Town {
 	ts.logger.Info(fmt.Sprintf("Initializing %v towns", common.TotalTowns))
+	// Local to this call: a package-level accumulator carried towns over from any
+	// previous Init, so a second world started with the first world's towns.
+	townList := []Town{}
 	for i := 0; i < common.TotalTowns; i++ {
 		for {
 			c := fn()
@@ -180,43 +190,9 @@ func Init(world *world.MapView, logger *zap.SugaredLogger, cfg economy.Config) *
 		logger: logger,
 		list:   []Town{},
 	}
-	// The harbor settlement is claimed before procedural towns so none land on it.
-	harborTown := ts.createHarborSettlement(world, cfg)
 	ts.list = ts.initializeTowns(common.RandomPosition, world, cfg)
-	if harborTown != nil {
-		ts.list = append([]Town{*harborTown}, ts.list...)
-		// Point at the entry in list so docking and NPC trade share one market.
-		ts.harborTown = &ts.list[0]
-	}
-	ts.logger.Info(fmt.Sprintf("Created %v towns (incl. harbor settlement)", len(ts.list)))
+	ts.logger.Info(fmt.Sprintf("Created %v towns", len(ts.list)))
 	return &ts
-}
-
-func (ts *Towns) createHarborSettlement(world *world.MapView, cfg economy.Config) *Town {
-	pos := harbor.TownPos
-	t := Town{
-		id:          "harbor",
-		pos:         []common.Coordinates{pos},
-		terrainType: common.TerrainTypeShallowWater,
-		logger:      ts.logger,
-		color:       color.RGBA{189, 55, 31, 255},
-		HeatMap:     newHeatMap(),
-		market:      economy.NewTownMarket(cfg, rand.New(rand.NewSource(42))),
-	}
-	world.SetPositionType(pos, common.TerrainTypeShallowWater)
-	t.HeatMap.SetCost(pos, 0)
-	// NPCs may route to the harbor, so it needs a real cost field like any town.
-	t.generateHeatMap(world)
-	ts.logger.Info(fmt.Sprintf("[harbor] Settlement at %v", pos))
-	return &t
-}
-
-// HarborSettlement returns the painted harbor town, if initialized.
-func (ts *Towns) HarborSettlement() *Town {
-	if ts == nil {
-		return nil
-	}
-	return ts.harborTown
 }
 
 func (ts *Towns) GetByID(id string) *Town {
@@ -260,7 +236,6 @@ func NewTownForTest(pos common.Coordinates, cfg economy.Config) Town {
 		pos:         []common.Coordinates{pos},
 		terrainType: common.TerrainTypeTown,
 		color:       color.RGBA{189, 55, 31, 255},
-		HeatMap:     newHeatMap(),
 		market:      economy.NewTownMarket(cfg, rand.New(rand.NewSource(int64(pos.X*1000+pos.Y)))),
 	}
 }
@@ -268,13 +243,6 @@ func NewTownForTest(pos common.Coordinates, cfg economy.Config) Town {
 // TestTownsWith returns a Towns collection for unit tests.
 func TestTownsWith(towns ...Town) *Towns {
 	return &Towns{list: towns}
-}
-
-// TestHarborTowns returns a Towns collection with a harbor settlement for dock tests.
-func TestHarborTowns(t Town) *Towns {
-	ts := &Towns{list: []Town{t}}
-	ts.harborTown = &ts.list[0]
-	return ts
 }
 
 func (ts *Towns) GetVisible(playerPos common.Coordinates) []Town {

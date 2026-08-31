@@ -26,10 +26,10 @@ func TestCanDockDelegatesToAdjacentTown(t *testing.T) {
 	}
 	towns := town.TestTownsWith(town.NewTownForTest(townPos, cfg))
 
-	if CanDock(landPos, world, towns, nil) {
+	if CanDock(landPos, world, towns) {
 		t.Fatal("should not dock from land")
 	}
-	if !CanDock(waterPos, world, towns, nil) {
+	if !CanDock(waterPos, world, towns) {
 		t.Fatal("should dock from adjacent water")
 	}
 }

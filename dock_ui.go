@@ -129,23 +129,13 @@ func (gs *GameState) openTavern() {
 	gs.dockPage = dockPageTavern
 }
 
-// adjacentDockTown returns the dockable town for the player's cell, tolerating a
+// adjacentDockTown returns the dockable town next to the player, tolerating a
 // partially built game state (no player or world yet).
-//
-// Inside the painted harbor this is the settlement when the ship sits ON green
-// parking water; on the 32px tilemap it is a town adjacent to the ship's water
-// tile.
 func (gs *GameState) adjacentDockTown() *town.Town {
-	if gs == nil || gs.player == nil {
+	if gs == nil || gs.player == nil || gs.world == nil {
 		return nil
 	}
-	if gs.sailingWorld != nil {
-		return dock.AdjacentTown(gs.player.GetPos(), gs.sailingWorld, gs.towns, gs.sailingWorld)
-	}
-	if gs.world == nil {
-		return nil
-	}
-	return dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns, nil)
+	return dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns)
 }
 
 func (gs *GameState) enterDock(t *town.Town) {
@@ -170,11 +160,11 @@ func (gs *GameState) tryOpenDock() bool {
 // callers that are not the player's own state.
 func openDockIfAdjacent(gs *GameState, pos common.Coordinates, bw interface {
 	IsPassableByBoat(common.Coordinates) bool
-}, towns *town.Towns, harborDock dock.HarborDock) bool {
+}, towns *town.Towns) bool {
 	if ViewType != world.ViewTypeMainMap {
 		return false
 	}
-	t := dock.AdjacentTown(pos, bw, towns, harborDock)
+	t := dock.AdjacentTown(pos, bw, towns)
 	if t == nil {
 		return false
 	}
