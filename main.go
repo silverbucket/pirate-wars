@@ -52,6 +52,8 @@ type GameState struct {
 	hailData       hail.Payload
 	overlayRoot    *fyne.Container
 	overlayPanel   *fyne.Container
+	actionBarSig   string
+	actionBarItems *fyne.Container
 }
 
 func initGameState(logger *zap.SugaredLogger) *GameState {
@@ -113,12 +115,57 @@ func (gs *GameState) updateDebugOverlay() {
 	gs.debugOverlay.Refresh()
 }
 
+func (gs *GameState) actionBarSignature() string {
+	switch ViewType {
+	case world.ViewTypeMainMap:
+		if t := gs.adjacentDockTown(); t != nil {
+			return fmt.Sprintf("main:%s", t.GetID())
+		}
+		return "main:"
+	case world.ViewTypeExamine:
+		return fmt.Sprintf("examine:%s", ExamineData.GetFocusedEntity().GetID())
+	case world.ViewTypeMiniMap:
+		return "minimap"
+	case world.ViewTypeDock:
+		return "dock"
+	case world.ViewTypeHail:
+		return "hail"
+	default:
+		return fmt.Sprintf("view:%d", ViewType)
+	}
+}
+
+// updateActionBarIfNeeded rebuilds the action bar widgets only when the set of
+// available commands changes, so buttons survive between ticks and stay clickable.
+// The widgets are built even before ActionMenu exists, since createActionMenu
+// needs them to assemble the container.
+func (gs *GameState) updateActionBarIfNeeded() {
+	sig := gs.actionBarSignature()
+	if sig != gs.actionBarSig || gs.actionBarItems == nil {
+		gs.actionBarSig = sig
+		gs.actionBarItems = gs.ActionItems()
+		if ActionMenu != nil {
+			ActionMenu.Objects[1] = gs.actionBarItems
+		}
+		return
+	}
+	if ActionMenu != nil && ActionMenu.Objects[1] != gs.actionBarItems {
+		ActionMenu.Objects[1] = gs.actionBarItems
+	}
+}
+
 func (gs *GameState) updatePanels(examine entities.ViewableEntity) {
-	SidePanel.Objects[1] = gs.sidePanelContent(examine)
-	ActionMenu.Objects[1] = gs.ActionItems()
+	if SidePanel != nil {
+		SidePanel.Objects[1] = gs.sidePanelContent(examine)
+	}
+	gs.updateActionBarIfNeeded()
 	fyne.Do(func() {
-		ActionMenu.Refresh()
-		SidePanel.Refresh()
+		if ActionMenu != nil {
+			ActionMenu.Refresh()
+		}
+		if SidePanel != nil {
+			SidePanel.Refresh()
+		}
 	})
 }
 
@@ -139,12 +186,13 @@ func (gs *GameState) createSidePanel() *fyne.Container {
 }
 
 func (gs *GameState) createActionMenu() *fyne.Container {
-	// action menu
-	actionMenu := gs.ActionItems()
+	gs.actionBarSig = ""
+	gs.actionBarItems = nil
+	gs.updateActionBarIfNeeded()
 	viewportBg := canvas.NewRectangle(color.Black)
 
-	actionMenu.Resize(fyne.NewSize(float32(window.ActionMenu.Width), float32(window.ActionMenu.Height)))
-	return container.NewStack(viewportBg, actionMenu)
+	gs.actionBarItems.Resize(fyne.NewSize(float32(window.ActionMenu.Width), float32(window.ActionMenu.Height)))
+	return container.NewStack(viewportBg, gs.actionBarItems)
 }
 
 func (m *GameState) processTick() {
@@ -210,7 +258,6 @@ func main() {
 
 			gameState = initGameState(logger)
 			gameState.window = w
-			gameStateRef = gameState
 			mainContent := gameState.world.GetViewPort()
 			SidePanel = gameState.createSidePanel()
 			ActionMenu = gameState.createActionMenu()

@@ -61,7 +61,7 @@ func (gs *GameState) currentOverlayContent() fyne.CanvasObject {
 func (gs *GameState) hailOverlayContent() fyne.CanvasObject {
 	text := widget.NewLabel(gs.hailData.Text())
 	text.Wrapping = fyne.TextWrapWord
-	closeBtn := widget.NewButton("Dismiss", func() {
+	closeBtn := widget.NewButton(barLabelFor(hailKeyMap(), "Dismiss"), func() {
 		gs.closeHail()
 	})
 	return container.NewVBox(widget.NewLabel("Hail"), text, closeBtn)
