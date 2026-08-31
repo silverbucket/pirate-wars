@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/dock"
 	"pirate-wars/cmd/economy"
@@ -9,10 +10,6 @@ import (
 	"pirate-wars/cmd/tavern"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/world"
-
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 )
 
 type dockPage int
@@ -24,112 +21,102 @@ const (
 	dockPageShipwright
 )
 
-func (gs *GameState) dockOverlayContent() fyne.CanvasObject {
+// dockOverlayScreen routes to the current page of the dock.
+func (gs *GameState) dockOverlayScreen() overlayScreen {
 	if gs.dockTown == nil {
-		return widget.NewLabel("No town nearby.")
+		return overlayScreen{
+			title: "Dock",
+			rows: []overlayRow{
+				{text: "No town nearby.", dim: true},
+				{buttons: []overlayAction{{label: barLabelFor(dockKeyMap(), "Leave dock"), do: gs.closeDock}}},
+			},
+		}
 	}
 	switch gs.dockPage {
 	case dockPageMerchant:
-		return gs.dockMerchantContent(gs.dockTown)
+		return gs.dockMerchantScreen(gs.dockTown)
 	case dockPageTavern:
-		return gs.dockTavernContent()
+		return gs.dockTavernScreen()
 	case dockPageShipwright:
-		return gs.dockShipwrightContent()
+		return gs.dockShipwrightScreen()
 	default:
-		return gs.dockMenuContent()
+		return gs.dockMenuScreen()
 	}
 }
 
-func (gs *GameState) dockMenuContent() fyne.CanvasObject {
-	title := widget.NewLabel(fmt.Sprintf("Dock — %s", gs.dockTown.GetName()))
-	title.TextStyle = fyne.TextStyle{Bold: true}
-	merchant := widget.NewButton("Merchant", func() {
-		gs.dockPage = dockPageMerchant
-		gs.refreshOverlay()
-	})
-	tavern := widget.NewButton("Tavern", func() {
-		gs.tavernRumor = tavern.PickRumor(gs.economyCfg, gs.npcs, gs.towns, int(gs.clock.CurrentTick()))
-		gs.dockPage = dockPageTavern
-		gs.refreshOverlay()
-	})
-	shipwright := widget.NewButton("Shipwright", func() {
-		gs.dockPage = dockPageShipwright
-		gs.refreshOverlay()
-	})
-	closeBtn := widget.NewButton(barLabelFor(dockKeyMap(), "Leave dock"), func() {
-		gs.closeDock()
-	})
-	return container.NewVBox(title, merchant, tavern, shipwright, closeBtn)
+// dockMenuScreen is the dock landing page.
+func (gs *GameState) dockMenuScreen() overlayScreen {
+	return overlayScreen{
+		title: fmt.Sprintf("Dock - %s", gs.dockTown.GetName()),
+		rows: []overlayRow{
+			{buttons: []overlayAction{{label: "Merchant", do: func() { gs.openDockPage(dockPageMerchant) }}}},
+			{buttons: []overlayAction{{label: "Tavern", do: gs.openTavern}}},
+			{buttons: []overlayAction{{label: "Shipwright", do: func() { gs.openDockPage(dockPageShipwright) }}}},
+			{buttons: []overlayAction{{label: barLabelFor(dockKeyMap(), "Leave dock"), do: gs.closeDock}}},
+		},
+	}
 }
 
-func (gs *GameState) dockMerchantContent(t *town.Town) fyne.CanvasObject {
+// dockMerchantScreen lists the town market with a buy and sell button per good.
+func (gs *GameState) dockMerchantScreen(t *town.Town) overlayScreen {
 	market := t.Market()
-	lines := []fyne.CanvasObject{
-		widget.NewLabel(fmt.Sprintf("Merchant — %s", t.GetName())),
-		widget.NewLabel(fmt.Sprintf("Your gold: %d  Cargo: %d/%d", gs.hold.Gold, gs.hold.Cargo.Total(), gs.hold.Cargo.Capacity())),
+	rows := []overlayRow{
+		{
+			text: fmt.Sprintf("Gold: %d   Cargo: %d/%d",
+				gs.hold.Gold, gs.hold.Cargo.Total(), gs.hold.Cargo.Capacity()),
+			dim: true,
+		},
 	}
 	for _, g := range economy.AllGoods {
 		good := g
-		buyPrice := market.BuyPrice(good)
-		sellPrice := market.SellPrice(good, gs.economyCfg)
-		lines = append(lines, widget.NewLabel(fmt.Sprintf(
-			"%s — stock %d  buy %d / sell %d gold",
-			good.Label(), market.Stock(good), buyPrice, sellPrice,
-		)))
-		buy := widget.NewButton(fmt.Sprintf("Buy 1 %s", good.Label()), func() {
-			economy.BuyFromTown(market, &gs.hold.Cargo, &gs.hold.Gold, gs.economyCfg, good, 1)
-			gs.refreshOverlay()
+		rows = append(rows, overlayRow{
+			text: fmt.Sprintf("%-10s stock %3d  buy %4d  sell %4d",
+				good.Label(), market.Stock(good), market.BuyPrice(good), market.SellPrice(good, gs.economyCfg)),
+			buttons: []overlayAction{
+				{label: "Buy", do: func() {
+					economy.BuyFromTown(market, &gs.hold.Cargo, &gs.hold.Gold, gs.economyCfg, good, 1)
+				}},
+				{label: "Sell", do: func() {
+					economy.SellToTown(market, &gs.hold.Cargo, &gs.hold.Gold, gs.economyCfg, good, 1)
+				}},
+			},
 		})
-		sell := widget.NewButton(fmt.Sprintf("Sell 1 %s", good.Label()), func() {
-			economy.SellToTown(market, &gs.hold.Cargo, &gs.hold.Gold, gs.economyCfg, good, 1)
-			gs.refreshOverlay()
-		})
-		lines = append(lines, container.NewHBox(buy, sell))
 	}
-	back := widget.NewButton("Back", func() {
-		gs.dockPage = dockPageMenu
-		gs.refreshOverlay()
-	})
-	lines = append(lines, back)
-	return container.NewVBox(lines...)
+	rows = append(rows, overlayRow{buttons: []overlayAction{{label: "Back", do: func() { gs.openDockPage(dockPageMenu) }}}})
+	return overlayScreen{title: fmt.Sprintf("Merchant - %s", t.GetName()), rows: rows}
 }
 
-func (gs *GameState) dockTavernContent() fyne.CanvasObject {
+// dockTavernScreen shows the rumour picked up on entering the tavern.
+func (gs *GameState) dockTavernScreen() overlayScreen {
 	rumor := gs.tavernRumor
 	if rumor == "" {
 		rumor = "The tavern has no fresh leads."
 	}
-	back := widget.NewButton("Back", func() {
-		gs.dockPage = dockPageMenu
-		gs.refreshOverlay()
-	})
-	return container.NewVBox(
-		widget.NewLabel("Tavern"),
-		widget.NewLabel(rumor),
-		back,
-	)
+	rows := []overlayRow{}
+	for _, line := range wrapText(rumor, 68) {
+		rows = append(rows, overlayRow{text: line})
+	}
+	rows = append(rows, overlayRow{buttons: []overlayAction{{label: "Back", do: func() { gs.openDockPage(dockPageMenu) }}}})
+	return overlayScreen{title: "Tavern", rows: rows}
 }
 
-func (gs *GameState) dockShipwrightContent() fyne.CanvasObject {
-	status := fmt.Sprintf("Fine sails — %d gold (+%.2f hull speed, once)",
+// dockShipwrightScreen offers the one-time hull speed refit.
+func (gs *GameState) dockShipwrightScreen() overlayScreen {
+	status := fmt.Sprintf("Fine sails - %d gold (+%.2f hull speed, once)",
 		gs.economyCfg.SailUpgradeCost, gs.economyCfg.SailUpgradeHullBonus)
+	rows := []overlayRow{{text: status}}
 	if gs.hold.FineSailsPurchased {
-		status = "Fine sails already fitted."
+		rows = []overlayRow{{text: "Fine sails already fitted.", dim: true}}
+	} else if gs.hold.Gold < gs.economyCfg.SailUpgradeCost {
+		rows = append(rows, overlayRow{text: "Not enough gold.", dim: true})
+	} else {
+		rows = append(rows, overlayRow{buttons: []overlayAction{{label: "Buy fine sails", do: gs.buyFineSails}}})
 	}
-	buy := widget.NewButton("Buy fine sails", func() {
-		gs.buyFineSails()
-		gs.refreshOverlay()
-	})
-	if gs.hold.FineSailsPurchased || gs.hold.Gold < gs.economyCfg.SailUpgradeCost {
-		buy.Disable()
-	}
-	back := widget.NewButton("Back", func() {
-		gs.dockPage = dockPageMenu
-		gs.refreshOverlay()
-	})
-	return container.NewVBox(widget.NewLabel("Shipwright"), widget.NewLabel(status), buy, back)
+	rows = append(rows, overlayRow{buttons: []overlayAction{{label: "Back", do: func() { gs.openDockPage(dockPageMenu) }}}})
+	return overlayScreen{title: "Shipwright", rows: rows}
 }
 
+// buyFineSails applies the shipwright refit if it is affordable and unfitted.
 func (gs *GameState) buyFineSails() {
 	if gs.hold.FineSailsPurchased || gs.hold.Gold < gs.economyCfg.SailUpgradeCost {
 		return
@@ -139,21 +126,40 @@ func (gs *GameState) buyFineSails() {
 	gs.sailingCfg.HullSpeed += gs.economyCfg.SailUpgradeHullBonus
 }
 
+// openDockPage switches which dock page is showing.
+func (gs *GameState) openDockPage(p dockPage) {
+	gs.dockPage = p
+}
+
+// openTavern picks a fresh rumour and shows the tavern page.
+func (gs *GameState) openTavern() {
+	gs.tavernRumor = tavern.PickRumor(gs.economyCfg, gs.npcs, gs.towns, int(gs.clock.CurrentTick()))
+	gs.dockPage = dockPageTavern
+}
+
 // adjacentDockTown returns the dockable town next to the player, tolerating a
 // partially built game state (no player or world yet).
 func (gs *GameState) adjacentDockTown() *town.Town {
-	if gs == nil || gs.player == nil || gs.world == nil {
+	if gs == nil || gs.player == nil {
+		return nil
+	}
+	if gs.forceDockable {
+		return &town.Town{}
+	}
+	if gs.world == nil {
 		return nil
 	}
 	return dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns)
 }
 
+// enterDock opens the dock overlay for a town.
 func (gs *GameState) enterDock(t *town.Town) {
 	gs.dockTown = t
 	gs.dockPage = dockPageMenu
 	ViewType = world.ViewTypeDock
 }
 
+// tryOpenDock docks at the adjacent town, reporting whether it found one.
 func (gs *GameState) tryOpenDock() bool {
 	if ViewType != world.ViewTypeMainMap {
 		return false
@@ -166,7 +172,11 @@ func (gs *GameState) tryOpenDock() bool {
 	return true
 }
 
-func openDockIfAdjacent(gs *GameState, pos common.Coordinates, bw interface{ IsPassableByBoat(common.Coordinates) bool }, towns *town.Towns) bool {
+// openDockIfAdjacent docks from an explicit position and world, for tests and for
+// callers that are not the player's own state.
+func openDockIfAdjacent(gs *GameState, pos common.Coordinates, bw interface {
+	IsPassableByBoat(common.Coordinates) bool
+}, towns *town.Towns) bool {
 	if ViewType != world.ViewTypeMainMap {
 		return false
 	}
@@ -178,31 +188,27 @@ func openDockIfAdjacent(gs *GameState, pos common.Coordinates, bw interface{ IsP
 	return true
 }
 
+// openDock enters the dock for an already-resolved town.
 func (gs *GameState) openDock(t *town.Town) {
 	gs.enterDock(t)
-	gs.showOverlay()
-	gs.updatePanels(gs.currentExamineEntity())
 }
 
+// closeDock leaves the dock and clears its per-visit state.
 func (gs *GameState) closeDock() {
 	gs.dockTown = nil
 	gs.dockPage = dockPageMenu
 	gs.tavernRumor = ""
 	ViewType = world.ViewTypeMainMap
-	gs.hideOverlay()
-	gs.updatePanels(gs.currentExamineEntity())
 }
 
+// openHail shows a hail payload over the map.
 func (gs *GameState) openHail(payload hail.Payload) {
 	gs.hailData = payload
 	ViewType = world.ViewTypeHail
-	gs.showOverlay()
-	gs.updatePanels(gs.currentExamineEntity())
 }
 
+// closeHail dismisses the hail and returns to sailing.
 func (gs *GameState) closeHail() {
 	gs.hailData = hail.Payload{}
 	ViewType = world.ViewTypeMainMap
-	gs.hideOverlay()
-	gs.updatePanels(gs.currentExamineEntity())
 }

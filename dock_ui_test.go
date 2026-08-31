@@ -8,8 +8,6 @@ import (
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/world"
-
-	"fyne.io/fyne/v2/container"
 )
 
 type testBoatWorld map[int]bool
@@ -81,32 +79,5 @@ func TestCannotDockFromLand(t *testing.T) {
 	}
 	if gs.dockTown != nil {
 		t.Fatal("dockTown should remain nil on land")
-	}
-}
-
-func TestActionBarSignatureStableAcrossTicks(t *testing.T) {
-	ViewType = world.ViewTypeDock
-	gs := &GameState{}
-
-	sig := gs.actionBarSignature()
-	for i := 0; i < 10; i++ {
-		if got := gs.actionBarSignature(); got != sig {
-			t.Fatalf("tick %d: signature changed %q -> %q without state change", i, sig, got)
-		}
-	}
-}
-
-func TestActionBarNotRebuiltWhenSignatureUnchanged(t *testing.T) {
-	ViewType = world.ViewTypeDock
-	gs := &GameState{
-		actionBarSig:   "dock",
-		actionBarItems: container.NewHBox(),
-	}
-	ActionMenu = container.NewStack(container.NewHBox(), gs.actionBarItems)
-	first := gs.actionBarItems
-
-	gs.updateActionBarIfNeeded()
-	if gs.actionBarItems != first {
-		t.Fatal("action bar widget should be reused when signature is unchanged")
 	}
 }

@@ -67,6 +67,17 @@ func RotateFacing(f Facing, delta int) Facing {
 	return Facing(n)
 }
 
+// TackStarboard turns the ship one octant to starboard, clockwise around the
+// compass: N → NE → E → SE → S → SW → W → NW → N.
+func TackStarboard(f Facing) Facing {
+	return RotateFacing(f, 1)
+}
+
+// TackPort turns the ship one octant to port, anticlockwise: N → NW → W → SW → S.
+func TackPort(f Facing) Facing {
+	return RotateFacing(f, -1)
+}
+
 // OppositeFacing returns the 180° opposite direction.
 func OppositeFacing(f Facing) Facing {
 	return RotateFacing(f, 4)

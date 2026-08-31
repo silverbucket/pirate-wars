@@ -7,14 +7,8 @@ import (
 	"math/rand"
 	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/entities"
-	"pirate-wars/cmd/resources"
 	"pirate-wars/cmd/terrain"
-	"pirate-wars/cmd/window"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 	"github.com/ojrac/opensimplex-go"
 	"go.uber.org/zap"
 )
@@ -28,7 +22,11 @@ const ViewTypeExamine = 3
 const ViewTypeDock = 4
 const ViewTypeHail = 5
 
-var minimapPopup *widget.PopUp
+// ViewTypeHelp is the controls and sailing-model screen behind "?".
+const ViewTypeHelp = 6
+
+// ViewTypeQuitConfirm guards Ctrl+Q, which otherwise ends the voyage instantly.
+const ViewTypeQuitConfirm = 7
 
 type Props struct {
 	scale       float64
@@ -47,7 +45,6 @@ var WorldProps = Props{
 type MapView struct {
 	logger       *zap.SugaredLogger
 	terrain      *terrain.Terrain
-	viewPort     *fyne.Container
 	minimap      *image.RGBA
 	overlayItems []OverlayItems
 }
@@ -148,164 +145,11 @@ func (world *MapView) RandomPositionDeepWater() common.Coordinates {
 		}
 	}
 }
-func (world *MapView) GetViewPort() *fyne.Container {
-	return world.viewPort
-}
-
-func (world *MapView) generateViewPort() {
-	// initialize viewport cells
-	for x := 0; x < window.ViewPort.Region.Cols; x++ {
-		for y := 0; y < window.ViewPort.Region.Rows; y++ {
-			cell := container.NewStack(
-				canvas.NewImageFromImage(image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))),
-				canvas.NewImageFromImage(image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))),
-				canvas.NewImageFromImage(image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))),
-			)
-			cell.Resize(fyne.NewSize(float32(window.CellSize), float32(window.CellSize)))
-			cell.Move(fyne.NewPos(float32(x*window.CellSize), float32(y*window.CellSize)))
-			world.viewPort.Add(cell)
-		}
-	}
-}
-
-func (world *MapView) Paint(avatar entities.AvatarReadOnly, npcs []entities.AvatarReadOnly, highlight entities.ViewableEntity, windFacing common.Facing) {
-	p := avatar.GetPos()
-	h := highlight.GetPos()
-	vpr := window.GetViewportRegion(p)
-
-	// Create overlay map
-	overlay := make(map[int]entities.AvatarReadOnly, len(npcs)+2)
-	overlay[common.CoordToKey(p)] = avatar
-	for _, n := range npcs {
-		overlay[common.CoordToKey(n.GetPos())] = n
-	}
-
-	// Wake cells aft of ships that moved this tick
-	wakeCells := make(map[int]bool)
-	for _, ship := range overlay {
-		if ship.MovedThisTick() {
-			aft := resources.WakeAftPosition(ship.GetPos(), ship.GetFacing())
-			wakeCells[common.CoordToKey(aft)] = true
-		}
-	}
-
-	highlightVisible := false
-	// if the entity to highlight has real coords, we add it to the overlay
-	if h.X >= 0 {
-		world.logger.Debug("[%v] highlighting", highlight.GetID())
-		if !highlight.IsHighlighted() {
-			highlight.Highlight(true)
-		}
-		_, _, _, a := highlight.GetColor().RGBA()
-		highlightVisible = a > 0
-		overlay[common.CoordToKey(h)] = viewablePaintWrapper{highlight}
-	}
-
-	emptyEntityImage := image.NewRGBA(image.Rect(0, 0, window.CellSize, window.CellSize))
-
-	vpIdx := 0
-	needsRefresh := false
-
-	// Pre-calculate cell positions to avoid repeated calculations
-	cellPositions := make([]common.Coordinates, vpr.Cols*vpr.Rows)
-	for x := 0; x < vpr.Cols; x++ {
-		for y := 0; y < vpr.Rows; y++ {
-			mapX := vpr.X + x
-			mapY := vpr.Y + y
-			if mapX >= 0 && mapX < common.WorldCols && mapY >= 0 && mapY < common.WorldRows {
-				cellPositions[vpIdx] = common.Coordinates{X: mapX, Y: mapY}
-			}
-			vpIdx++
-		}
-	}
-
-	// Process all cells in the viewport
-	vpIdx = 0
-	for _, pos := range cellPositions {
-		if pos.X < 0 || pos.X >= common.WorldCols || pos.Y < 0 || pos.Y >= common.WorldRows {
-			vpIdx++
-			continue
-		}
-
-		cell := world.viewPort.Objects[vpIdx].(*fyne.Container)
-		terrainImg := cell.Objects[0].(*canvas.Image)
-		entityImg := cell.Objects[1].(*canvas.Image)
-		overlayImg := cell.Objects[2].(*canvas.Image)
-
-		var newTerrainImage image.Image
-		var newEntityImage image.Image
-		var newOverlayImage image.Image = emptyEntityImage
-		var overlayLayers []image.Image
-
-		if item, ok := overlay[common.CoordToKey(pos)]; ok {
-			if item.IsHighlighted() {
-				if highlightVisible {
-					newEntityImage = item.GetTileImage()
-				} else {
-					newEntityImage = emptyEntityImage
-				}
-			} else {
-				newEntityImage = item.GetTileImage()
-			}
-		} else {
-			newEntityImage = emptyEntityImage
-		}
-
-		if h.X >= 0 && common.CoordsMatch(pos, h) && highlight.IsHighlighted() && highlightVisible {
-			overlayLayers = append(overlayLayers, resources.GetExamineRingOverlay(window.CellSize))
-		}
-
-		if ship, ok := overlay[common.CoordToKey(pos)]; ok {
-			if pennant := resources.GetPennantOverlay(windFacing); pennant != nil {
-				overlayLayers = append(overlayLayers, pennant)
-			}
-			_ = ship
-		}
-
-		if wakeCells[common.CoordToKey(pos)] {
-			if wake := resources.GetWakeOverlay(resources.CurrentWakeFrame()); wake != nil {
-				overlayLayers = append(overlayLayers, wake)
-			}
-		}
-
-		if common.CoordsMatch(pos, p) {
-			overlayLayers = append(overlayLayers, resources.GetPlayerMarkerOverlay(window.CellSize))
-		}
-
-		if len(overlayLayers) > 0 {
-			newOverlayImage = resources.CompositeOverlays(window.CellSize, overlayLayers...)
-		}
-
-		newTerrainImage = world.terrainTileAt(pos)
-
-		if terrainImg.Image != newTerrainImage {
-			terrainImg.Image = newTerrainImage
-			needsRefresh = true
-		}
-
-		if entityImg.Image != newEntityImage {
-			entityImg.Image = newEntityImage
-			needsRefresh = true
-		}
-
-		if overlayImg.Image != newOverlayImage {
-			overlayImg.Image = newOverlayImage
-			needsRefresh = true
-		}
-		vpIdx++
-	}
-
-	if needsRefresh {
-		world.viewPort.Refresh()
-	}
-}
-
 func Init(logger *zap.SugaredLogger) *MapView {
 	t := &terrain.Terrain{}
 	world := MapView{
 		logger:       logger,
 		terrain:      t,
-		viewPort:     container.NewWithoutLayout(),
 		overlayItems: []OverlayItems{},
 	}
 
@@ -360,7 +204,6 @@ func Init(logger *zap.SugaredLogger) *MapView {
 		}
 	}
 
-	world.generateViewPort()
 	world.generateMinimapImage()
 	return &world
 }

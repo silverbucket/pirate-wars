@@ -1,7 +1,6 @@
 package world
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -9,13 +8,9 @@ import (
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/terrain"
 	"pirate-wars/cmd/window"
-
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 )
 
+// generateMinimapImage rasterises the whole world once, at world init.
 func (world *MapView) generateMinimapImage() {
 	world.logger.Info("Generating minimap")
 	cols := common.WorldCols
@@ -26,30 +21,41 @@ func (world *MapView) generateMinimapImage() {
 	world.minimap = world.createRawMapImage(cellWidth, cellHeight, cols, rows, window.MiniMapArea.Width, window.MiniMapArea.Height)
 }
 
+// createRawMapImage paints one pixel block per world cell, coloured by terrain.
 func (world *MapView) createRawMapImage(cellWidth, cellHeight float32, cols, rows int, imageWidth, imageHeight int) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, imageWidth, imageHeight))
-
-	fmt.Print(".")
-	count := 0
 
 	for r := 0; r < rows; r++ {
 		for c := 0; c < cols; c++ {
 			for y := int(float32(r) * cellHeight); y < int(float32(r+1)*cellHeight); y++ {
 				for x := int(float32(c) * cellWidth); x < int(float32(c+1)*cellWidth); x++ {
 					img.Set(x, y, terrain.GetColor(world.terrain.Cells[c][r]))
-					count++
-					if count%2000 == 0 {
-						fmt.Print(".")
-					}
 				}
 			}
 		}
 	}
-	fmt.Println("done")
 	return img
 }
 
-func (world *MapView) getMinimapWithOverlays(pos common.Coordinates, entities entities.ViewableEntities) *image.RGBA {
+// MinimapBase returns the cached terrain raster, without any markers on it.
+//
+// The markers are drawn over this on the GPU each frame instead of being baked
+// in. The old path copied the whole 700x700 image and re-uploaded it as a
+// texture on every tick — four times a second while the map is open — to move
+// one dot by less than three pixels.
+func (world *MapView) MinimapBase() *image.RGBA {
+	return world.minimap
+}
+
+// MinimapCellSize returns the minimap pixels per world cell, so callers can place
+// markers and the viewport outline in the same space as the raster.
+func (world *MapView) MinimapCellSize() (float32, float32) {
+	return float32(window.MiniMapArea.Width) / float32(common.WorldCols),
+		float32(window.MiniMapArea.Height) / float32(common.WorldRows)
+}
+
+// MinimapImage renders the whole-world minimap with player and town markers.
+func (world *MapView) MinimapImage(pos common.Coordinates, entities entities.ViewableEntities) *image.RGBA {
 	cols := common.WorldCols
 	rows := common.WorldRows
 
@@ -85,38 +91,4 @@ func (world *MapView) getMinimapWithOverlays(pos common.Coordinates, entities en
 	}
 
 	return img
-}
-
-func (world *MapView) ShowMinimapPopup(pos common.Coordinates, entities entities.ViewableEntities, w fyne.Window) {
-	img := world.getMinimapWithOverlays(pos, entities)
-
-	if minimapPopup != nil {
-		if stack, ok := minimapPopup.Content.(*fyne.Container); ok && len(stack.Objects) > 0 {
-			if imageWidget, ok := stack.Objects[0].(*canvas.Image); ok {
-				imageWidget.Image = img
-				imageWidget.Refresh()
-				minimapPopup.Show()
-				return
-			}
-		}
-		world.HideMinimapPopup()
-	}
-
-	minimapImage := canvas.NewImageFromImage(img)
-	minimapPopup = widget.NewModalPopUp(
-		container.NewStack(minimapImage),
-		w.Canvas(),
-	)
-	minimapPopup.Resize(fyne.NewSize(float32(window.MiniMapArea.Width), float32(window.MiniMapArea.Height)))
-	minimapPopup.Move(
-		fyne.NewPos(float32(window.Window.Width-window.MiniMapArea.Width)/2,
-			float32(window.Window.Height-window.MiniMapArea.Height)/2),
-	)
-	minimapPopup.Show()
-}
-
-func (world *MapView) HideMinimapPopup() {
-	if minimapPopup != nil {
-		minimapPopup.Hide()
-	}
 }

@@ -31,3 +31,29 @@ func TestFacingFromDelta(t *testing.T) {
 		t.Fatal("FacingFromDelta(0, 0) should not match a facing")
 	}
 }
+
+// TestTackOneOctantEachWay locks the octant ring used by the A/D steering keys:
+// clockwise is starboard, anticlockwise is port, and both wrap.
+func TestTackOneOctantEachWay(t *testing.T) {
+	ring := []Facing{FacingN, FacingNE, FacingE, FacingSE, FacingS, FacingSW, FacingW, FacingNW}
+
+	for i, f := range ring {
+		wantStbd := ring[(i+1)%len(ring)]
+		if got := TackStarboard(f); got != wantStbd {
+			t.Fatalf("TackStarboard(%s) = %s, want %s",
+				FacingLabel(f), FacingLabel(got), FacingLabel(wantStbd))
+		}
+		wantPort := ring[(i-1+len(ring))%len(ring)]
+		if got := TackPort(f); got != wantPort {
+			t.Fatalf("TackPort(%s) = %s, want %s",
+				FacingLabel(f), FacingLabel(got), FacingLabel(wantPort))
+		}
+	}
+
+	if got := TackStarboard(FacingNW); got != FacingN {
+		t.Fatalf("starboard from NW should wrap to N, got %s", FacingLabel(got))
+	}
+	if got := TackPort(FacingN); got != FacingNW {
+		t.Fatalf("port from N should wrap to NW, got %s", FacingLabel(got))
+	}
+}

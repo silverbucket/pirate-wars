@@ -1,10 +1,17 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"image"
 	"image/color"
+	"log"
+	"time"
+
+	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/entities"
+	"pirate-wars/cmd/gfx"
 	"pirate-wars/cmd/hail"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/player"
@@ -12,50 +19,75 @@ import (
 	"pirate-wars/cmd/town"
 	"pirate-wars/cmd/window"
 	"pirate-wars/cmd/world"
-	"time"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"go.uber.org/zap"
 )
 
 const BASE_LOG_LEVEL = zap.DebugLevel
 const DEV_MODE = true
 
+const splashDuration = 2 * time.Second
+
 var ViewType = world.ViewTypeMainMap
-var SidePanel *fyne.Container
-var ActionMenu *fyne.Container
+
+// Screen regions. The viewport keeps the historic 854×728 size; the action bar
+// is drawn as an opaque strip over its bottom edge.
+//
+// The bar spans the full window width and the side panel stops above it, rather
+// than the bar stopping at the panel. The panel's lower half is empty below the
+// compass, and the bar was within 2px of overflowing once Hail joined it —
+// buttonRow drops anything that does not fit, silently.
+var (
+	viewportRect  = image.Rect(0, 0, window.ViewPort.Dimensions.Width, window.ViewPort.Dimensions.Height)
+	actionBarRect = image.Rect(0, window.Window.Height-window.ActionMenu.Height, window.Window.Width, window.Window.Height)
+	sidePanelRect = image.Rect(window.Window.Width-window.SidePanel.Width, 0, window.Window.Width, actionBarRect.Min.Y)
+)
 
 type GameState struct {
-	paused         bool
-	initialized    bool
-	logger         *zap.SugaredLogger
-	window         fyne.Window
-	world          *world.MapView
-	player         *entities.Avatar
-	npcs           *npc.Npcs
-	towns          *town.Towns
-	debugOverlay   *widget.Label
-	sailingCfg     sailing.Config
-	wind           *sailing.Wind
-	economyCfg     economy.Config
-	clock          *economy.Clock
-	hold           player.Hold
-	dockTown       *town.Town
-	dockPage       dockPage
-	tavernRumor    string
-	hailData       hail.Payload
-	overlayRoot    *fyne.Container
-	overlayPanel   *fyne.Container
-	actionBarSig   string
-	actionBarItems *fyne.Container
+	paused      bool
+	initialized bool
+	logger      *zap.SugaredLogger
+	world       *world.MapView
+	player      *entities.Avatar
+	npcs        *npc.Npcs
+	towns       *town.Towns
+	sailingCfg  sailing.Config
+	wind        *sailing.Wind
+	economyCfg  economy.Config
+	clock       *economy.Clock
+	hold        player.Hold
+	dockTown    *town.Town
+	dockPage    dockPage
+	tavernRumor string
+	hailData    hail.Payload
+
+	buttons     []button
+	startedAt   time.Time
+	lastTickAt  time.Time
+	splashImage *ebiten.Image
+	minimapTex  *ebiten.Image
+
+	// notice is the transient banner shown for commands that would otherwise
+	// fail silently.
+	notice notice
+	// turnedThisTick rations the helm to one octant per sailing tick.
+	turnedThisTick bool
+	// alongsideNpcID is the ship the player has come up against, offered as a
+	// Hail on the action bar; lastHailedNpcID stops the prompt repeating for a
+	// ship already hailed.
+	alongsideNpcID  string
+	lastHailedNpcID string
+	// quitting ends the run loop after the Ctrl+Q confirmation.
+	quitting       bool
+	quitReturnView int
+	// forceDockable lets tests exercise the bar with a town in reach without
+	// generating a world to stand beside.
+	forceDockable bool
 }
 
+// initGameState builds the world, towns, NPCs and player for a new voyage.
 func initGameState(logger *zap.SugaredLogger) *GameState {
 	sailingCfg := sailing.LoadConfig("sailing.cfg")
 	economyCfg := economy.LoadConfig("economy.cfg")
@@ -73,270 +105,299 @@ func initGameState(logger *zap.SugaredLogger) *GameState {
 	gs.towns = town.Init(gs.world, gs.logger, economyCfg)
 	gs.npcs = npc.Init(gs.towns, gs.world, gs.logger, economyCfg)
 	gs.player = player.Create(gs.world)
+	gs.initialized = true
 	return &gs
 }
 
-func (gs *GameState) sidePanelContent(examine entities.ViewableEntity) *fyne.Container {
-	shipStatusContent := widget.NewLabel(shipStatusText(
-		gs.player.GetLastSpeed(),
-		gs.wind,
-		gs.clock.TimeOfDay(),
-		gs.hold.Gold,
-		gs.hold.Cargo.Total(),
-		gs.hold.Cargo.Capacity(),
-	))
-	shipStatusContent.Wrapping = fyne.TextWrapWord
-	examineContent := widget.NewLabel(examinePanelText(examine))
-	examineContent.Wrapping = fyne.TextWrapWord
-
-	content := container.NewVBox(
-		widget.NewLabel("Ship Status                        "),
-		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
-		shipStatusContent,
-		layout.NewSpacer(),
-		widget.NewLabel("Examine"),
-		canvas.NewRectangle(color.RGBA{R: 200, G: 200, B: 200, A: 255}),
-		examineContent,
-	)
-	content.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
-	return content
-}
-
-func (gs *GameState) updateDebugOverlay() {
-	if gs.debugOverlay == nil {
-		return
-	}
-	if debugOverlayVisible {
-		gs.debugOverlay.SetText(debugOverlayText(gs.player.GetPos(), gs.wind))
-		gs.debugOverlay.Show()
-	} else {
-		gs.debugOverlay.Hide()
-	}
-	gs.debugOverlay.Refresh()
-}
-
-func (gs *GameState) actionBarSignature() string {
-	switch ViewType {
-	case world.ViewTypeMainMap:
-		if t := gs.adjacentDockTown(); t != nil {
-			return fmt.Sprintf("main:%s", t.GetID())
-		}
-		return "main:"
-	case world.ViewTypeExamine:
-		return fmt.Sprintf("examine:%s", ExamineData.GetFocusedEntity().GetID())
-	case world.ViewTypeMiniMap:
-		return "minimap"
-	case world.ViewTypeDock:
-		return "dock"
-	case world.ViewTypeHail:
-		return "hail"
-	default:
-		return fmt.Sprintf("view:%d", ViewType)
-	}
-}
-
-// updateActionBarIfNeeded rebuilds the action bar widgets only when the set of
-// available commands changes, so buttons survive between ticks and stay clickable.
-// The widgets are built even before ActionMenu exists, since createActionMenu
-// needs them to assemble the container.
-func (gs *GameState) updateActionBarIfNeeded() {
-	sig := gs.actionBarSignature()
-	if sig != gs.actionBarSig || gs.actionBarItems == nil {
-		gs.actionBarSig = sig
-		gs.actionBarItems = gs.ActionItems()
-		if ActionMenu != nil {
-			ActionMenu.Objects[1] = gs.actionBarItems
-		}
-		return
-	}
-	if ActionMenu != nil && ActionMenu.Objects[1] != gs.actionBarItems {
-		ActionMenu.Objects[1] = gs.actionBarItems
-	}
-}
-
-func (gs *GameState) updatePanels(examine entities.ViewableEntity) {
-	if SidePanel != nil {
-		SidePanel.Objects[1] = gs.sidePanelContent(examine)
-	}
-	gs.updateActionBarIfNeeded()
-	fyne.Do(func() {
-		if ActionMenu != nil {
-			ActionMenu.Refresh()
-		}
-		if SidePanel != nil {
-			SidePanel.Refresh()
-		}
-	})
-}
-
-func (gs *GameState) createSidePanel() *fyne.Container {
-	// Create the sidebar content
-	content := gs.sidePanelContent(entities.NewEmptyViewableEntity())
-	viewportBg := canvas.NewRectangle(color.Black)
-
-	// Create a fixed width container using layout.NewPadded
-	sidePanel := container.NewStack(
-		viewportBg,
-		content,
-	)
-
-	// Set minimum size to enforce width
-	sidePanel.Resize(fyne.NewSize(float32(window.SidePanel.Width), float32(window.SidePanel.Height)))
-	return sidePanel
-}
-
-func (gs *GameState) createActionMenu() *fyne.Container {
-	gs.actionBarSig = ""
-	gs.actionBarItems = nil
-	gs.updateActionBarIfNeeded()
-	viewportBg := canvas.NewRectangle(color.Black)
-
-	gs.actionBarItems.Resize(fyne.NewSize(float32(window.ActionMenu.Width), float32(window.ActionMenu.Height)))
-	return container.NewStack(viewportBg, gs.actionBarItems)
-}
-
-func (m *GameState) processTick() {
-	if m.paused {
+// processTick advances one sailing tick: the clock, ship movement, and the
+// terrain animation. Only the main map moves ships, so the overlays are pauses.
+func (gs *GameState) processTick() {
+	if gs.paused {
 		return
 	}
 
 	if ViewType == world.ViewTypeMainMap || ViewType == world.ViewTypeDock || ViewType == world.ViewTypeHail {
-		m.clock.Tick()
+		gs.clock.Tick()
 	}
 
 	if ViewType == world.ViewTypeMainMap {
-		m.resolveSailingTick()
+		gs.resolveSailingTick()
 	}
 
-	// get visible NPCs
-	highlight := ExamineData.GetFocusedEntity()
-	visible := []entities.AvatarReadOnly{}
-	for _, n := range m.npcs.GetList() {
-		visible = append(visible, &n)
-	}
-
-	m.updatePanels(highlight)
-	m.updateDebugOverlay()
-
-	m.world.AdvanceAnimation()
-	m.world.Paint(m.player, visible, highlight, m.wind.Facing)
-	m.syncMinimap()
+	gs.world.AdvanceAnimation()
 }
 
-// ⏅ ⏏ ⏚ ⏛ ⏡ ⪮ ⩯ ⩠ ⩟ ⅏
-func main() {
-	app := app.New()
-	app.Settings().SetTheme(&customDarkTheme{})
+// visibleNPCs adapts the NPC list to the read-only view the renderer takes.
+func (gs *GameState) visibleNPCs() []entities.AvatarReadOnly {
+	list := gs.npcs.GetList()
+	visible := make([]entities.AvatarReadOnly, 0, len(list))
+	for i := range list {
+		visible = append(visible, &list[i])
+	}
+	return visible
+}
 
+// Update implements ebiten.Game.
+func (gs *GameState) Update() error {
+	if gs.showingSplash() {
+		// Any key or click skips the title card. A fixed unskippable wait is a
+		// toll charged on every launch, and it is paid most often by whoever is
+		// restarting the game the most.
+		if len(pressedKeyNames()) > 0 || inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+			gs.startedAt = time.Now().Add(-splashDuration)
+		}
+		return nil
+	}
+	gs.paused = false
+
+	if gs.buttons == nil {
+		gs.refreshActionBar()
+	}
+	gs.handleInput()
+
+	if gs.quitting {
+		// Termination unwinds Ebiten cleanly and lets main flush the logger,
+		// which the old os.Exit in the quit handler skipped.
+		return ebiten.Termination
+	}
+
+	tick := gs.sailingCfg.TickDuration()
+	if time.Since(gs.lastTickAt) >= tick {
+		gs.lastTickAt = time.Now()
+		gs.processTick()
+		gs.refreshActionBar()
+	}
+	gs.applyHover()
+	return nil
+}
+
+// showingSplash reports whether the title card still owns the screen.
+func (gs *GameState) showingSplash() bool {
+	return time.Since(gs.startedAt) < splashDuration
+}
+
+// Draw implements ebiten.Game.
+func (gs *GameState) Draw(screen *ebiten.Image) {
+	screen.Fill(colorPanel)
+
+	if gs.showingSplash() {
+		gs.drawSplash(screen)
+		return
+	}
+
+	viewport := screen.SubImage(viewportRect).(*ebiten.Image)
+	highlight := ExamineData.GetFocusedEntity()
+	gs.world.Draw(viewport, gs.player, gs.visibleNPCs(), highlight, gs.wind.Facing)
+
+	if ViewType == world.ViewTypeMiniMap {
+		gs.drawMinimap(screen)
+	}
+
+	// The panel and bar are chrome and draw last, so nothing can paint over
+	// their borders or captions.
+	gs.drawSidePanel(screen, highlight)
+	gs.drawActionBar(screen)
+
+	if hasOverlay() {
+		gs.drawOverlay(screen)
+	}
+	gs.drawNotice(screen)
+	if debugOverlayVisible {
+		gs.drawDebugOverlay(screen)
+	}
+}
+
+// Layout implements ebiten.Game.
+func (gs *GameState) Layout(int, int) (int, int) {
+	return window.Window.Width, window.Window.Height
+}
+
+// drawSplash paints the title card, or a text fallback when the art is missing.
+func (gs *GameState) drawSplash(screen *ebiten.Image) {
+	if gs.splashImage != nil {
+		op := &ebiten.DrawImageOptions{}
+		b := gs.splashImage.Bounds()
+		op.GeoM.Translate(
+			float64(window.Window.Width-b.Dx())/2,
+			float64(window.Window.Height-b.Dy())/2,
+		)
+		screen.DrawImage(gs.splashImage, op)
+		return
+	}
+	msg := "PIRATE WARS"
+	drawText(screen, msg, (window.Window.Width-gfx.TextWidth(msg))/2, window.Window.Height/2, colorHeading)
+	hint := "press any key"
+	drawText(screen, hint, (window.Window.Width-gfx.TextWidth(hint))/2, window.Window.Height/2+gfx.LineHeight*2, colorTextDim)
+}
+
+// drawSidePanel renders the ship's instruments: the sailing readout, the compass
+// showing heading against wind, and the examine block when something is focused.
+func (gs *GameState) drawSidePanel(screen *ebiten.Image, examine entities.ViewableEntity) {
+	fillRect(screen, sidePanelRect, colorPanel)
+	strokeRect(screen, sidePanelRect, colorPanelEdge)
+
+	x := sidePanelRect.Min.X + 8
+	y := 10
+	drawText(screen, "Ship Status", x, y, colorHeading)
+	y += gfx.LineHeight + 4
+
+	status := gs.newShipStatus()
+	for _, line := range status.statusLines() {
+		c := colorText
+		if line.warn {
+			c = colorWarn
+		}
+		drawText(screen, line.label, x, y, colorTextDim)
+		drawText(screen, line.value, x+48, y, c)
+		y += gfx.LineHeight
+	}
+
+	if reason := status.stallReason(); reason != "" {
+		y += 4
+		for _, line := range wrapText(reason, 25) {
+			drawText(screen, line, x, y, colorWarn)
+			y += gfx.LineHeight
+		}
+	}
+
+	y += 10 + gfx.LineHeight
+	compass := image.Rect(x+16, y, x+16+compassSize, y+compassSize)
+	drawCompass(screen, compass, status.Heading, gs.wind)
+	y = compass.Max.Y + gfx.LineHeight
+
+	drawText(screen, "Heading", x, y, colorHeadingNeedle)
+	drawText(screen, "Wind", x+80, y, colorWindNeedle)
+	y += gfx.LineHeight + 6
+
+	// The examine block used to render its headings over empty values whenever
+	// nothing was focused, spending four lines of a 170px panel on blanks.
+	if examine.GetName() != "" {
+		drawText(screen, "Examine", x, y, colorHeading)
+		y += gfx.LineHeight + 4
+		drawTextBlock(screen, examinePanelText(examine), x, y, colorTextDim)
+	}
+}
+
+// drawActionBar renders the cheat-sheet bar: the legend line naming the view plus
+// the heading and admin keys, above one button per available command.
+func (gs *GameState) drawActionBar(screen *ebiten.Image) {
+	fillRect(screen, actionBarRect, colorPanel)
+	strokeRect(screen, actionBarRect, colorPanelEdge)
+	drawText(screen, gs.actionBarCaption(), actionBarRect.Min.X+6, actionBarRect.Min.Y+4, colorTextDim)
+	for _, b := range gs.buttons {
+		if b.rect.Overlaps(actionBarRect) {
+			drawButton(screen, b)
+		}
+	}
+}
+
+// drawMinimap renders the world chart: the cached terrain raster, town markers,
+// the player, and an outline of the area currently on screen.
+//
+// The chart is fitted to the space above the action bar with a strip left for
+// the legend, rather than assuming the raster fits. At 700px it ran to y=714
+// against a bar starting at y=700, and the legend below it landed inside the bar
+// entirely.
+func (gs *GameState) drawMinimap(screen *ebiten.Image) {
+	// The terrain never changes, so the raster uploads once for the whole run.
+	if gs.minimapTex == nil {
+		gs.minimapTex = ebiten.NewImageFromImage(gs.world.MinimapBase())
+	}
+
+	region := overlayRegion()
+	legendHeight := gfx.LineHeight + 10
+	b := gs.minimapTex.Bounds()
+
+	scale := 1.0
+	if avail := float64(region.Dy() - legendHeight); avail < float64(b.Dy()) {
+		scale = avail / float64(b.Dy())
+	}
+	w := int(float64(b.Dx()) * scale)
+	h := int(float64(b.Dy()) * scale)
+
+	originX := region.Min.X + (region.Dx()-w)/2
+	originY := region.Min.Y + (region.Dy()-legendHeight-h)/2
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(scale, scale)
+	op.GeoM.Translate(float64(originX), float64(originY))
+	screen.DrawImage(gs.minimapTex, op)
+
+	mapRect := image.Rect(originX, originY, originX+w, originY+h)
+	strokeRect(screen, mapRect, colorPanelEdge)
+
+	cw, ch := gs.world.MinimapCellSize()
+	cw, ch = cw*float32(scale), ch*float32(scale)
+	marker := func(pos common.Coordinates, size int, c color.Color) {
+		x := originX + int(float32(pos.X)*cw)
+		y := originY + int(float32(pos.Y)*ch)
+		fillRect(screen, image.Rect(x-size/2, y-size/2, x-size/2+size, y-size/2+size), c)
+	}
+
+	for _, t := range gs.towns.GetTowns() {
+		marker(t.GetPos(), 5, t.GetColor())
+	}
+
+	// The chart is otherwise scale-less: without this the player cannot tell how
+	// much of the world one screen covers, or which way the view extends.
+	vpr := window.GetViewportRegion(gs.player.GetPos())
+	strokeRect(screen, image.Rect(
+		originX+int(float32(vpr.X)*cw),
+		originY+int(float32(vpr.Y)*ch),
+		originX+int(float32(vpr.X+vpr.Cols)*cw),
+		originY+int(float32(vpr.Y+vpr.Rows)*ch),
+	), colorHeadingNeedle)
+
+	marker(gs.player.GetPos(), 7, color.White)
+
+	legendY := mapRect.Max.Y + 6
+	drawText(screen, "Your ship", mapRect.Min.X+6, legendY, colorText)
+	drawText(screen, "Towns", mapRect.Min.X+90, legendY, colorHeading)
+	drawText(screen, "On screen", mapRect.Min.X+160, legendY, colorHeadingNeedle)
+}
+
+// minimapBounds is the chart plus its legend, for the layout test.
+func (gs *GameState) minimapBounds() image.Rectangle {
+	region := overlayRegion()
+	legendHeight := gfx.LineHeight + 10
+	side := window.MiniMapArea.Height
+
+	scale := 1.0
+	if avail := float64(region.Dy() - legendHeight); avail < float64(side) {
+		scale = avail / float64(side)
+	}
+	w := int(float64(window.MiniMapArea.Width) * scale)
+	h := int(float64(side) * scale)
+
+	originX := region.Min.X + (region.Dx()-w)/2
+	originY := region.Min.Y + (region.Dy()-legendHeight-h)/2
+	return image.Rect(originX, originY, originX+w, originY+h+legendHeight)
+}
+
+// drawDebugOverlay prints window, viewport and world geometry behind F3.
+func (gs *GameState) drawDebugOverlay(screen *ebiten.Image) {
+	drawTextBlock(screen, debugOverlayText(gs.player.GetPos(), gs.wind), 8, 8, colorHeading)
+}
+
+// main boots the game and hands the loop to Ebiten.
+func main() {
 	logger := createLogger()
 	logger.Info("Starting...")
+	logger.Info(fmt.Sprintf("Window Dimensions %+v", window.Window))
+	logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewPort))
 
-	w := app.NewWindow("Pirate Wars")
-	w.Resize(fyne.NewSize(float32(window.Window.Width), float32(window.Window.Height)))
-	w.SetFixedSize(true) // don't allow resizing for now
+	gs := initGameState(logger)
+	gs.startedAt = time.Now()
+	gs.lastTickAt = time.Now()
+	gs.splashImage = loadSplash()
+	gs.refreshActionBar()
 
-	// Create splash overlay
-	splash := canvas.NewImageFromFile("./assets/pirate-wars.png")
-	splash.Resize(fyne.NewSize(1024, 768))
-	splash.FillMode = canvas.ImageFillOriginal
+	ebiten.SetWindowSize(window.Window.Width, window.Window.Height)
+	ebiten.SetWindowTitle("Pirate Wars")
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeDisabled)
 
-	// Show splash screen immediately
-	w.SetContent(splash)
-	w.Show()
-
-	// Initialize game state in background
-	go func() {
-		// Create a channel to signal when initialization is complete
-		initComplete := make(chan struct{})
-		var gameState *GameState
-		var gameContent fyne.CanvasObject
-
-		// Start initialization in a separate goroutine
-		go func() {
-			logger.Info(fmt.Sprintf("Window Dimensions %+v", window.Window))
-			logger.Info(fmt.Sprintf("Viewable Area %+v", window.ViewPort))
-
-			gameState = initGameState(logger)
-			gameState.window = w
-			mainContent := gameState.world.GetViewPort()
-			SidePanel = gameState.createSidePanel()
-			ActionMenu = gameState.createActionMenu()
-
-			debugOverlay := widget.NewLabel("")
-			debugOverlay.Hide()
-			gameState.debugOverlay = debugOverlay
-
-			overlay := gameState.buildOverlayShell()
-
-			// Main layout
-			viewportBg := canvas.NewRectangle(color.Transparent)
-			viewportBg.Resize(fyne.NewSize(float32(window.ViewPort.Dimensions.Width), float32(window.ViewPort.Dimensions.Height)))
-
-			gameContent = container.NewBorder(
-				nil,
-				ActionMenu,
-				nil,
-				SidePanel,
-				container.NewStack(viewportBg, mainContent, overlay, debugOverlay),
-			)
-
-			// Signal that initialization is complete
-			close(initComplete)
-
-			go gameState.gameLoop()
-
-			w.Canvas().SetOnTypedKey(func(key *fyne.KeyEvent) {
-				gameState.handleKeyPress(key)
-			})
-		}()
-
-		// Wait for both initialization and minimum splash screen time
-		select {
-		case <-initComplete:
-			// Initialization complete, but still need to wait for minimum splash time
-			time.Sleep(2 * time.Second)
-		case <-time.After(2 * time.Second):
-			// Minimum splash time reached, but initialization might still be in progress
-			<-initComplete // Wait for initialization to complete
-		}
-
-		// Now switch to game content and unpause
-		fyne.Do(func() {
-			w.SetContent(gameContent)
-			gameState.paused = false
-		})
-	}()
-
-	w.ShowAndRun()
-	logger.Info("Exiting...")
-}
-
-func (m *GameState) gameLoop() {
-	tick := m.sailingCfg.TickDuration()
-	for {
-		time.Sleep(tick)
-		// Use fyne.Do to ensure UI updates happen on the main thread
-		fyne.Do(func() {
-			m.processTick()
-		})
+	if err := ebiten.RunGame(gs); err != nil && !errors.Is(err, ebiten.Termination) {
+		log.Fatalf("pirate-wars exited: %v", err)
 	}
-}
-
-// Custom dark theme implementation
-type customDarkTheme struct{}
-
-func (t *customDarkTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
-	return theme.DefaultTheme().Color(name, theme.VariantDark)
-}
-
-func (t *customDarkTheme) Font(style fyne.TextStyle) fyne.Resource {
-	return theme.DefaultTheme().Font(style)
-}
-
-func (t *customDarkTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
-	return theme.DefaultTheme().Icon(name)
-}
-
-func (t *customDarkTheme) Size(name fyne.ThemeSizeName) float32 {
-	return theme.DefaultTheme().Size(name)
+	logger.Info("Exiting...")
 }

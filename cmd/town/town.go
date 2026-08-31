@@ -32,8 +32,6 @@ type Town struct {
 	alternate   bool
 }
 
-var townList []Town
-
 func (t *Town) GetID() string {
 	return t.id
 }
@@ -161,6 +159,9 @@ func (ts *Towns) CreateTown(c common.Coordinates, world *world.MapView, cfg econ
 
 func (ts *Towns) initializeTowns(fn func() common.Coordinates, world *world.MapView, cfg economy.Config) []Town {
 	ts.logger.Info(fmt.Sprintf("Initializing %v towns", common.TotalTowns))
+	// Local to this call: a package-level accumulator carried towns over from any
+	// previous Init, so a second world started with the first world's towns.
+	townList := []Town{}
 	for i := 0; i < common.TotalTowns; i++ {
 		for {
 			c := fn()
