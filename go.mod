@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/hajimehoshi/bitmapfont/v3 v3.3.0
-	github.com/hajimehoshi/ebiten/v2 v2.9.10
+	github.com/hajimehoshi/ebiten/v2 v2.9.11
 	github.com/ojrac/opensimplex-go v1.0.2
 	go.uber.org/zap v1.28.0
 	golang.org/x/text v0.38.0
