@@ -394,6 +394,7 @@ func main() {
 
 	ebiten.SetWindowSize(window.Window.Width, window.Window.Height)
 	ebiten.SetWindowTitle("Pirate Wars")
+	ebiten.SetWindowIcon(windowIcons())
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeDisabled)
 
 	if err := ebiten.RunGame(gs); err != nil && !errors.Is(err, ebiten.Termination) {
