@@ -39,7 +39,7 @@ var (
 	tilesetCache          image.Image
 	tileCache             = make(map[int]image.Image)
 	shipTileCache         = make(map[int]image.Image)
-	regionTileCache       = make(map[int]image.Image)
+	regionTileCache       = make(map[image.Point]image.Image)
 	highlightOverlayCache = make(map[int]image.Image)
 	playerMarkerCache     = make(map[int]image.Image)
 )
@@ -105,9 +105,10 @@ func extractTileAt(col, row int) image.Image {
 		return nil
 	}
 
-	// Bit-packed so the key cannot collide however the tileset grows; col*1000+row
-	// carried a silent "fewer than 1000 rows" assumption.
-	regionKey := col<<32 | row
+	// A coordinate key rather than arithmetic: col*1000+row carried a silent
+	// "fewer than 1000 rows" assumption, and packing into an int drops col
+	// entirely where int is 32 bits.
+	regionKey := image.Point{X: col, Y: row}
 	if cached, ok := regionTileCache[regionKey]; ok {
 		return cached
 	}

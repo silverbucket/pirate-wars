@@ -97,12 +97,22 @@ func (m *GameState) tack(turn func(common.Facing) common.Facing) {
 	m.player.SetHeading(turn(m.player.GetFacing()))
 }
 
-// hailTarget returns the NPC the player has come alongside, if any.
+// hailTarget returns the NPC the player is currently alongside, if any.
+//
+// Adjacency is rechecked rather than trusted: alongsideNpcID is recorded when
+// the player's step is blocked, and the NPCs then move later in the same tick.
+// A player lying still — furled sails, or in irons — never runs the movement
+// path that would clear it, so the recorded ship can be halfway across the map
+// by the time H is pressed.
 func (m *GameState) hailTarget() *npc.Npc {
-	if m == nil || m.npcs == nil || m.alongsideNpcID == "" {
+	if m == nil || m.npcs == nil || m.player == nil || m.alongsideNpcID == "" {
 		return nil
 	}
-	return m.npcs.GetByID(m.alongsideNpcID)
+	target := m.npcs.GetByID(m.alongsideNpcID)
+	if target == nil || !common.IsPositionAdjacent(m.player.GetPos(), target.GetPos()) {
+		return nil
+	}
+	return target
 }
 
 // tryHailAdjacent opens the hail screen for the ship alongside.

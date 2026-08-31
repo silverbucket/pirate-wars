@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"pirate-wars/cmd/common"
 	"pirate-wars/cmd/world"
 
 	"go.uber.org/zap"
@@ -23,7 +24,9 @@ func TestBumpingAShipOffersAHailRatherThanForcingOne(t *testing.T) {
 	if len(npcs) == 0 {
 		t.Skip("generated world has no NPCs")
 	}
-	target := npcs[0]
+	target := gs.npcs.GetByID(npcs[0].GetID())
+	pos := gs.player.GetPos()
+	target.SetPos(common.Coordinates{X: pos.X + 1, Y: pos.Y})
 
 	gs.alongsideNpcID = target.GetID()
 	gs.refreshActionBar()
@@ -66,6 +69,49 @@ func TestHailIsDisabledWithNoShipAlongside(t *testing.T) {
 	}
 }
 
+// TestHailTargetGoesStaleWhenTheShipSailsOff covers a review finding.
+//
+// alongsideNpcID is recorded when the player's step is blocked, and the NPCs
+// move later in the same tick. A player lying still never runs the movement path
+// that would clear it, so the recorded ship can be far away by the time H is
+// pressed. Adjacency is rechecked at use.
+func TestHailTargetGoesStaleWhenTheShipSailsOff(t *testing.T) {
+	gs := initGameState(zap.NewNop().Sugar())
+	ViewType = world.ViewTypeMainMap
+
+	npcs := gs.npcs.GetList()
+	if len(npcs) == 0 {
+		t.Skip("generated world has no NPCs")
+	}
+	target := gs.npcs.GetByID(npcs[0].GetID())
+
+	// Alongside: the hail is offered.
+	pos := gs.player.GetPos()
+	target.SetPos(common.Coordinates{X: pos.X + 1, Y: pos.Y})
+	gs.alongsideNpcID = target.GetID()
+	if gs.hailTarget() == nil {
+		t.Fatal("a ship on the next cell should be hailable")
+	}
+
+	// The ship sails away while the player lies still.
+	target.SetPos(common.Coordinates{X: pos.X + 40, Y: pos.Y + 40})
+	if got := gs.hailTarget(); got != nil {
+		t.Fatalf("a ship that has sailed off should not be hailable, got %s", got.GetID())
+	}
+
+	gs.refreshActionBar()
+	for _, b := range gs.buttons {
+		if strings.HasPrefix(b.label, "Hail") && b.enabled {
+			t.Fatal("Hail should be disabled once the ship is no longer alongside")
+		}
+	}
+
+	gs.handleKeyPress("H")
+	if ViewType == world.ViewTypeHail {
+		t.Fatal("H should not open a hail for a ship that has sailed off")
+	}
+}
+
 // TestHailPromptDoesNotRepeatForTheSameShip covers the re-fire loop directly.
 func TestHailPromptDoesNotRepeatForTheSameShip(t *testing.T) {
 	gs := initGameState(zap.NewNop().Sugar())
@@ -75,7 +121,10 @@ func TestHailPromptDoesNotRepeatForTheSameShip(t *testing.T) {
 	if len(npcs) == 0 {
 		t.Skip("generated world has no NPCs")
 	}
-	gs.alongsideNpcID = npcs[0].GetID()
+	target := gs.npcs.GetByID(npcs[0].GetID())
+	pos := gs.player.GetPos()
+	target.SetPos(common.Coordinates{X: pos.X + 1, Y: pos.Y})
+	gs.alongsideNpcID = target.GetID()
 
 	gs.handleKeyPress("H")
 	if ViewType != world.ViewTypeHail {

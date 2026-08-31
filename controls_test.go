@@ -278,6 +278,35 @@ func TestQuitAsksFirst(t *testing.T) {
 	}
 }
 
+// TestCancelQuitReturnsToTheScreenItWasRaisedFrom covers a review finding.
+// Ctrl+Q is bound in every view, so sending the player to the main map on cancel
+// would throw away an open dock, hail, minimap or examine for a mis-key.
+func TestCancelQuitReturnsToTheScreenItWasRaisedFrom(t *testing.T) {
+	for _, from := range []int{
+		world.ViewTypeMainMap,
+		world.ViewTypeMiniMap,
+		world.ViewTypeExamine,
+		world.ViewTypeDock,
+		world.ViewTypeHail,
+	} {
+		gs := mainMapGameState()
+		ViewType = from
+
+		gs.handleKeyPress("ctrl+q")
+		if ViewType != world.ViewTypeQuitConfirm {
+			t.Fatalf("Ctrl+Q from view %d did not ask, ViewType = %d", from, ViewType)
+		}
+
+		gs.handleKeyPress("Escape")
+		if ViewType != from {
+			t.Fatalf("cancelling quit from view %d landed in view %d", from, ViewType)
+		}
+		if gs.quitting {
+			t.Fatalf("cancelling quit from view %d ended the run", from)
+		}
+	}
+}
+
 // TestExamineWithNothingInSightSaysSo covers a command that used to fail in
 // silence, which leaves the player unable to tell a broken key from an unmet
 // condition.

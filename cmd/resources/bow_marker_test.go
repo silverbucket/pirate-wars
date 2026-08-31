@@ -90,3 +90,33 @@ func TestBowMarkerIsCached(t *testing.T) {
 		t.Fatal("bow markers must be cached so the texture cache stays stable")
 	}
 }
+
+// TestTileCacheKeyIsArchitectureIndependent covers a review finding: keying the
+// region cache by arithmetic on col and row either assumed a row ceiling or, when
+// bit-packed into an int, dropped col entirely where int is 32 bits — returning
+// another column's tile from the same row.
+func TestTileCacheKeyIsArchitectureIndependent(t *testing.T) {
+	seen := map[string]struct{ col, row int }{}
+	for col := 0; col < 6; col++ {
+		for row := 0; row < 14; row++ {
+			tile := extractTileAt(col, row)
+			if tile == nil {
+				continue
+			}
+			var sb []byte
+			b := tile.Bounds()
+			for y := b.Min.Y; y < b.Max.Y; y += 4 {
+				for x := b.Min.X; x < b.Max.X; x += 4 {
+					r, g, bl, a := tile.At(x, y).RGBA()
+					sb = append(sb, byte(r>>8), byte(g>>8), byte(bl>>8), byte(a>>8))
+				}
+			}
+			key := string(sb)
+			if prev, ok := seen[key]; ok && prev.row == row && prev.col != col {
+				t.Fatalf("tiles (%d,%d) and (%d,%d) share a row and returned identical pixels; "+
+					"the cache key is collapsing columns", prev.col, prev.row, col, row)
+			}
+			seen[key] = struct{ col, row int }{col, row}
+		}
+	}
+}

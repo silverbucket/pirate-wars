@@ -105,7 +105,9 @@ func (gs *GameState) quitConfirmScreen() overlayScreen {
 	}
 }
 
-// cancelQuit dismisses the quit confirmation.
+// cancelQuit dismisses the quit confirmation and restores the screen it was
+// raised from. Ctrl+Q is bound in every view, so returning to the main map would
+// discard an open dock, hail, minimap or examine as the price of a mis-key.
 func (gs *GameState) cancelQuit() {
-	ViewType = world.ViewTypeMainMap
+	ViewType = gs.quitReturnView
 }
