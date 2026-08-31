@@ -240,28 +240,34 @@ func wrapText(s string, width int) []string {
 }
 
 // splitWords breaks s on whitespace, keeping newlines as their own tokens.
+// splitWords breaks s on whitespace, keeping newlines as their own tokens.
+//
+// The word is accumulated as a rune slice rather than by string concatenation:
+// += in the loop reallocates and copies on every rune, which is quadratic in the
+// length of a word. Overlay text is a hail or a tavern rumour, so this is small
+// today, but the slice version is no harder to read.
 func splitWords(s string) []string {
 	var words []string
-	cur := ""
+	var cur []rune
+
+	flush := func() {
+		if len(cur) > 0 {
+			words = append(words, string(cur))
+			cur = cur[:0]
+		}
+	}
+
 	for _, r := range s {
 		switch r {
 		case '\n':
-			if cur != "" {
-				words = append(words, cur)
-				cur = ""
-			}
+			flush()
 			words = append(words, "\n")
 		case ' ', '\t':
-			if cur != "" {
-				words = append(words, cur)
-				cur = ""
-			}
+			flush()
 		default:
-			cur += string(r)
+			cur = append(cur, r)
 		}
 	}
-	if cur != "" {
-		words = append(words, cur)
-	}
+	flush()
 	return words
 }

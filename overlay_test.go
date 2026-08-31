@@ -185,3 +185,35 @@ func TestOverlayPanelHeightMatchesRenderedRows(t *testing.T) {
 		}
 	}
 }
+
+// TestSplitWordsSemantics locks the tokenizer's behaviour across the rewrite
+// from string concatenation to a rune slice: words split on any whitespace,
+// newlines survive as their own tokens, and runs of separators collapse.
+func TestSplitWordsSemantics(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []string
+	}{
+		{"", nil},
+		{"one", []string{"one"}},
+		{"one two", []string{"one", "two"}},
+		{"one\ttwo", []string{"one", "two"}},
+		{"one  two", []string{"one", "two"}},
+		{"one\ntwo", []string{"one", "\n", "two"}},
+		{"one\n\ntwo", []string{"one", "\n", "\n", "two"}},
+		{"\nlead", []string{"\n", "lead"}},
+		{"trail\n", []string{"trail", "\n"}},
+		{"héllo wörld", []string{"héllo", "wörld"}},
+	}
+	for _, c := range cases {
+		got := splitWords(c.in)
+		if len(got) != len(c.want) {
+			t.Fatalf("splitWords(%q) = %q, want %q", c.in, got, c.want)
+		}
+		for i := range got {
+			if got[i] != c.want[i] {
+				t.Fatalf("splitWords(%q) = %q, want %q", c.in, got, c.want)
+			}
+		}
+	}
+}
