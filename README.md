@@ -1,4 +1,4 @@
-# pirate-wars
+# <img src="assets/icon.svg" width="40" align="top" alt=""> pirate-wars
 A pirate-themed game, written in Go, using [Ebitengine](https://ebitengine.org/).
 
 **_NOTE_**: This is a hobby project, a work in progress.
