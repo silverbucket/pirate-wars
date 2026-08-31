@@ -97,5 +97,5 @@ every bar button is clickable.
 * Appoint Captains?
 
 ### Misc
-* Combat: the game is called Pirate Wars and currently has neither
+* Combat: the game is called Pirate Wars and currently has no combat
 * Persistence between runs

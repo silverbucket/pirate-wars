@@ -189,12 +189,15 @@ func (gs *GameState) Draw(screen *ebiten.Image) {
 	highlight := ExamineData.GetFocusedEntity()
 	gs.world.Draw(viewport, gs.player, gs.visibleNPCs(), highlight, gs.wind.Facing)
 
-	gs.drawSidePanel(screen, highlight)
-	gs.drawActionBar(screen)
-
 	if ViewType == world.ViewTypeMiniMap {
 		gs.drawMinimap(screen)
 	}
+
+	// The panel and bar are chrome and draw last, so nothing can paint over
+	// their borders or captions.
+	gs.drawSidePanel(screen, highlight)
+	gs.drawActionBar(screen)
+
 	if hasOverlay() {
 		gs.drawOverlay(screen)
 	}
@@ -290,24 +293,41 @@ func (gs *GameState) drawActionBar(screen *ebiten.Image) {
 
 // drawMinimap renders the world chart: the cached terrain raster, town markers,
 // the player, and an outline of the area currently on screen.
+//
+// The chart is fitted to the space above the action bar with a strip left for
+// the legend, rather than assuming the raster fits. At 700px it ran to y=714
+// against a bar starting at y=700, and the legend below it landed inside the bar
+// entirely.
 func (gs *GameState) drawMinimap(screen *ebiten.Image) {
 	// The terrain never changes, so the raster uploads once for the whole run.
 	if gs.minimapTex == nil {
 		gs.minimapTex = ebiten.NewImageFromImage(gs.world.MinimapBase())
 	}
 
+	region := overlayRegion()
+	legendHeight := gfx.LineHeight + 10
 	b := gs.minimapTex.Bounds()
-	originX := viewportRect.Min.X + (viewportRect.Dx()-b.Dx())/2
-	originY := viewportRect.Min.Y + (viewportRect.Dy()-b.Dy())/2
+
+	scale := 1.0
+	if avail := float64(region.Dy() - legendHeight); avail < float64(b.Dy()) {
+		scale = avail / float64(b.Dy())
+	}
+	w := int(float64(b.Dx()) * scale)
+	h := int(float64(b.Dy()) * scale)
+
+	originX := region.Min.X + (region.Dx()-w)/2
+	originY := region.Min.Y + (region.Dy()-legendHeight-h)/2
 
 	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(scale, scale)
 	op.GeoM.Translate(float64(originX), float64(originY))
 	screen.DrawImage(gs.minimapTex, op)
 
-	mapRect := image.Rect(originX, originY, originX+b.Dx(), originY+b.Dy())
+	mapRect := image.Rect(originX, originY, originX+w, originY+h)
 	strokeRect(screen, mapRect, colorPanelEdge)
 
 	cw, ch := gs.world.MinimapCellSize()
+	cw, ch = cw*float32(scale), ch*float32(scale)
 	marker := func(pos common.Coordinates, size int, c color.Color) {
 		x := originX + int(float32(pos.X)*cw)
 		y := originY + int(float32(pos.Y)*ch)
@@ -330,9 +350,28 @@ func (gs *GameState) drawMinimap(screen *ebiten.Image) {
 
 	marker(gs.player.GetPos(), 7, color.White)
 
-	drawText(screen, "Your ship", mapRect.Min.X+6, mapRect.Max.Y+6, colorText)
-	drawText(screen, "Towns", mapRect.Min.X+90, mapRect.Max.Y+6, colorHeading)
-	drawText(screen, "On screen", mapRect.Min.X+160, mapRect.Max.Y+6, colorHeadingNeedle)
+	legendY := mapRect.Max.Y + 6
+	drawText(screen, "Your ship", mapRect.Min.X+6, legendY, colorText)
+	drawText(screen, "Towns", mapRect.Min.X+90, legendY, colorHeading)
+	drawText(screen, "On screen", mapRect.Min.X+160, legendY, colorHeadingNeedle)
+}
+
+// minimapBounds is the chart plus its legend, for the layout test.
+func (gs *GameState) minimapBounds() image.Rectangle {
+	region := overlayRegion()
+	legendHeight := gfx.LineHeight + 10
+	side := window.MiniMapArea.Height
+
+	scale := 1.0
+	if avail := float64(region.Dy() - legendHeight); avail < float64(side) {
+		scale = avail / float64(side)
+	}
+	w := int(float64(window.MiniMapArea.Width) * scale)
+	h := int(float64(side) * scale)
+
+	originX := region.Min.X + (region.Dx()-w)/2
+	originY := region.Min.Y + (region.Dy()-legendHeight-h)/2
+	return image.Rect(originX, originY, originX+w, originY+h+legendHeight)
 }
 
 // drawDebugOverlay prints window, viewport and world geometry behind F3.
