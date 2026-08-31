@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"pirate-wars/cmd/dock"
 	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/hail"
@@ -52,6 +53,8 @@ type GameState struct {
 	hailData       hail.Payload
 	overlayRoot    *fyne.Container
 	overlayPanel   *fyne.Container
+	actionBarSig   string
+	actionBarItems *fyne.Container
 }
 
 func initGameState(logger *zap.SugaredLogger) *GameState {
@@ -113,12 +116,53 @@ func (gs *GameState) updateDebugOverlay() {
 	gs.debugOverlay.Refresh()
 }
 
+func (gs *GameState) actionBarSignature() string {
+	switch ViewType {
+	case world.ViewTypeMainMap:
+		if gs.player != nil {
+			if t := dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns); t != nil {
+				return fmt.Sprintf("main:%s", t.GetID())
+			}
+		}
+		return "main:"
+	case world.ViewTypeExamine:
+		return fmt.Sprintf("examine:%s", ExamineData.GetFocusedEntity().GetID())
+	case world.ViewTypeMiniMap:
+		return "minimap"
+	case world.ViewTypeDock:
+		return "dock"
+	case world.ViewTypeHail:
+		return "hail"
+	default:
+		return fmt.Sprintf("view:%d", ViewType)
+	}
+}
+
+func (gs *GameState) updateActionBarIfNeeded() {
+	if ActionMenu == nil {
+		return
+	}
+	sig := gs.actionBarSignature()
+	if sig == gs.actionBarSig && gs.actionBarItems != nil {
+		return
+	}
+	gs.actionBarSig = sig
+	gs.actionBarItems = gs.ActionItems()
+	ActionMenu.Objects[1] = gs.actionBarItems
+}
+
 func (gs *GameState) updatePanels(examine entities.ViewableEntity) {
-	SidePanel.Objects[1] = gs.sidePanelContent(examine)
-	ActionMenu.Objects[1] = gs.ActionItems()
+	if SidePanel != nil {
+		SidePanel.Objects[1] = gs.sidePanelContent(examine)
+	}
+	gs.updateActionBarIfNeeded()
 	fyne.Do(func() {
-		ActionMenu.Refresh()
-		SidePanel.Refresh()
+		if ActionMenu != nil {
+			ActionMenu.Refresh()
+		}
+		if SidePanel != nil {
+			SidePanel.Refresh()
+		}
 	})
 }
 
@@ -139,12 +183,12 @@ func (gs *GameState) createSidePanel() *fyne.Container {
 }
 
 func (gs *GameState) createActionMenu() *fyne.Container {
-	// action menu
-	actionMenu := gs.ActionItems()
+	gs.actionBarSig = ""
+	gs.updateActionBarIfNeeded()
 	viewportBg := canvas.NewRectangle(color.Black)
 
-	actionMenu.Resize(fyne.NewSize(float32(window.ActionMenu.Width), float32(window.ActionMenu.Height)))
-	return container.NewStack(viewportBg, actionMenu)
+	gs.actionBarItems.Resize(fyne.NewSize(float32(window.ActionMenu.Width), float32(window.ActionMenu.Height)))
+	return container.NewStack(viewportBg, gs.actionBarItems)
 }
 
 func (m *GameState) processTick() {

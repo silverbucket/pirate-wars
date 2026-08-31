@@ -239,6 +239,26 @@ var sailingKeyMap = KeyMap{
 	},
 }
 
+var dockKeyHandler func()
+
+func init() {
+	dockKeyHandler = func() {
+		if gameStateRef != nil {
+			gameStateRef.tryOpenDock()
+		}
+	}
+	sailingKeyMap = append(sailingKeyMap, keyItem{
+		key:  []string{"Enter", "O"},
+		help: "(Enter/O) dock",
+		cat:  KeyCatAction,
+		exec: func(m GameState) {
+			if dockKeyHandler != nil {
+				dockKeyHandler()
+			}
+		},
+	})
+}
+
 var hailKeyMap = KeyMap{
 	{
 		key:  []string{"Enter", "Escape", "X"},
@@ -349,10 +369,9 @@ func (gs *GameState) ActionItems() *fyne.Container {
 	} else if ViewType == world.ViewTypeMainMap {
 		elements = append(elements, widget.NewLabel("Sailing"))
 		keyMap = sailingKeyMap
-		if t := dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns); t != nil {
-			townRef := t
+		if dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns) != nil {
 			elements = append(elements, widget.NewButton("Dock", func() {
-				gs.openDock(townRef)
+				gs.tryOpenDock()
 			}))
 		}
 		elements = append(elements, widget.NewButton("Full sail", func() {

@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"pirate-wars/cmd/common"
+	"pirate-wars/cmd/dock"
 	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/hail"
 	"pirate-wars/cmd/tavern"
@@ -137,10 +139,38 @@ func (gs *GameState) buyFineSails() {
 	gs.sailingCfg.HullSpeed += gs.economyCfg.SailUpgradeHullBonus
 }
 
-func (gs *GameState) openDock(t *town.Town) {
+func (gs *GameState) enterDock(t *town.Town) {
 	gs.dockTown = t
 	gs.dockPage = dockPageMenu
 	ViewType = world.ViewTypeDock
+}
+
+func (gs *GameState) tryOpenDock() bool {
+	if ViewType != world.ViewTypeMainMap {
+		return false
+	}
+	t := dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns)
+	if t == nil {
+		return false
+	}
+	gs.openDock(t)
+	return true
+}
+
+func openDockIfAdjacent(gs *GameState, pos common.Coordinates, bw interface{ IsPassableByBoat(common.Coordinates) bool }, towns *town.Towns) bool {
+	if ViewType != world.ViewTypeMainMap {
+		return false
+	}
+	t := dock.AdjacentTown(pos, bw, towns)
+	if t == nil {
+		return false
+	}
+	gs.enterDock(t)
+	return true
+}
+
+func (gs *GameState) openDock(t *town.Town) {
+	gs.enterDock(t)
 	gs.showOverlay()
 	gs.updatePanels(gs.currentExamineEntity())
 }
