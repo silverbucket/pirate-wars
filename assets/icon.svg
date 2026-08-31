@@ -4,40 +4,37 @@
   <defs>
     <!-- One horizontal bone centred on the origin; used twice, rotated. -->
     <g id="bone">
-      <line x1="-165" y1="0" x2="165" y2="0" stroke="#f4efe2" stroke-width="38" stroke-linecap="round"/>
-      <circle cx="-165" cy="-21" r="25" fill="#f4efe2"/>
-      <circle cx="-165" cy="21" r="25" fill="#f4efe2"/>
-      <circle cx="165" cy="-21" r="25" fill="#f4efe2"/>
-      <circle cx="165" cy="21" r="25" fill="#f4efe2"/>
+      <line x1="-150" y1="0" x2="150" y2="0" stroke="#f4efe2" stroke-width="36" stroke-linecap="round"/>
+      <circle cx="-150" cy="-20" r="24" fill="#f4efe2"/>
+      <circle cx="-150" cy="20" r="24" fill="#f4efe2"/>
+      <circle cx="150" cy="-20" r="24" fill="#f4efe2"/>
+      <circle cx="150" cy="20" r="24" fill="#f4efe2"/>
     </g>
   </defs>
 
   <!-- Flag -->
   <circle cx="256" cy="256" r="252" fill="#141414"/>
 
-  <!-- Crossed bones, behind the skull -->
-  <use xlink:href="#bone" href="#bone" transform="translate(256 300) rotate(40)"/>
-  <use xlink:href="#bone" href="#bone" transform="translate(256 300) rotate(-40)"/>
+  <!-- Crossed bones: the X sits just under the jaw, ends peek out past the cheeks -->
+  <use xlink:href="#bone" href="#bone" transform="translate(256 352) rotate(32)"/>
+  <use xlink:href="#bone" href="#bone" transform="translate(256 352) rotate(-32)"/>
 
-  <!-- Skull -->
+  <!-- Skull, centred on the vertical axis above the crossing -->
   <g fill="#f4efe2">
-    <circle cx="256" cy="226" r="122"/>
-    <rect x="194" y="290" width="124" height="96" rx="22"/>
+    <circle cx="256" cy="178" r="106"/>
+    <rect x="206" y="246" width="100" height="76" rx="22"/>
   </g>
 
   <!-- Face, cut in the flag colour -->
   <g fill="#141414">
-    <ellipse cx="212" cy="232" rx="36" ry="42" transform="rotate(-12 212 232)"/>
-    <ellipse cx="300" cy="232" rx="36" ry="42" transform="rotate(12 300 232)"/>
-    <path d="M256 268 L238 306 Q256 316 274 306 Z"/>
-    <!-- cheek notches, so the jaw reads as a jaw and not a block -->
-    <path d="M194 292 Q172 310 194 328 Z"/>
-    <path d="M318 292 Q340 310 318 328 Z"/>
+    <ellipse cx="218" cy="184" rx="32" ry="38" transform="rotate(-12 218 184)"/>
+    <ellipse cx="294" cy="184" rx="32" ry="38" transform="rotate(12 294 184)"/>
+    <path d="M256 216 L240 250 Q256 259 272 250 Z"/>
   </g>
-  <g stroke="#141414" stroke-width="9" stroke-linecap="round">
-    <line x1="226" y1="340" x2="226" y2="378"/>
-    <line x1="246" y1="340" x2="246" y2="378"/>
-    <line x1="266" y1="340" x2="266" y2="378"/>
-    <line x1="286" y1="340" x2="286" y2="378"/>
+  <g stroke="#141414" stroke-width="8" stroke-linecap="round">
+    <line x1="229" y1="282" x2="229" y2="314"/>
+    <line x1="247" y1="282" x2="247" y2="314"/>
+    <line x1="265" y1="282" x2="265" y2="314"/>
+    <line x1="283" y1="282" x2="283" y2="314"/>
   </g>
 </svg>
