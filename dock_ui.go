@@ -56,7 +56,7 @@ func (gs *GameState) dockMenuContent() fyne.CanvasObject {
 		gs.dockPage = dockPageShipwright
 		gs.refreshOverlay()
 	})
-	closeBtn := widget.NewButton("Leave dock", func() {
+	closeBtn := widget.NewButton(barLabelFor(dockKeyMap, "Leave dock"), func() {
 		gs.closeDock()
 	})
 	return container.NewVBox(title, merchant, tavern, shipwright, closeBtn)
@@ -139,6 +139,15 @@ func (gs *GameState) buyFineSails() {
 	gs.sailingCfg.HullSpeed += gs.economyCfg.SailUpgradeHullBonus
 }
 
+// adjacentDockTown returns the dockable town next to the player, tolerating a
+// partially built game state (no player or world yet).
+func (gs *GameState) adjacentDockTown() *town.Town {
+	if gs == nil || gs.player == nil || gs.world == nil {
+		return nil
+	}
+	return dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns)
+}
+
 func (gs *GameState) enterDock(t *town.Town) {
 	gs.dockTown = t
 	gs.dockPage = dockPageMenu
@@ -149,7 +158,7 @@ func (gs *GameState) tryOpenDock() bool {
 	if ViewType != world.ViewTypeMainMap {
 		return false
 	}
-	t := dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns)
+	t := gs.adjacentDockTown()
 	if t == nil {
 		return false
 	}

@@ -18,9 +18,9 @@ func TestMain(m *testing.M) {
 // TestCreateActionMenuBeforeActionMenuAssigned guards the startup crash: createActionMenu
 // runs before the global ActionMenu exists, so the bar widgets must still get built.
 func TestCreateActionMenuBeforeActionMenuAssigned(t *testing.T) {
-	ViewType = world.ViewTypeDock
+	ViewType = world.ViewTypeMainMap
 	ActionMenu = nil
-	gs := &GameState{}
+	gs := mainMapGameState()
 
 	menu := gs.createActionMenu()
 	if menu == nil {
@@ -32,9 +32,9 @@ func TestCreateActionMenuBeforeActionMenuAssigned(t *testing.T) {
 }
 
 func TestUpdateActionBarIfNeededBuildsWithoutActionMenu(t *testing.T) {
-	ViewType = world.ViewTypeDock
+	ViewType = world.ViewTypeMainMap
 	ActionMenu = nil
-	gs := &GameState{}
+	gs := mainMapGameState()
 
 	gs.updateActionBarIfNeeded()
 	if gs.actionBarItems == nil {

@@ -1,17 +1,20 @@
 package main
 
 import (
+	"fmt"
+	"image/color"
 	"os"
 	"pirate-wars/cmd/common"
-	"pirate-wars/cmd/dock"
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/hail"
 	"pirate-wars/cmd/npc"
 	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/user_action"
 	"pirate-wars/cmd/world"
+	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 )
@@ -26,13 +29,101 @@ const KeyCatAction = 3
 const KeyCatAux = 4
 
 type keyItem struct {
-	key  []string
-	cat  int
-	help string
-	exec func(m GameState)
+	key []string
+	cat int
+	// label is the action name shown on the action bar; the bound key is appended
+	// automatically so the bar doubles as the key cheat-sheet.
+	label string
+	// keyHint overrides the displayed binding when more than the primary key is
+	// worth showing (e.g. "Enter/O" for dock).
+	keyHint string
+	// barVisible gates context-dependent commands such as dock.
+	barVisible func(gs *GameState) bool
+	exec       func(m *GameState)
 }
 
 type KeyMap []keyItem
+
+var keyDisplayNames = map[string]string{
+	"Escape": "Esc",
+	"Left":   "←",
+	"Right":  "→",
+	"Up":     "↑",
+	"Down":   "↓",
+	"ctrl+q": "Ctrl+Q",
+}
+
+func keyDisplay(key string) string {
+	if name, ok := keyDisplayNames[key]; ok {
+		return name
+	}
+	return key
+}
+
+// keyList renders every binding for the command, e.g. "←/H/A".
+func (k keyItem) keyList() string {
+	shown := make([]string, 0, len(k.key))
+	for _, key := range k.key {
+		shown = append(shown, keyDisplay(key))
+	}
+	return strings.Join(shown, "/")
+}
+
+// barLabel is the action bar button text, e.g. "Full sail (1)".
+func (k keyItem) barLabel() string {
+	hint := k.keyHint
+	if hint == "" && len(k.key) > 0 {
+		hint = keyDisplay(k.key[0])
+	}
+	if hint == "" {
+		return k.label
+	}
+	return fmt.Sprintf("%s (%s)", k.label, hint)
+}
+
+// isBarButton reports whether the command gets its own button. Heading and admin
+// keys are listed in the bar legend instead, to keep the bar from growing too wide.
+func (k keyItem) isBarButton() bool {
+	return k.label != "" && k.cat != KeyCatNav && k.cat != KeyCatAdmin
+}
+
+// legend lists the commands that have no button of their own: heading keys and
+// admin keys. It stays on one line so the bar fits the action menu area.
+func (km KeyMap) legend() string {
+	var headings, admin []string
+	for _, k := range km {
+		if k.label == "" {
+			continue
+		}
+		switch k.cat {
+		case KeyCatNav:
+			dir := strings.TrimPrefix(k.label, "Heading ")
+			headings = append(headings, fmt.Sprintf("%s:%s", dir, k.keyList()))
+		case KeyCatAdmin:
+			admin = append(admin, k.barLabel())
+		}
+	}
+
+	sections := []string{}
+	if len(headings) > 0 {
+		sections = append(sections, "Heading "+strings.Join(headings, "  "))
+	}
+	if len(admin) > 0 {
+		sections = append(sections, strings.Join(admin, "  "))
+	}
+	return strings.Join(sections, "   ·   ")
+}
+
+// barLabelFor looks up a command's bar label by action name, so overlay buttons
+// show the same key hints as the action bar without duplicating the bindings.
+func barLabelFor(km KeyMap, label string) string {
+	for _, k := range km {
+		if k.label == label {
+			return k.barLabel()
+		}
+	}
+	return label
+}
 
 func (m *GameState) syncMinimap() {
 	if ViewType == world.ViewTypeMiniMap {
@@ -71,55 +162,95 @@ func (m *GameState) processInput(key *fyne.KeyEvent, km KeyMap) {
 	for _, e := range km {
 		for _, k := range e.key {
 			if string(key.Name) == k {
-				e.exec(*m)
+				e.exec(m)
 			}
 		}
 	}
 }
 
-func keyQuit(m GameState) {
+func keyQuit(m *GameState) {
 	os.Exit(0)
 }
 
 var miniMapKeyMap = KeyMap{
 	{
-		key:  []string{"ctrl+q"},
-		cat:  KeyCatAdmin,
-		help: "(Ctrl+Q) quit",
-		exec: keyQuit,
-	},
-	{
-		key:  []string{"M", "Enter"},
-		cat:  KeyCatAux,
-		help: "(M) exit minimap",
-		exec: func(m GameState) {
+		key:   []string{"M", "Enter"},
+		cat:   KeyCatAux,
+		label: "Exit minimap",
+		exec: func(m *GameState) {
 			ViewType = world.ViewTypeMainMap
 		},
 	},
+	{
+		key:   []string{"ctrl+q"},
+		cat:   KeyCatAdmin,
+		label: "Quit",
+		exec:  keyQuit,
+	},
+}
+
+// dockKeyHandler is assigned in init to break the package initialization cycle
+// between sailingKeyMap and the dock overlay, which rebuilds the action bar.
+var dockKeyHandler func()
+
+func init() {
+	dockKeyHandler = func() {
+		if gameStateRef != nil {
+			gameStateRef.tryOpenDock()
+		}
+	}
 }
 
 var sailingKeyMap = KeyMap{
 	{
-		key:  []string{"?"},
-		cat:  KeyCatAdmin,
-		help: "(?) Help",
-		exec: func(m GameState) {
-			Action = user_action.UserActionIdHelp
+		key:        []string{"Enter", "O"},
+		label:      "Dock",
+		keyHint:    "Enter/O",
+		cat:        KeyCatAction,
+		barVisible: func(gs *GameState) bool { return gs.adjacentDockTown() != nil },
+		exec: func(m *GameState) {
+			if dockKeyHandler != nil {
+				dockKeyHandler()
+			}
 		},
 	},
 	{
-		key:  []string{"M"},
-		help: "(M) minimap",
-		cat:  KeyCatAux,
-		exec: func(m GameState) {
-			ViewType = world.ViewTypeMiniMap
+		key:   []string{"1"},
+		label: "Full sail",
+		cat:   KeyCatAction,
+		exec: func(m *GameState) {
+			setPlayerSail(m, sailing.SailFull)
 		},
 	},
 	{
-		key:  []string{"X"},
-		help: "(X) examine",
-		cat:  KeyCatAction,
-		exec: func(m GameState) {
+		key:   []string{"2"},
+		label: "Half sail",
+		cat:   KeyCatAction,
+		exec: func(m *GameState) {
+			setPlayerSail(m, sailing.SailHalf)
+		},
+	},
+	{
+		key:   []string{"3"},
+		label: "Furled",
+		cat:   KeyCatAction,
+		exec: func(m *GameState) {
+			setPlayerSail(m, sailing.SailFurled)
+		},
+	},
+	{
+		key:   []string{"V"},
+		label: "Cycle sail",
+		cat:   KeyCatAction,
+		exec: func(m *GameState) {
+			cyclePlayerSail(m)
+		},
+	},
+	{
+		key:   []string{"X"},
+		label: "Examine",
+		cat:   KeyCatAction,
+		exec: func(m *GameState) {
 			Action = user_action.UserActionIdExamine
 			npcs := m.npcs.GetVisible(m.player.GetPos(), m.player.GetViewableRange())
 			towns := m.towns.GetVisible(m.player.GetPos())
@@ -136,135 +267,100 @@ var sailingKeyMap = KeyMap{
 		},
 	},
 	{
-		key:  []string{"Left", "H", "A"},
-		help: "heading W",
-		cat:  KeyCatNav,
-		exec: func(m GameState) {
-			setPlayerHeading(&m, common.Coordinates{X: -1, Y: 0})
+		key:   []string{"M"},
+		label: "Minimap",
+		cat:   KeyCatAux,
+		exec: func(m *GameState) {
+			ViewType = world.ViewTypeMiniMap
 		},
 	},
 	{
-		key:  []string{"Right", "L", "D"},
-		help: "heading E",
-		cat:  KeyCatNav,
-		exec: func(m GameState) {
-			setPlayerHeading(&m, common.Coordinates{X: 1, Y: 0})
+		key:   []string{"Up", "K", "W"},
+		label: "Heading N",
+		cat:   KeyCatNav,
+		exec: func(m *GameState) {
+			setPlayerHeading(m, common.Coordinates{X: 0, Y: -1})
 		},
 	},
 	{
-		key:  []string{"Up", "K", "W"},
-		help: "heading N",
-		cat:  KeyCatNav,
-		exec: func(m GameState) {
-			setPlayerHeading(&m, common.Coordinates{X: 0, Y: -1})
+		key:   []string{"Down", "J", "S"},
+		label: "Heading S",
+		cat:   KeyCatNav,
+		exec: func(m *GameState) {
+			setPlayerHeading(m, common.Coordinates{X: 0, Y: 1})
 		},
 	},
 	{
-		key:  []string{"Down", "J", "S"},
-		help: "heading S",
-		cat:  KeyCatNav,
-		exec: func(m GameState) {
-			setPlayerHeading(&m, common.Coordinates{X: 0, Y: 1})
+		key:   []string{"Left", "H", "A"},
+		label: "Heading W",
+		cat:   KeyCatNav,
+		exec: func(m *GameState) {
+			setPlayerHeading(m, common.Coordinates{X: -1, Y: 0})
 		},
 	},
 	{
-		key:  []string{"Q", "Y"},
-		help: "heading NW",
-		cat:  KeyCatNav,
-		exec: func(m GameState) {
-			setPlayerHeading(&m, common.Coordinates{X: -1, Y: -1})
+		key:   []string{"Right", "L", "D"},
+		label: "Heading E",
+		cat:   KeyCatNav,
+		exec: func(m *GameState) {
+			setPlayerHeading(m, common.Coordinates{X: 1, Y: 0})
 		},
 	},
 	{
-		key:  []string{"B", "Z"},
-		help: "heading SW",
-		cat:  KeyCatNav,
-		exec: func(m GameState) {
-			setPlayerHeading(&m, common.Coordinates{X: -1, Y: 1})
+		key:   []string{"Q", "Y"},
+		label: "Heading NW",
+		cat:   KeyCatNav,
+		exec: func(m *GameState) {
+			setPlayerHeading(m, common.Coordinates{X: -1, Y: -1})
 		},
 	},
 	{
-		key:  []string{"U", "E"},
-		help: "heading NE",
-		cat:  KeyCatNav,
-		exec: func(m GameState) {
-			setPlayerHeading(&m, common.Coordinates{X: 1, Y: -1})
+		key:   []string{"E", "U"},
+		label: "Heading NE",
+		cat:   KeyCatNav,
+		exec: func(m *GameState) {
+			setPlayerHeading(m, common.Coordinates{X: 1, Y: -1})
 		},
 	},
 	{
-		key:  []string{"N", "C"},
-		help: "heading SE",
-		cat:  KeyCatNav,
-		exec: func(m GameState) {
-			setPlayerHeading(&m, common.Coordinates{X: 1, Y: 1})
+		key:   []string{"Z", "B"},
+		label: "Heading SW",
+		cat:   KeyCatNav,
+		exec: func(m *GameState) {
+			setPlayerHeading(m, common.Coordinates{X: -1, Y: 1})
 		},
 	},
 	{
-		key:  []string{"1"},
-		help: "full sail",
-		cat:  KeyCatAction,
-		exec: func(m GameState) {
-			setPlayerSail(&m, sailing.SailFull)
+		key:   []string{"C", "N"},
+		label: "Heading SE",
+		cat:   KeyCatNav,
+		exec: func(m *GameState) {
+			setPlayerHeading(m, common.Coordinates{X: 1, Y: 1})
 		},
 	},
 	{
-		key:  []string{"2"},
-		help: "half sail",
-		cat:  KeyCatAction,
-		exec: func(m GameState) {
-			setPlayerSail(&m, sailing.SailHalf)
+		key:   []string{"?"},
+		label: "Help",
+		cat:   KeyCatAdmin,
+		exec: func(m *GameState) {
+			Action = user_action.UserActionIdHelp
 		},
 	},
 	{
-		key:  []string{"3"},
-		help: "furled sail",
-		cat:  KeyCatAction,
-		exec: func(m GameState) {
-			setPlayerSail(&m, sailing.SailFurled)
-		},
+		key:   []string{"ctrl+q"},
+		label: "Quit",
+		cat:   KeyCatAdmin,
+		exec:  keyQuit,
 	},
-	{
-		key:  []string{"V"},
-		help: "cycle sail",
-		cat:  KeyCatAction,
-		exec: func(m GameState) {
-			cyclePlayerSail(&m)
-		},
-	},
-	{
-		key:  []string{"ctrl+q"},
-		help: "(Ctrl+Q) quit",
-		cat:  KeyCatAdmin,
-		exec: keyQuit,
-	},
-}
-
-var dockKeyHandler func()
-
-func init() {
-	dockKeyHandler = func() {
-		if gameStateRef != nil {
-			gameStateRef.tryOpenDock()
-		}
-	}
-	sailingKeyMap = append(sailingKeyMap, keyItem{
-		key:  []string{"Enter", "O"},
-		help: "(Enter/O) dock",
-		cat:  KeyCatAction,
-		exec: func(m GameState) {
-			if dockKeyHandler != nil {
-				dockKeyHandler()
-			}
-		},
-	})
 }
 
 var hailKeyMap = KeyMap{
 	{
-		key:  []string{"Enter", "Escape", "X"},
-		help: "Dismiss hail",
-		cat:  KeyCatAction,
-		exec: func(m GameState) {
+		key:     []string{"Enter", "Escape", "X"},
+		label:   "Dismiss",
+		keyHint: "Enter/Esc/X",
+		cat:     KeyCatAction,
+		exec: func(m *GameState) {
 			if gameStateRef != nil {
 				gameStateRef.hailData = hail.Payload{}
 				ViewType = world.ViewTypeMainMap
@@ -273,19 +369,19 @@ var hailKeyMap = KeyMap{
 		},
 	},
 	{
-		key:  []string{"ctrl+q"},
-		help: "(Ctrl+Q) quit",
-		cat:  KeyCatAdmin,
-		exec: keyQuit,
+		key:   []string{"ctrl+q"},
+		label: "Quit",
+		cat:   KeyCatAdmin,
+		exec:  keyQuit,
 	},
 }
 
 var dockKeyMap = KeyMap{
 	{
-		key:  []string{"Escape"},
-		help: "Leave dock",
-		cat:  KeyCatAction,
-		exec: func(m GameState) {
+		key:   []string{"Escape"},
+		label: "Leave dock",
+		cat:   KeyCatAction,
+		exec: func(m *GameState) {
 			if gameStateRef != nil {
 				gameStateRef.dockTown = nil
 				gameStateRef.dockPage = dockPageMenu
@@ -296,106 +392,108 @@ var dockKeyMap = KeyMap{
 		},
 	},
 	{
-		key:  []string{"ctrl+q"},
-		help: "(Ctrl+Q) quit",
-		cat:  KeyCatAdmin,
-		exec: keyQuit,
+		key:   []string{"ctrl+q"},
+		label: "Quit",
+		cat:   KeyCatAdmin,
+		exec:  keyQuit,
 	},
 }
 
 var examineKeyMap = KeyMap{
 	{
-		key:  []string{"X", "Enter"},
-		help: "(X) exit examine mode",
-		cat:  KeyCatAction,
-		exec: func(m GameState) {
+		key:     []string{"X", "Enter"},
+		label:   "Exit examine",
+		keyHint: "X/Enter",
+		cat:     KeyCatAction,
+		exec: func(m *GameState) {
 			Action = user_action.UserActionIdNone
 			ViewType = world.ViewTypeMainMap
 			ExamineData = user_action.Examine()
 		},
 	},
 	{
-		key:  []string{"Left", "H", "A"},
-		help: "(←) examine left",
-		cat:  KeyCatAux,
-		exec: func(m GameState) {
+		key:     []string{"Left", "H", "A"},
+		label:   "Examine left",
+		keyHint: "←/H/A",
+		cat:     KeyCatAux,
+		exec: func(m *GameState) {
 			ExamineData.FocusLeft()
 		},
 	},
 	{
-		key:  []string{"Right", "L", "D"},
-		help: "(→) examine right",
-		cat:  KeyCatAux,
-		exec: func(m GameState) {
+		key:     []string{"Right", "L", "D"},
+		label:   "Examine right",
+		keyHint: "→/L/D",
+		cat:     KeyCatAux,
+		exec: func(m *GameState) {
 			ExamineData.FocusRight()
 		},
 	},
 	{
-		key:  []string{"ctrl+q"},
-		help: "(Ctrl+Q) quit",
-		cat:  KeyCatAdmin,
-		exec: keyQuit,
+		key:   []string{"ctrl+q"},
+		label: "Quit",
+		cat:   KeyCatAdmin,
+		exec:  keyQuit,
 	},
 }
 
+// actionBarContext returns the bar title and the key map driving the current view.
+func actionBarContext() (string, KeyMap) {
+	switch ViewType {
+	case world.ViewTypeExamine:
+		return examineActionBarLabel(ExamineData.GetFocusedEntity()), examineKeyMap
+	case world.ViewTypeMiniMap:
+		return "MiniMap", miniMapKeyMap
+	case world.ViewTypeDock:
+		return "Dock", dockKeyMap
+	case world.ViewTypeHail:
+		return "Hail", hailKeyMap
+	case world.ViewTypeMainMap:
+		return "Sailing", sailingKeyMap
+	}
+	return "", nil
+}
+
+// ActionItems builds the bottom bar as a row of buttons, one per available command
+// and each labelled with its key, above a legend line listing the view name plus the
+// heading and admin keys that have no button of their own. Every binding is visible.
 func (gs *GameState) ActionItems() *fyne.Container {
-	elements := []fyne.CanvasObject{}
+	title, keyMap := actionBarContext()
 
-	var keyMap KeyMap
-	if ViewType == world.ViewTypeExamine {
-		elements = append(elements, widget.NewLabel(examineActionBarLabel(ExamineData.GetFocusedEntity())))
-		keyMap = examineKeyMap
-	} else if ViewType == world.ViewTypeMiniMap {
-		elements = append(elements, widget.NewLabel("MiniMap"))
-		keyMap = miniMapKeyMap
-	} else if ViewType == world.ViewTypeDock {
-		elements = append(elements, widget.NewLabel("Dock"))
-		keyMap = dockKeyMap
-		elements = append(elements, widget.NewButton("Leave dock", func() {
-			gs.dockTown = nil
-			gs.dockPage = dockPageMenu
-			gs.tavernRumor = ""
-			ViewType = world.ViewTypeMainMap
-			gs.hideOverlay()
-		}))
-	} else if ViewType == world.ViewTypeHail {
-		elements = append(elements, widget.NewLabel("Hail"))
-		keyMap = hailKeyMap
-		elements = append(elements, widget.NewButton("Dismiss", func() {
-			gs.hailData = hail.Payload{}
-			ViewType = world.ViewTypeMainMap
-			gs.hideOverlay()
-		}))
-	} else if ViewType == world.ViewTypeMainMap {
-		elements = append(elements, widget.NewLabel("Sailing"))
-		keyMap = sailingKeyMap
-		if dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns) != nil {
-			elements = append(elements, widget.NewButton("Dock", func() {
-				gs.tryOpenDock()
-			}))
-		}
-		elements = append(elements, widget.NewButton("Full sail", func() {
-			setPlayerSail(gs, sailing.SailFull)
-			gs.syncMinimap()
-		}))
-		elements = append(elements, widget.NewButton("Half sail", func() {
-			setPlayerSail(gs, sailing.SailHalf)
-			gs.syncMinimap()
-		}))
-		elements = append(elements, widget.NewButton("Furled", func() {
-			setPlayerSail(gs, sailing.SailFurled)
-			gs.syncMinimap()
-		}))
-	}
-
+	buttons := []fyne.CanvasObject{}
 	for _, k := range keyMap {
-		if k.cat != KeyCatAdmin && k.cat != KeyCatNav {
-			elements = append(elements, widget.NewButton(k.help, func() {
-				k.exec(*gs)
-				gs.syncMinimap()
-			}))
+		item := k
+		if !item.isBarButton() {
+			continue
 		}
+		if item.barVisible != nil && !item.barVisible(gs) {
+			continue
+		}
+		buttons = append(buttons, widget.NewButton(item.barLabel(), func() {
+			item.exec(gs)
+			gs.syncMinimap()
+		}))
 	}
 
-	return container.NewHBox(elements...)
+	caption := title
+	if legend := keyMap.legend(); legend != "" {
+		if caption != "" {
+			caption += "   ·   "
+		}
+		caption += legend
+	}
+
+	rows := []fyne.CanvasObject{container.NewHBox(buttons...)}
+	if caption != "" {
+		rows = append(rows, actionBarCaption(caption))
+	}
+	return container.NewVBox(rows...)
+}
+
+// actionBarCaption renders the legend line. canvas.Text is used instead of a Label
+// so the legend and the button row both fit the action menu height.
+func actionBarCaption(text string) *canvas.Text {
+	caption := canvas.NewText(text, color.RGBA{R: 200, G: 200, B: 200, A: 255})
+	caption.TextSize = 13
+	return caption
 }

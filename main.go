@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"image/color"
-	"pirate-wars/cmd/dock"
 	"pirate-wars/cmd/economy"
 	"pirate-wars/cmd/entities"
 	"pirate-wars/cmd/hail"
@@ -119,10 +118,8 @@ func (gs *GameState) updateDebugOverlay() {
 func (gs *GameState) actionBarSignature() string {
 	switch ViewType {
 	case world.ViewTypeMainMap:
-		if gs.player != nil {
-			if t := dock.AdjacentTown(gs.player.GetPos(), gs.world, gs.towns); t != nil {
-				return fmt.Sprintf("main:%s", t.GetID())
-			}
+		if t := gs.adjacentDockTown(); t != nil {
+			return fmt.Sprintf("main:%s", t.GetID())
 		}
 		return "main:"
 	case world.ViewTypeExamine:
