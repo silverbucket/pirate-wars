@@ -138,17 +138,23 @@ func (gs *GameState) actionBarSignature() string {
 	}
 }
 
+// updateActionBarIfNeeded rebuilds the action bar widgets only when the set of
+// available commands changes, so buttons survive between ticks and stay clickable.
+// The widgets are built even before ActionMenu exists, since createActionMenu
+// needs them to assemble the container.
 func (gs *GameState) updateActionBarIfNeeded() {
-	if ActionMenu == nil {
-		return
-	}
 	sig := gs.actionBarSignature()
-	if sig == gs.actionBarSig && gs.actionBarItems != nil {
+	if sig != gs.actionBarSig || gs.actionBarItems == nil {
+		gs.actionBarSig = sig
+		gs.actionBarItems = gs.ActionItems()
+		if ActionMenu != nil {
+			ActionMenu.Objects[1] = gs.actionBarItems
+		}
 		return
 	}
-	gs.actionBarSig = sig
-	gs.actionBarItems = gs.ActionItems()
-	ActionMenu.Objects[1] = gs.actionBarItems
+	if ActionMenu != nil && ActionMenu.Objects[1] != gs.actionBarItems {
+		ActionMenu.Objects[1] = gs.actionBarItems
+	}
 }
 
 func (gs *GameState) updatePanels(examine entities.ViewableEntity) {
@@ -184,6 +190,7 @@ func (gs *GameState) createSidePanel() *fyne.Container {
 
 func (gs *GameState) createActionMenu() *fyne.Container {
 	gs.actionBarSig = ""
+	gs.actionBarItems = nil
 	gs.updateActionBarIfNeeded()
 	viewportBg := canvas.NewRectangle(color.Black)
 
