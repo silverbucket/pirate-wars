@@ -27,8 +27,10 @@ between the best and worst combinations. The side panel reports every term, and
 the compass shows your heading against the wind: needles together is a run
 (fastest), opposed is in irons (a standstill).
 
-**Furled sail is a dead stop, not a slow crawl.** `S` at furled leaves you
-becalmed; the panel says so, and `W` sets canvas again.
+**Furled sail is a dead stop, not a slow crawl.** `S` at furled takes all the
+canvas off her and the ship stops; the panel names that as the cause, and `W`
+sets sail again. It is distinct from being *becalmed*, which is wind strength 0
+and is not something you can trim your way out of.
 
 ### Keybindings
 

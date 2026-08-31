@@ -221,6 +221,7 @@ func (m *GameState) tap(x, y int) {
 // used by the KeyMap tables.
 func pressedKeyNames() []string {
 	ctrl := ebiten.IsKeyPressed(ebiten.KeyControlLeft) || ebiten.IsKeyPressed(ebiten.KeyControlRight)
+	shift := ebiten.IsKeyPressed(ebiten.KeyShiftLeft) || ebiten.IsKeyPressed(ebiten.KeyShiftRight)
 
 	var names []string
 	for _, k := range inpututil.AppendJustPressedKeys(nil) {
@@ -230,7 +231,7 @@ func pressedKeyNames() []string {
 			}
 			continue
 		}
-		if name := keyName(k); name != "" {
+		if name := keyName(k, shift); name != "" {
 			names = append(names, name)
 		}
 	}
@@ -238,7 +239,17 @@ func pressedKeyNames() []string {
 }
 
 // keyName maps an Ebiten key to the name used in the key map tables.
-func keyName(k ebiten.Key) string {
+//
+// The slash key reports "?" only with shift held. Reporting "?" unconditionally
+// meant plain "/" opened help while the bar, the README and the help screen all
+// named the binding as "?" — a key doing something nothing advertised.
+func keyName(k ebiten.Key, shift bool) string {
+	if k == ebiten.KeySlash {
+		if shift {
+			return "?"
+		}
+		return "/"
+	}
 	switch k {
 	case ebiten.KeyArrowLeft:
 		return "Left"
@@ -252,8 +263,6 @@ func keyName(k ebiten.Key) string {
 		return "Enter"
 	case ebiten.KeyEscape:
 		return "Escape"
-	case ebiten.KeySlash:
-		return "?"
 	case ebiten.KeyF1:
 		return "F1"
 	case ebiten.KeyF3:

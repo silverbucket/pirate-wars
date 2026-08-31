@@ -9,6 +9,7 @@ import (
 	"pirate-wars/cmd/sailing"
 	"pirate-wars/cmd/world"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"go.uber.org/zap"
 )
 
@@ -367,6 +368,73 @@ func TestSailingBarShowsSteeringKeys(t *testing.T) {
 	for _, want := range []string{"Tack port (A)", "Tack starboard (D)", "More sail (W)", "Less sail (S)"} {
 		if !strings.Contains(labels, want) {
 			t.Fatalf("bar buttons missing %q, got %s", want, labels)
+		}
+	}
+}
+
+// TestSlashOnlyReportsQuestionMarkWithShift covers a review finding.
+//
+// keyName mapped ebiten.KeySlash to "?" unconditionally, so plain "/" opened the
+// help screen while the action bar, the README and the help screen all named the
+// binding as "?". A key that does something nothing advertises is exactly the
+// class of problem the self-documenting action bar exists to prevent.
+func TestSlashOnlyReportsQuestionMarkWithShift(t *testing.T) {
+	if got := keyName(ebiten.KeySlash, true); got != "?" {
+		t.Fatalf("shift+slash = %q, want ?", got)
+	}
+	if got := keyName(ebiten.KeySlash, false); got != "/" {
+		t.Fatalf("plain slash = %q, want /", got)
+	}
+
+	bound := map[string]bool{}
+	for _, item := range sailingKeyMap() {
+		for _, k := range item.key {
+			bound[k] = true
+		}
+	}
+	if !bound["?"] {
+		t.Fatal("help should be bound to ?")
+	}
+	if bound["/"] {
+		t.Fatal("plain / should be unbound: the bar advertises ? and F1")
+	}
+
+	gs := mainMapGameState()
+	ViewType = world.ViewTypeMainMap
+	gs.handleKeyPress("/")
+	if ViewType == world.ViewTypeHelp {
+		t.Fatal("plain / should not open help")
+	}
+	gs.handleKeyPress("?")
+	if ViewType != world.ViewTypeHelp {
+		t.Fatalf("? should open help, ViewType = %d", ViewType)
+	}
+}
+
+// TestEveryBarBindingIsReachable is the general form of the finding above: every
+// key named on the action bar must be a name keyName can actually produce.
+func TestEveryBarBindingIsReachable(t *testing.T) {
+	producible := map[string]bool{"ctrl+q": true}
+	for _, shift := range []bool{false, true} {
+		for k := ebiten.Key(0); k <= ebiten.KeyMax; k++ {
+			if n := keyName(k, shift); n != "" {
+				producible[n] = true
+			}
+		}
+	}
+
+	maps := map[string]KeyMap{
+		"sailing": sailingKeyMap(), "minimap": miniMapKeyMap(), "examine": examineKeyMap(),
+		"dock": dockKeyMap(), "hail": hailKeyMap(), "help": helpKeyMap(), "quit": quitConfirmKeyMap(),
+	}
+	for name, km := range maps {
+		for _, item := range km {
+			for _, k := range item.key {
+				if !producible[k] {
+					t.Fatalf("%s key map binds %q to %q, but no key press produces that name",
+						name, k, item.label)
+				}
+			}
 		}
 	}
 }
