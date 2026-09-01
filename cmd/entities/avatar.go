@@ -31,7 +31,9 @@ type AvatarReadOnly interface {
 	GetPreviousPos() common.Coordinates
 	GetFacing() common.Facing
 	GetTileImage() image.Image
+	GetTileImageFacing(f common.Facing) image.Image
 	GetViewableRange() window.Dimensions
+	GetLastSpeed() float64
 	IsHighlighted() bool
 	GetColor() color.Color
 	MovedThisTick() bool
@@ -132,6 +134,14 @@ func (a *Avatar) GetViewableRange() window.Dimensions {
 
 func (a *Avatar) GetTileImage() image.Image {
 	return a.image
+}
+
+// GetTileImageFacing returns the hull sprite for an arbitrary heading. The
+// renderer draws the hull along its smoothed trail direction, which turns a
+// segment later than the logical facing — otherwise a tacking ship rotates
+// while still sliding along its old course.
+func (a *Avatar) GetTileImageFacing(f common.Facing) image.Image {
+	return resources.GetShipTile(a.ship, f)
 }
 
 func CreateAvatar(pos common.Coordinates, ship common.ShipType, c color.Color) Avatar {

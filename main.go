@@ -122,6 +122,11 @@ func (gs *GameState) processTick() {
 
 	if ViewType == world.ViewTypeMainMap {
 		gs.resolveSailingTick()
+	} else {
+		// A glide replays every tick while its moved-flag stands; off the
+		// sailing map nothing re-resolves movement, so clear them here.
+		gs.player.ClearMovedFlag()
+		gs.npcs.ClearMovedFlags()
 	}
 
 	gs.world.AdvanceAnimation()
@@ -187,7 +192,10 @@ func (gs *GameState) Draw(screen *ebiten.Image) {
 
 	viewport := screen.SubImage(viewportRect).(*ebiten.Image)
 	highlight := ExamineData.GetFocusedEntity()
-	gs.world.Draw(viewport, gs.player, gs.visibleNPCs(), highlight, gs.wind.Facing)
+	gs.world.Draw(viewport, gs.player, gs.visibleNPCs(), highlight, world.Motion{
+		Time:        time.Since(gs.startedAt).Seconds(),
+		TickSeconds: gs.sailingCfg.TickDuration().Seconds(),
+	})
 
 	if ViewType == world.ViewTypeMiniMap {
 		gs.drawMinimap(screen)

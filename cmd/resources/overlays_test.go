@@ -33,8 +33,8 @@ func TestExpandedOverlayTilesUseAlpha(t *testing.T) {
 	}
 
 	for name, getter := range map[string]func(int) image.Image{
-		"player marker":  GetPlayerMarkerOverlay,
-		"examine ring":   GetExamineRingOverlay,
+		"player marker": GetPlayerMarkerOverlay,
+		"examine ring":  GetExamineRingOverlay,
 	} {
 		t.Run(name, func(t *testing.T) {
 			img := getter(32)

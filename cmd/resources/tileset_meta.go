@@ -1,7 +1,7 @@
 package resources
 
-const ExpandedTilesetHeight = 384
-const SailingVisualsTilesetHeight = 448
+const ExpandedTilesetHeight = TileSize * 12
+const SailingVisualsTilesetHeight = TileSize * 14
 
 // Coast tile coordinates (col, row).
 const (
@@ -23,10 +23,10 @@ const (
 	WaveFrame3Col = 3
 	WaveFrame3Row = 11
 
-	ExamineRingCol   = 4
-	ExamineRingRow   = 11
-	PlayerMarkerCol  = 5
-	PlayerMarkerRow  = 11
+	ExamineRingCol  = 4
+	ExamineRingRow  = 11
+	PlayerMarkerCol = 5
+	PlayerMarkerRow = 11
 )
 
 // GetTilesetHeight returns the loaded tileset height in pixels.
@@ -44,6 +44,18 @@ func HasSailingVisualsTileset() bool {
 	return GetTilesetHeight() >= SailingVisualsTilesetHeight
 }
 
+// AnimatedCoastTilesetHeight marks a sheet carrying rows 14–15: the second
+// coast-foam frame, offset CoastFrameRowStride rows below the first.
+const AnimatedCoastTilesetHeight = TileSize * 16
+
+// CoastFrameRowStride is the row offset from a coast tile to its frame-B twin.
+const CoastFrameRowStride = 4
+
+// HasAnimatedCoastTileset reports whether the breathing-shoreline frames exist.
+func HasAnimatedCoastTileset() bool {
+	return GetTilesetHeight() >= AnimatedCoastTilesetHeight
+}
+
 // Pennant tile coordinates (col, row) — pennant points downwind.
 const (
 	PennantRow = 12
@@ -55,10 +67,10 @@ const (
 	PennantSCol  = 4
 	PennantSWCol = 5
 
-	PennantWRow   = 13
-	PennantWCol   = 0
-	PennantNWCol  = 1
-	PennantNWRow  = 13
+	PennantWRow  = 13
+	PennantWCol  = 0
+	PennantNWCol = 1
+	PennantNWRow = 13
 
 	WakeFrame0Col = 2
 	WakeFrame0Row = 13

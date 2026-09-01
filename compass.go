@@ -60,7 +60,8 @@ func drawCompass(dst *ebiten.Image, bounds image.Rectangle, heading common.Facin
 	drawText(dst, "N", int(cx)-3, bounds.Min.Y-gfx.LineHeight+2, colorTextDim)
 
 	if wind != nil {
-		// The wind needle points downwind, matching the pennant on the map.
+		// The wind needle points downwind: it shows where the wind is going,
+		// not where it comes from, matching how a masthead pennant streams.
 		wx, wy := facingVector(wind.Facing)
 		vector.StrokeLine(dst,
 			cx-float32(wx)*(r-8), cy-float32(wy)*(r-8),

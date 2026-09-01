@@ -19,9 +19,12 @@ type DimensionsAndRegion struct {
 	Region     Region
 }
 
+// Window grew alongside the move to 64px tiles: at 1024x768 the doubled cells
+// left a 13x10 view, too blind for sailing. 1280x800 keeps a 17x11 field of
+// view and still fits the smallest laptop displays.
 var Window Dimensions = Dimensions{
-	Width:  1024,
-	Height: 768,
+	Width:  1280,
+	Height: 800,
 }
 
 var SidePanel Dimensions = Dimensions{
@@ -37,7 +40,7 @@ var ActionMenu Dimensions = Dimensions{
 }
 
 // CellSize matches native tileset pixels so ship art is readable at follow-cam zoom.
-var CellSize = 32
+var CellSize = 64
 
 var viewPortWidth = Window.Width - SidePanel.Width
 var viewPortHeight = Window.Height - ActionMenu.Height + 28

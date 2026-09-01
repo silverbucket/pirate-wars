@@ -10,7 +10,7 @@ import (
 )
 
 // TileSize represents the size of each tile in the tileset
-const TileSize = 32
+const TileSize = 64
 
 // TileMapping maps terrain types to tile coordinates in the tileset
 var TileMapping = map[int]image.Point{
@@ -226,4 +226,16 @@ func getTileset() image.Image {
 		}
 	}
 	return tilesetCache
+}
+
+// OverrideTileset replaces the bundled tileset at runtime and clears every
+// derived tile cache. This exists for art-iteration tooling
+// (scripts/render-preview -tileset); the game itself always uses the bundle.
+func OverrideTileset(img image.Image) {
+	tilesetCache = img
+	tileCache = make(map[int]image.Image)
+	shipTileCache = make(map[int]image.Image)
+	regionTileCache = make(map[image.Point]image.Image)
+	ResetWaterFrameCache()
+	ResetWaterBlendCache()
 }
