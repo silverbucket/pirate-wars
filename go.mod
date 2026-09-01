@@ -8,7 +8,7 @@ require (
 	github.com/hajimehoshi/ebiten/v2 v2.9.11
 	github.com/ojrac/opensimplex-go v1.0.2
 	go.uber.org/zap v1.28.0
-	golang.org/x/text v0.38.0
+	golang.org/x/text v0.41.0
 )
 
 require (
@@ -22,6 +22,6 @@ require (
 	github.com/stretchr/testify v1.11.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/image v0.43.0 // indirect
-	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
 )
