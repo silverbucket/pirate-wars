@@ -181,7 +181,11 @@ func writeFrame(path string, waveFrame int, simTime, tickT float64, ticksDone in
 		vx, vy := visual(s)
 		roll := 0.045 * math.Sin(simTime*1.4+s.phase)
 		bob := 1.6 * math.Sin(simTime*2.2+s.phase*1.7)
-		hull := toNRGBA(resources.GetShipTile(s.ship, s.facing))
+		tile := resources.GetShipTile(s.ship, s.facing)
+		if tile == nil {
+			fatal(fmt.Errorf("tileset has no hull tile for ship %v facing %s: too short for a %dpx sheet", s.ship, common.FacingLabel(s.facing), resources.TileSize))
+		}
+		hull := toNRGBA(tile)
 		blitAt(img, resources.RotateSprite(hull, roll), vx*cell, vy*cell+bob)
 	}
 
